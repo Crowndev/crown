@@ -1361,7 +1361,7 @@ CoinsViews::CoinsViews(
 
 void CoinsViews::InitCache()
 {
-    m_cacheview = MakeUnique<CCoinsViewCache>(&m_catcherview);
+    m_cacheview = std::make_unique<CCoinsViewCache>(&m_catcherview);
 }
 
 CChainState::CChainState(CTxMemPool& mempool, BlockManager& blockman, uint256 from_snapshot_blockhash)
@@ -1379,7 +1379,7 @@ void CChainState::InitCoinsDB(
         leveldb_name += "_" + m_from_snapshot_blockhash.ToString();
     }
 
-    m_coins_views = MakeUnique<CoinsViews>(
+    m_coins_views = std::make_unique<CoinsViews>(
         leveldb_name, cache_size_bytes, in_memory, should_wipe);
 }
 

@@ -5,6 +5,7 @@
 
 #include <sync.h>
 #include <util/system.h>
+#include <memory>
 
 #ifdef HAVE_BOOST_PROCESS
 #include <boost/process.hpp>
