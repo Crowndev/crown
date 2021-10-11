@@ -643,15 +643,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (m_pool.exists(hash)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool");
     }
-/*
-    // ----------- instantX transaction scanning -----------
-    for (const auto& in : tx.vin) {
-        const auto txHash = instantSend.GetLockedTx(in.prevout);
-        if (txHash && txHash != tx.GetHash()) {
-            return state.Invalid(TxValidationResult::TX_CONFLICT, "tx-lock-conflict");
-        }
-    }
-*/
+
     // Check for conflicts with in-memory transactions
     for (const CTxIn &txin : tx.vin)
     {
@@ -1307,7 +1299,8 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000) 
+        nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
