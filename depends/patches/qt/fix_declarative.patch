@@ -1,0 +1,10 @@
+--- a/qtdeclarative/src/qml/qml/qqmlapplicationengine.cpp	2019-10-18 14:18:05.000000000 +0200
++++ b/qtdeclarative/src/qml/qml/qqmlapplicationengine.cpp	2021-06-07 09:40:35.558732000 +0200
+@@ -129,7 +129,7 @@
+     switch (c->status()) {
+     case QQmlComponent::Error:
+         qWarning() << "QQmlApplicationEngine failed to load component";
+-        qWarning() << qPrintable(c->errorString());
++        warning(c->errors());
+         q->objectCreated(nullptr, c->url());
+         break;

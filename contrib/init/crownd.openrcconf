@@ -1,0 +1,33 @@
+# /etc/conf.d/crownd: config file for /etc/init.d/crownd
+
+# Config file location
+#CROWND_CONFIGFILE="/etc/crown/crown.conf"
+
+# What directory to write pidfile to?  (created and owned by $CROWND_USER)
+#CROWND_PIDDIR="/var/run/crownd"
+
+# What filename to give the pidfile
+#CROWND_PIDFILE="${CROWND_PIDDIR}/crownd.pid"
+
+# Where to write crownd data (be mindful that the blockchain is large)
+#CROWND_DATADIR="/var/lib/crownd"
+
+# User and group to own crownd process
+#CROWND_USER="crown"
+#CROWND_GROUP="crown"
+
+# Path to crownd executable
+#CROWND_BIN="/usr/bin/crownd"
+
+# Nice value to run crownd under
+#CROWND_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#CROWND_OPTS=""
+
+# The timeout in seconds OpenRC will wait for crownd to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+CROWND_SIGTERM_TIMEOUT=600

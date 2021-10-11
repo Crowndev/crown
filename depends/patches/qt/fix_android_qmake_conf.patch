@@ -1,0 +1,30 @@
+--- old/qtbase/mkspecs/android-clang/qmake.conf
++++ new/qtbase/mkspecs/android-clang/qmake.conf
+@@ -15,15 +15,13 @@
+ QMAKE_CXX     = $$NDK_LLVM_PATH/bin/clang++
+ 
+ equals(ANDROID_TARGET_ARCH, armeabi-v7a): \
+-    QMAKE_CFLAGS += -target armv7-none-linux-androideabi
+-else: equals(ANDROID_TARGET_ARCH, armeabi): \
+-    QMAKE_CFLAGS += -target armv5te-none-linux-androideabi
++    QMAKE_CFLAGS = -target armv7a-linux-androideabi$$replace(ANDROID_PLATFORM, "android-", "")
+ else: equals(ANDROID_TARGET_ARCH, arm64-v8a): \
+-    QMAKE_CFLAGS += -target aarch64-none-linux-android
++    QMAKE_CFLAGS = -target aarch64-linux-android$$replace(ANDROID_PLATFORM, "android-", "")
+ else: equals(ANDROID_TARGET_ARCH, x86): \
+-    QMAKE_CFLAGS += -target i686-none-linux-android -mstackrealign
++    QMAKE_CFLAGS = -target i686-linux-android$$replace(ANDROID_PLATFORM, "android-", "") -mstackrealign
+ else: equals(ANDROID_TARGET_ARCH, x86_64): \
+-    QMAKE_CFLAGS += -target x86_64-none-linux-android
++    QMAKE_CFLAGS = -target x86_64-linux-android$$replace(ANDROID_PLATFORM, "android-", "")
+ 
+ QMAKE_CFLAGS += -gcc-toolchain $$NDK_TOOLCHAIN_PATH -fno-limit-debug-info
+ 
+@@ -43,7 +41,7 @@
+ ANDROID_USE_LLVM = true
+ 
+ exists($$ANDROID_SOURCES_CXX_STL_LIBDIR/libc++.so): \
+-    ANDROID_CXX_STL_LIBS = -lc++
++    ANDROID_CXX_STL_LIBS = -lc++_shared
+ else: \
+     ANDROID_CXX_STL_LIBS = $$ANDROID_SOURCES_CXX_STL_LIBDIR/libc++.so.$$replace(ANDROID_PLATFORM, "android-", "")

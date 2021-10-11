@@ -1,0 +1,11 @@
+--- old/qtbase/src/platformsupport/platformsupport.pro	2019-10-25 09:16:48.000000000 +0200
++++ new/qtbase/src/platformsupport/platformsupport1.pro	2021-01-02 13:45:51.561179861 +0200
+@@ -11,7 +11,7 @@
+ qtConfig(freetype)|darwin|win32: \
+     SUBDIRS += fontdatabases
+ 
+-qtConfig(evdev)|qtConfig(tslib)|qtConfig(libinput)|qtConfig(integrityhid) {
++qtConfig(evdev)|qtConfig(tslib)|qtConfig(libinput)|qtConfig(integrityhid)|qtConfig(xkbcommon) {
+     SUBDIRS += input
+     input.depends += devicediscovery
+ }
