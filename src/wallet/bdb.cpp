@@ -805,7 +805,7 @@ void BerkeleyDatabase::RemoveRef()
 
 std::unique_ptr<DatabaseBatch> BerkeleyDatabase::MakeBatch(bool flush_on_close)
 {
-    return MakeUnique<BerkeleyBatch>(*this, false, flush_on_close);
+    return std::make_unique<BerkeleyBatch>(*this, false, flush_on_close);
 }
 
 bool ExistsBerkeleyDatabase(const fs::path& path)

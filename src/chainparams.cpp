@@ -12,7 +12,7 @@
 #include <util/system.h>
 #include <util/strencodings.h>
 #include <versionbitsinfo.h>
-
+#include <arith_uint256.h>
 #include <assert.h>
 
 #include <boost/algorithm/string/classification.hpp>
@@ -55,6 +55,39 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
     const char* pszTimestamp = "The inception of Crowncoin 10/Oct/2014";
     const CScript genesisOutputScript = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
+}
+
+
+void static MineNewGenesisBlock(const Consensus::Params& consensus,CBlock &genesis)
+{
+    //fPrintToConsole = true;
+    std::cout << "Searching for genesis block...\n";
+    arith_uint256 hashTarget = UintToArith256(consensus.powLimit);
+
+    while(true) {
+        arith_uint256 thash = UintToArith256(genesis.GetHash());
+        std::cout << "testHash = " << thash.ToString().c_str() << "\n";
+        std::cout << "Hash Target = " << hashTarget.ToString().c_str() << "\n";
+
+      if (thash <= hashTarget)
+            break;
+        if ((genesis.nNonce & 0xFFF) == 0)
+            std::cout << strprintf("nonce %08X: hash = %s (target = %s)\n", genesis.nNonce, thash.ToString().c_str(), hashTarget.ToString().c_str());
+
+        ++genesis.nNonce;
+        if (genesis.nNonce == 0) {
+            std::cout << ("NONCE WRAPPED, incrementing time\n");
+            ++genesis.nTime;
+        }
+    }
+    std::cout << "genesis.nTime = " << genesis.nTime << "\n";
+    std::cout << "genesis.nNonce = " << genesis.nNonce<< "\n";
+    std::cout << "genesis.nBits = " << genesis.nBits<< "\n";
+    std::cout << "genesis.GetHash = " << genesis.GetHash().ToString().c_str()<< "\n";
+    std::cout << "genesis.hashMerkleRoot = " << genesis.hashMerkleRoot.ToString().c_str()<< "\n";
+//    std::cout << "genesis block \n" << genesis.ToString()<< std::endl;
+
+    exit(1);
 }
 
 /**
@@ -206,9 +239,9 @@ public:
         consensus.CSVHeight = 770112; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
         consensus.SegwitHeight = 834624; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
         consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
-        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
-        consensus.nPowTargetSpacing = 10 * 60;
+        consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPowTargetTimespan = 60; // two weeks
+        consensus.nPowTargetSpacing = 60;
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -232,17 +265,24 @@ public:
         pchMessageStart[2] = 0x09;
         pchMessageStart[3] = 0x07;
         nDefaultPort = 18333;
+        nBlockPoSStart = 20000;
+        nPruneAfterHeight = 100000;
+        nAuxpowChainId = 20;
+        nChainStallDuration = 60*60;
+        nMasternodeCollateral = 10000 * COIN;
+        nSystemnodeCollateral = 500 * COIN;
+        nStartMasternodePayments = 1403728576;
+        nStakePointerValidityPeriod = 4320; //Stake pointers are valid to stake with for the next 3 day worth of blocks
+        nMaxReorgDepth = 100;
+        nKernelModifierOffset = 100;
         nPruneAfterHeight = 1000;
-        m_assumed_blockchain_size = 40;
-        m_assumed_chain_state_size = 2;
+        m_assumed_blockchain_size = 1;
+        m_assumed_chain_state_size = 1;
 
-        //genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, 50 * COIN);
-        genesis = CreateGenesisBlock(1412760826, 1612467894, 0x1d00ffff, 1, 10 * COIN);
-        //genesis.nTime    = 1412760826;
-        //genesis.nNonce   = 1612467894;
-
+        genesis = CreateGenesisBlock(1633949962, 1519756, 0x1e0ffff0, 1, 10 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x0000000085370d5e122f64f4ab19c68614ff3df78c8d13cb814fd7e69a1dc6da"));
+        //MineNewGenesisBlock(consensus,genesis);
+        assert(consensus.hashGenesisBlock == uint256S("0x00000ee20fa0da10844449e3073478dcfdace70d79aaa8314a1e204e9460b6e7"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();
@@ -263,7 +303,7 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
-        bech32_hrp = "tb";
+        bech32_hrp = "tcr";
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
