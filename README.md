@@ -1,7 +1,7 @@
 Crown Core integration/staging tree
 =====================================
 
-https://crowncore.org
+https://crownplatform.com
 
 What is Crown?
 ----------------
@@ -13,8 +13,7 @@ out collectively by the network. Crown Core is the name of open source
 software which enables the use of this currency.
 
 For more information, as well as an immediately usable, binary version of
-the Crown Core software, see https://crowncore.org/en/download/, or read the
-[original whitepaper](https://crowncore.org/crown.pdf).
+the Crown Core software, see https://www.crownplatform.com/crown-wallet/ .
 
 License
 -------
