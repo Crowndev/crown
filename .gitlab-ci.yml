@@ -1,12 +1,13 @@
 variables:
-  RELEASE_VERSION: "0.14.0.2"
+  RELEASE_VERSION: "0.21.0.1"
   GIT_STRATEGY: "clone"
   MAKEJOBS: "-j4"
   CCACHE_SIZE: "100M"
-  CROWN_CONFIG_ALL: "--disable-reduced-exports --disable-dependency-tracking --prefix=$CI_PROJECT_DIR/depends/$HOST --bindir=$CI_PROJECT_DIR/$OUTDIR/bin --libdir=$CI_PROJECT_DIR/$OUTDIR/lib"
+  CROWN_CONFIG_ALL: "--disable-tests --disable-bench --disable-reduced-exports --disable-dependency-tracking --prefix=$CI_PROJECT_DIR/depends/$HOST --bindir=$CI_PROJECT_DIR/$OUTDIR/bin --libdir=$CI_PROJECT_DIR/$OUTDIR/lib"
   SDK_URL: "https://bitcoincore.org/depends-sources/sdks"
+  XCODE_URL : "https://bitcoincore.org/depends-sources/sdks/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz"
   WINEDEBUG: "fixme-all"
-
+#Currently working for windows linux (both a ubuntu 20.04 and 16.04 compile happens for glibc compatibility) and RaspberryPi
 cache:
   paths:
   - depends/built
@@ -15,13 +16,17 @@ cache:
 .job_template: &job_definition
   stage: build
   before_script:
-    - if [ -n "$PACKAGES" ]; then sudo apt-get update; fi
+    - sudo apt update
+    - sudo apt install -yqq build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake 
     - if [ -n "$PACKAGES" ]; then sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
     - unset CC; unset CXX
     - mkdir -p depends/SDKs depends/sdk-sources out
     - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
     - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
+    - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz ]; then curl --location --fail $XCODE_URL -o depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz; fi
+    - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz; fi
     - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
+
   script:
     - ./autogen.sh
     - mkdir build && cd build
@@ -40,26 +45,36 @@ cache:
     HOST: "x86_64-w64-mingw32"
     GOAL: "install"
     OUTDIR: "Crown-${RELEASE_VERSION}-Win64"
-    PACKAGES: "nsis gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 wine1.6 bc"
+    PACKAGES: "nsis gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 wine64 bc"
 
 .job_template: &win32_definition
   tags:
-    - windows
+    - windows32
   variables:
     CROWN_CONFIG: ""
     HOST: "i686-w64-mingw32"
     GOAL: "install"
     OUTDIR: "Crown-${RELEASE_VERSION}-Win32"
-    PACKAGES: "nsis g++-mingw-w64-i686 gcc-mingw-w64-i686 binutils-mingw-w64-i686 wine1.6 bc"
+    PACKAGES: "nsis g++-mingw-w64-i686 gcc-mingw-w64-i686 binutils-mingw-w64-i686 wine64 bc"
 
-.job_template: &linux64_definition
+.job_template: &linux642004_definition
   tags:
-    - linux64
+    - linux642004
   variables:
     CROWN_CONFIG: "--enable-glibc-back-compat"
-    HOST: "x86_64-unknown-linux-gnu"
+    HOST: "x86_64-linux-gnu"
     GOAL: "install"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Linux64"
+    OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-2004"
+    DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
+  
+.job_template: &linux641604_definition
+  tags:
+    - linux641604
+  variables:
+    CROWN_CONFIG: "--enable-glibc-back-compat"
+    HOST: "x86_64-linux-gnu"
+    GOAL: "install"
+    OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-1604"
     DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
 
 .job_template: &linux32_definition
@@ -87,24 +102,28 @@ cache:
   tags:
     - osx
   variables:
-    CROWN_CONFIG: ""
-    HOST: "x86_64-apple-darwin14"
-    OSX_SDK: "10.8"
+    CROWN_CONFIG: "--with-gui --with-boost-process"
+#    CROWN_CONFIG: "--with-gui --enable-werror --with-boost-process"
+    HOST: "x86_64-apple-darwin16"
+    OSX_SDK: "10.15.6"
     GOAL: "install"
     OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
-    PACKAGES: "cmake gcc-multilib g++-multilib libcap-dev libbz2-dev"
+    PACKAGES: "cmake imagemagick librsvg2-bin libz-dev libtiff-tools libtinfo5 python3-setuptools xorriso"
+#    PACKAGES: "gcc-multilib g++-multilib librsvg2-bin libtiff-tools bsdmainutils cmake imagemagick libcap-dev libz-dev libbz2-dev python3-setuptools libtinfo5"
+    DEP_OPTS: ""
 
 .job_template: &osx_dmg_definition
   tags:
     - osx
   variables:
     CROWN_CONFIG: ""
-    HOST: "x86_64-apple-darwin14"
-    OSX_SDK: "10.8"
+    HOST: "x86_64-apple-darwin18"
+    OSX_SDK: "10.15.6"
     DMG: "True"
     GOAL: "deploy"
     OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
-    PACKAGES: "cmake gcc-multilib g++-multilib libcap-dev libbz2-dev"
+    PACKAGES: "gcc-multilib g++-multilib librsvg2-bin libtiff-tools bsdmainutils cmake imagemagick libcap-dev libz-dev libbz2-dev python3-setuptools libtinfo5 libc++-dev"
+    DEP_OPTS: "download-osx"
 
 # Artifact settings for releases and snapshots
 .job_template: &release_definition
@@ -151,13 +170,18 @@ Win64:
   <<: *job_definition 
   <<: *release_definition 
   
-Win32:
-  <<: *win32_definition 
+#Win32:
+#  <<: *win32_definition 
+#  <<: *job_definition
+#  <<: *release_definition 
+
+Linux642004:
+  <<: *linux642004_definition 
   <<: *job_definition
   <<: *release_definition 
 
-Linux64:
-  <<: *linux64_definition 
+Linux641604:
+  <<: *linux641604_definition 
   <<: *job_definition
   <<: *release_definition 
 
@@ -187,13 +211,18 @@ Win64-snapshot:
   <<: *job_definition 
   <<: *snapshot_definition 
   
-Win32-snapshot:
-  <<: *win32_definition 
+#Win32-snapshot:
+#  <<: *win32_definition 
+#  <<: *job_definition
+#  <<: *snapshot_definition 
+
+Linux642004-snapshot:
+  <<: *linux642004_definition 
   <<: *job_definition
   <<: *snapshot_definition 
 
-Linux64-snapshot:
-  <<: *linux64_definition 
+Linux641604-snapshot:
+  <<: *linux641604_definition 
   <<: *job_definition
   <<: *snapshot_definition 
 
@@ -212,10 +241,10 @@ Osx-snapshot:
   <<: *job_definition 
   <<: *snapshot_definition 
 
-Osx-dmg-snapshot:
-  <<: *osx_dmg_definition
-  <<: *job_definition 
-  <<: *dmg_snapshot_definition
+#Osx-dmg-snapshot:
+#  <<: *osx_dmg_definition
+#  <<: *job_definition 
+#  <<: *dmg_snapshot_definition
 
 # Trigger the docker build and delivery
 trigger_docker_build:
