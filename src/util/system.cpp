@@ -792,7 +792,7 @@ fs::path GetMasternodeConfigFile()
 
 fs::path GetSystemnodeConfigFile()
 {
-    fs::path pathConfigFile(gArgs.GetArg("-mnconf", "systemnode.conf"));
+    fs::path pathConfigFile(gArgs.GetArg("-snconf", "systemnode.conf"));
     return AbsPathForConfigVal(pathConfigFile, false);
 }
 
