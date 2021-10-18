@@ -17,7 +17,8 @@ cache:
   stage: build
   before_script:
     - sudo apt update
-    - sudo apt install -yqq build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake 
+    - sudo apt install -yqq build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake
+    - if [ -n "$updatecerts" ]; then sudo update-ca-certificates; fi
     - if [ -n "$PACKAGES" ]; then sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
     - unset CC; unset CXX
     - mkdir -p depends/SDKs depends/sdk-sources out
@@ -66,7 +67,7 @@ cache:
     GOAL: "install"
     OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-2004"
     DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
-  
+
 .job_template: &linux641604_definition
   tags:
     - linux641604
@@ -166,84 +167,84 @@ cache:
 
 # Job definitions for releases
 Win64:
-  <<: *win64_definition 
-  <<: *job_definition 
-  <<: *release_definition 
-  
+  <<: *win64_definition
+  <<: *job_definition
+  <<: *release_definition
+
 #Win32:
-#  <<: *win32_definition 
+#  <<: *win32_definition
 #  <<: *job_definition
-#  <<: *release_definition 
+#  <<: *release_definition
 
 Linux642004:
-  <<: *linux642004_definition 
+  <<: *linux642004_definition
   <<: *job_definition
-  <<: *release_definition 
+  <<: *release_definition
 
 Linux641604:
-  <<: *linux641604_definition 
+  <<: *linux641604_definition
   <<: *job_definition
-  <<: *release_definition 
+  <<: *release_definition
 
 Linux32:
-  <<: *linux32_definition 
-  <<: *job_definition 
-  <<: *release_definition 
+  <<: *linux32_definition
+  <<: *job_definition
+  <<: *release_definition
 
 RaspberryPi:
   <<: *raspberrypi_definition
   <<: *job_definition
-  <<: *release_definition 
+  <<: *release_definition
 
 Osx:
   <<: *osx_definition
-  <<: *job_definition 
+  <<: *job_definition
   <<: *release_definition
 
 Osx-dmg:
   <<: *osx_dmg_definition
-  <<: *job_definition 
+  <<: *job_definition
   <<: *dmg_release_definition
 
 # Job definitions for temporary builds (snapshots)
 Win64-snapshot:
-  <<: *win64_definition 
-  <<: *job_definition 
-  <<: *snapshot_definition 
-  
+  <<: *win64_definition
+  <<: *job_definition
+  <<: *snapshot_definition
+
 #Win32-snapshot:
-#  <<: *win32_definition 
+#  <<: *win32_definition
 #  <<: *job_definition
-#  <<: *snapshot_definition 
+#  <<: *snapshot_definition
 
 Linux642004-snapshot:
-  <<: *linux642004_definition 
+  <<: *linux642004_definition
   <<: *job_definition
-  <<: *snapshot_definition 
+  <<: *snapshot_definition
 
 Linux641604-snapshot:
-  <<: *linux641604_definition 
+  <<: *linux641604_definition
   <<: *job_definition
-  <<: *snapshot_definition 
+  <<: *snapshot_definition
 
 Linux32-snapshot:
-  <<: *linux32_definition 
-  <<: *job_definition 
-  <<: *snapshot_definition 
+  <<: *linux32_definition
+  <<: *job_definition
+  <<: *snapshot_definition
 
 RaspberryPi-snapshot:
   <<: *raspberrypi_definition
   <<: *job_definition
-  <<: *snapshot_definition 
+  <<: *snapshot_definition
 
 Osx-snapshot:
   <<: *osx_definition
-  <<: *job_definition 
-  <<: *snapshot_definition 
+  <<: *job_definition
+  <<: *snapshot_definition
 
 #Osx-dmg-snapshot:
 #  <<: *osx_dmg_definition
-#  <<: *job_definition 
+#  <<: *job_definition
 #  <<: *dmg_snapshot_definition
 
 # Trigger the docker build and delivery
