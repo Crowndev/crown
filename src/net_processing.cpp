@@ -2694,7 +2694,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
     if (msg_type == NetMsgType::SENDHEADERS) {
         //LOCK(cs_main);
         //State(pfrom.GetId())->fPreferHeaders = true;
-        LogPrintf("Headers only sync disabled, peer %d requested\n", pfrom.GetId())
+        LogPrintf("Headers only sync disabled, peer %d requested\n", pfrom.GetId());
         return;
     }
 /*
