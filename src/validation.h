@@ -23,7 +23,8 @@
 #include <txdb.h>
 #include <versionbits.h>
 #include <serialize.h>
-
+#include <platform/nf-token/nf-token-tx-mem-pool-handler.h>
+#include <platform/nf-token/nf-token-protocol-tx-mem-pool-handler.h>
 #include <atomic>
 #include <map>
 #include <memory>
@@ -52,7 +53,8 @@ struct ChainTxData;
 struct DisconnectedBlockTransactions;
 struct PrecomputedTransactionData;
 struct LockPoints;
-
+extern Platform::NftProtoTxMemPoolHandler g_nftProtoTxMemPoolHandler;
+extern Platform::NfTokenTxMemPoolHandler g_nfTokenTxMemPoolHandler;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
@@ -141,6 +143,8 @@ extern uint256 hashAssumeValid;
 
 /** Minimum work we will assume exists on some valid chain. */
 extern arith_uint256 nMinimumChainWork;
+
+extern ProofTracker* g_proofTracker;
 
 /** Best header we've seen so far (used for getheaders queries' starting points). */
 extern CBlockIndex *pindexBestHeader;

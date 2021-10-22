@@ -22,7 +22,7 @@
 #include <crown/instantx.h>
 #include <logging.h>
 #include <logging/timer.h>
-#include <nft/specialtx.h>
+
 #include <node/ui_interface.h>
 #include <optional>
 #include <policy/fees.h>
@@ -51,7 +51,8 @@
 #include <util/translation.h>
 #include <validationinterface.h>
 #include <warnings.h>
-
+#include <platform/specialtx.h>
+#include <platform/platform-db.h>
 #include <masternode/masternode-payments.h>
 #include <masternode/masternode-budget.h>
 #include <systemnode/systemnode-payments.h>
@@ -68,6 +69,8 @@
 #define MICRO 0.000001
 #define MILLI 0.001
 
+Platform::NfTokenTxMemPoolHandler g_nfTokenTxMemPoolHandler;
+Platform::NftProtoTxMemPoolHandler g_nftProtoTxMemPoolHandler;
 /**
  * An extra transaction can be added to a package, as long as it only has one
  * ancestor and is no larger than this. Not really any reason to make this
@@ -2427,10 +2430,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
         nInputs += tx.vin.size();
 
-        // Contextual checks for evo/nft txes
-        //if (!IsValidTypeAndVersion(tx.nVersion, tx.nType))
-        //        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "IsValidTypeAndVersion");
-
         if (!tx.IsCoinBase() && !tx.IsCoinStake())
         {
             CAmount txfee = 0;
@@ -2520,7 +2519,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     TxValidationState txState;
 
     int64_t nTime8_1 = GetTimeMicros();
-    if (!ProcessNftTxsInBlock(block, pindex, txState, fJustCheck)) {
+    if (!ProcessNftTxsInBlock(block, pindex, txState)) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("ProcessNftTxsInBlock for block %s failed with %s", pindex->GetBlockHash().ToString(), txState.ToString()));
     }
     int64_t nTime8_2 = GetTimeMicros(); nTimeProcessNftValid += nTime8_2 - nTime8_1;
@@ -2532,7 +2531,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
     }
-
     int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
     LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
 
@@ -4762,7 +4760,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
     }
 
     TxValidationState state;
-    if (!ProcessNftTxsInBlock(block, pindex, state, false)) {
+    if (!ProcessNftTxsInBlock(block, pindex, state)) {
         return error("RollforwardBlock(CROWN): ProcessNftTxsInBlock for block %s failed with %s", pindex->GetBlockHash().ToString(), state.ToString());
     }
 
