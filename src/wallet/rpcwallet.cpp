@@ -1901,6 +1901,7 @@ static RPCHelpMan walletpassphrase()
                 {
                     {"passphrase", RPCArg::Type::STR, RPCArg::Optional::NO, "The wallet passphrase"},
                     {"timeout", RPCArg::Type::NUM, RPCArg::Optional::NO, "The time to keep the decryption key in seconds; capped at 100000000 (~3 years)."},
+                    {"staking", RPCArg::Type::BOOL, RPCArg::Optional::NO, "Unlock for staking only"},
                 },
                 RPCResult{RPCResult::Type::NONE, "", ""},
                 RPCExamples{
@@ -1950,8 +1951,10 @@ static RPCHelpMan walletpassphrase()
         if (strWalletPass.empty()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "passphrase can not be empty");
         }
+        
+        bool staking = request.params[2].get_bool();
 
-        if (!pwallet->Unlock(strWalletPass)) {
+        if (!pwallet->Unlock(strWalletPass, staking)) {
             throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
         }
 

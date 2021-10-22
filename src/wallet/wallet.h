@@ -66,7 +66,7 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, cons
 //! -paytxfee default
 constexpr CAmount DEFAULT_PAY_TX_FEE = 0;
 //! -fallbackfee default
-static const CAmount DEFAULT_FALLBACK_FEE = 0;
+static const CAmount DEFAULT_FALLBACK_FEE = 1000;
 //! -discardfee default
 static const CAmount DEFAULT_DISCARD_FEE = 10000;
 //! -mintxfee default
@@ -778,6 +778,8 @@ public:
      */
     const std::string& GetName() const { return m_name; }
 
+    bool fWalletUnlockStaking;
+
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID = 0;
@@ -788,6 +790,7 @@ public:
           m_name(name),
           database(std::move(database))
     {
+		fWalletUnlockStaking = false;
     }
 
     ~CWallet()
@@ -899,7 +902,7 @@ public:
 
     // Used to prevent concurrent calls to walletpassphrase RPC.
     Mutex m_unlock_mutex;
-    bool Unlock(const SecureString& strWalletPassphrase, bool accept_no_keys = false);
+    bool Unlock(const SecureString& strWalletPassphrase, bool stakingonly = false, bool accept_no_keys = false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 

@@ -179,10 +179,6 @@ CROWN_CORE_H = \
   netaddress.h \
   netbase.h \
   netmessagemaker.h \
-  nft/nftdb.h \
-  nft/specialtx.h \
-  nft/token.h \
-  nft/util.h \
   nodeconfig.h \
   node/coin.h \
   node/coinstats.h \
@@ -194,6 +190,23 @@ CROWN_CORE_H = \
   noui.h \
   optional.h \
   outputtype.h \
+  platform/specialtx-common.h \
+  platform/specialtx.h \
+  platform/platform-db.h \
+  platform/platform-utils.h \
+  platform/nf-token/nf-token-index.h \
+  platform/nf-token/nf-token-multiindex-utils.h \
+  platform/nf-token/nf-token-protocol-index.h \
+  platform/nf-token/nf-token-protocol-reg-tx.h \
+  platform/nf-token/nf-token-protocol-tx-mem-pool-handler.h \
+  platform/nf-token/nf-token-protocol.h \
+  platform/nf-token/nf-token-reg-tx-builder.h \
+  platform/nf-token/nf-token-reg-tx.h \
+  platform/nf-token/nf-token-tx-mem-pool-handler.h \
+  platform/nf-token/nf-token.h \
+  platform/nf-token/nf-tokens-manager.h \
+  platform/nf-token/nft-protocol-reg-tx-builder.h \
+  platform/nf-token/nft-protocols-manager.h \
   policy/feerate.h \
   policy/fees.h \
   policy/policy.h \
@@ -364,10 +377,6 @@ libcrown_server_a_SOURCES = \
   netfulfilledman.cpp \
   net_processing.cpp \
   nodeconfig.cpp \
-  nft/nftdb.cpp \
-  nft/specialtx.cpp \
-  nft/token.cpp \
-  nft/util.cpp \
   node/coin.cpp \
   node/coinstats.cpp \
   node/context.cpp \
@@ -375,6 +384,24 @@ libcrown_server_a_SOURCES = \
   node/transaction.cpp \
   node/ui_interface.cpp \
   noui.cpp \
+  platform/agent.cpp \
+  platform/agent.h \
+  platform/governance.cpp \
+  platform/governance.h \
+  platform/governance-approval-voting.h \
+  platform/governance-approval-voting.cpp \
+  platform/governance-vote.cpp \
+  platform/governance-vote.h \
+  platform/specialtx.cpp \
+  platform/platform-db.cpp \
+  platform/nf-token/nf-token-multiindex-utils.cpp \
+  platform/nf-token/nf-token-protocol-reg-tx.cpp \
+  platform/nf-token/nf-token-protocol-tx-mem-pool-handler.cpp \
+  platform/nf-token/nf-token-protocol.cpp \
+  platform/nf-token/nf-token-reg-tx.cpp \
+  platform/nf-token/nf-token-tx-mem-pool-handler.cpp \
+  platform/nf-token/nf-tokens-manager.cpp \
+  platform/nf-token/nft-protocols-manager.cpp \
   policy/fees.cpp \
   policy/rbf.cpp \
   policy/settings.cpp \
