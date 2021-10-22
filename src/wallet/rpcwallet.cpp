@@ -1920,6 +1920,8 @@ static RPCHelpMan walletpassphrase()
 
     int64_t nSleepTime;
     int64_t relock_time;
+    bool staking = false;
+
     // Prevent concurrent calls to walletpassphrase with the same wallet.
     LOCK(pwallet->m_unlock_mutex);
     {
@@ -1952,9 +1954,9 @@ static RPCHelpMan walletpassphrase()
             throw JSONRPCError(RPC_INVALID_PARAMETER, "passphrase can not be empty");
         }
         
-        bool staking = request.params[2].get_bool();
+        staking = request.params[2].get_bool();
 
-        if (!pwallet->Unlock(strWalletPass, staking)) {
+        if (!pwallet->Unlock(strWalletPass, false)) {
             throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
         }
 
@@ -4604,7 +4606,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "upgradewallet",                    &upgradewallet,                 {"version"} },
     { "wallet",             "walletcreatefundedpsbt",           &walletcreatefundedpsbt,        {"inputs","outputs","locktime","options","bip32derivs"} },
     { "wallet",             "walletlock",                       &walletlock,                    {} },
-    { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout"} },
+    { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout", "staking"} },
     { "wallet",             "walletpassphrasechange",           &walletpassphrasechange,        {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletprocesspsbt",                &walletprocesspsbt,             {"psbt","sign","sighashtype","bip32derivs"} },
 };
