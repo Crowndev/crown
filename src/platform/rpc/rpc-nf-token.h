@@ -5,19 +5,17 @@
 #ifndef CROWN_PLATFORM_RPC_NF_TOKEN_H
 #define CROWN_PLATFORM_RPC_NF_TOKEN_H
 
-#include "json/json_spirit_value.h"
-
 UniValue nftoken(const JSONRPCRequest& request);
 
 namespace Platform
 {
-    UniValue RegisterNfToken(const JSONRPCRequest& request);
-    UniValue ListNfTokenTxs(const JSONRPCRequest& request);
-    UniValue GetNfToken(const JSONRPCRequest& request);
-    UniValue GetNfTokenByTxId(const JSONRPCRequest& request);
-    UniValue NfTokenTotalSupply(const JSONRPCRequest& request);
-    UniValue NfTokenBalanceOf(const JSONRPCRequest& request);
-    UniValue NfTokenOwnerOf(const JSONRPCRequest& request);
+    UniValue RegisterNfToken(const UniValue& params);
+    UniValue ListNfTokenTxs(const UniValue& params);
+    UniValue GetNfToken(const UniValue& params);
+    UniValue GetNfTokenByTxId(const UniValue& params);
+    UniValue NfTokenTotalSupply(const UniValue& params);
+    UniValue NfTokenBalanceOf(const UniValue& params);
+    UniValue NfTokenOwnerOf(const UniValue& params);
 }
 
 #endif // CROWN_PLATFORM_RPC_NF_TOKEN_H

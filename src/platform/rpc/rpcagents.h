@@ -3,8 +3,6 @@
 
 #include <rpc/server.h>
 
-UniValue agents(const JSONRPCRequest& request);
-
 UniValue vote(const JSONRPCRequest& request);
 UniValue list(const JSONRPCRequest& request);
 UniValue listcandidates(const JSONRPCRequest& request);

@@ -8,10 +8,11 @@
 #include <key.h>
 
 class CMutableTransaction;
+class UniValue;
 
 namespace Platform
 {
-    std::string GetCommand(const json_spirit::Array & params, const std::string & errorMessage);
+    std::string GetCommand(const UniValue& params, const std::string & errorMessage);
     std::string SignAndSendSpecialTx(const CMutableTransaction & tx);
 
     CKey GetPrivKeyFromWallet(const CKeyID & keyId);

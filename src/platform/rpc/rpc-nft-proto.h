@@ -5,23 +5,23 @@
 #ifndef PROJECT_RPC_NFT_PROTO_H
 #define PROJECT_RPC_NFT_PROTO_H
 
-#include "json/json_spirit_value.h"
+class UniValue;
 
 UniValue nftproto(const JSONRPCRequest& request);
 
 namespace Platform
 {
-    UniValue RegisterNftProtocol(const JSONRPCRequest& request);
+    UniValue RegisterNftProtocol(const UniValue& params);
     void RegisterNftProtocolHelp();
-    UniValue ListNftProtocols(const JSONRPCRequest& request);
+    UniValue ListNftProtocols(const UniValue& params);
     void ListNftProtocolsHelp();
-    UniValue GetNftProtocol(const JSONRPCRequest& request);
+    UniValue GetNftProtocol(const UniValue& params);
     void GetNftProtocolHelp();
-    UniValue GetNftProtocolByTxId(const JSONRPCRequest& request);
+    UniValue GetNftProtocolByTxId(const UniValue& params);
     void GetNftProtocolByTxIdHelp();
-    UniValue NftProtoOwnerOf(const JSONRPCRequest& request);
+    UniValue NftProtoOwnerOf(const UniValue& params);
     void NftProtoOwnerOfHelp();
-    UniValue NftProtoTotalSupply(const JSONRPCRequest& request);
+    UniValue NftProtoTotalSupply(const UniValue& params);
     void NftProtoTotalSupplyHelp();
 }
 

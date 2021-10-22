@@ -194,6 +194,10 @@ CROWN_CORE_H = \
   platform/specialtx.h \
   platform/platform-db.h \
   platform/platform-utils.h \
+  platform/rpc/rpcagents.h \
+  platform/rpc/rpc-nf-token.h \
+  platform/rpc/rpc-nft-proto.h \
+  platform/rpc/specialtx-rpc-utils.h \
   platform/nf-token/nf-token-index.h \
   platform/nf-token/nf-token-multiindex-utils.h \
   platform/nf-token/nf-token-protocol-index.h \
@@ -394,6 +398,10 @@ libcrown_server_a_SOURCES = \
   platform/governance-vote.h \
   platform/specialtx.cpp \
   platform/platform-db.cpp \
+  platform/rpc/specialtx-rpc-utils.cpp \
+  platform/rpc/rpcagents.cpp \
+  platform/rpc/rpc-nf-token.cpp \
+  platform/rpc/rpc-nft-proto.cpp \  
   platform/nf-token/nf-token-multiindex-utils.cpp \
   platform/nf-token/nf-token-protocol-reg-tx.cpp \
   platform/nf-token/nf-token-protocol-tx-mem-pool-handler.cpp \

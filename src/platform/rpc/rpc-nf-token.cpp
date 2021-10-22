@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <crown/spork.h>
+#include <key_io.h>
+
 #include <platform/nf-token/nf-token-protocol.h>
 #include <primitives/transaction.h>
 #include <platform/specialtx.h>
@@ -20,22 +22,22 @@ UniValue nftoken(const JSONRPCRequest& request)
         throw std::runtime_error("NFT spork is off");
     }
 
-    std::string command = Platform::GetCommand(params, "usage: nftoken register(issue)|list|get|getbytxid|totalsupply|balanceof|ownerof");
+    std::string command = request.params[0].get_str();// Platform::GetCommand(params, "usage: nftoken register(issue)|list|get|getbytxid|totalsupply|balanceof|ownerof");
 
     if (command == "register" || command == "issue")
-        return Platform::RegisterNfToken(params, fHelp);
+        return Platform::RegisterNfToken(request.params);
     else if (command == "list")
-        return Platform::ListNfTokenTxs(params, fHelp);
+        return Platform::ListNfTokenTxs(request.params);
     else if (command == "get")
-        return Platform::GetNfToken(params, fHelp);
+        return Platform::GetNfToken(request.params);
     else if (command == "getbytxid")
-        return Platform::GetNfTokenByTxId(params,fHelp);
+        return Platform::GetNfTokenByTxId(request.params);
     else if (command == "totalsupply")
-        return Platform::NfTokenTotalSupply(params, fHelp);
+        return Platform::NfTokenTotalSupply(request.params);
     else if (command == "balanceof")
-        return Platform::NfTokenBalanceOf(params, fHelp);
+        return Platform::NfTokenBalanceOf(request.params);
     else if (command == "ownerof")
-        return Platform::NfTokenOwnerOf(params, fHelp);
+        return Platform::NfTokenOwnerOf(request.params);
 
     throw std::runtime_error("Invalid command: " + command);
 }
@@ -73,10 +75,8 @@ namespace Platform
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue RegisterNfToken(const JSONRPCRequest& request)
+    UniValue RegisterNfToken(const UniValue& params)
     {
-        if (fHelp || params.size() < 4 || params.size() > 6)
-            RegisterNfTokenHelp();
 
         NfTokenRegTxBuilder nfTokenRegTxBuilder;
         nfTokenRegTxBuilder.SetTokenProtocol(params[1]).SetTokenId(params[2]).SetTokenOwnerKey(params[3]);
@@ -173,33 +173,31 @@ List the most recent 20 NFT records
         throw std::runtime_error(helpMessage);
     }
 
-    json_spirit::Object BuildNftRecord(const NfTokenIndex & nftIndex)
+    UniValue BuildNftRecord(const NfTokenIndex & nftIndex)
     {
-        json_spirit::Object nftJsonObj;
-
-        nftJsonObj.push_back(json_spirit::Pair("blockHash", nftIndex.BlockIndex()->phashBlock->ToString()));
-        nftJsonObj.push_back(json_spirit::Pair("registrationTxHash", nftIndex.RegTxHash().ToString()));
-        nftJsonObj.push_back(json_spirit::Pair("height", nftIndex.BlockIndex()->nHeight));
+        UniValue nftJsonObj(UniValue::VOBJ);
+        
+        nftJsonObj.pushKV("blockHash", nftIndex.BlockIndex()->phashBlock->ToString());
+        nftJsonObj.pushKV("registrationTxHash", nftIndex.RegTxHash().ToString());
+        nftJsonObj.pushKV("height", nftIndex.BlockIndex()->nHeight);
         //auto blockTime = static_cast<time_t>(nftIndex.BlockIndex()->nTime);
         //std::string timeStr(asctime(gmtime(&blockTime)));
-        //nftJsonObj.push_back(json_spirit::Pair("timestamp", timeStr));
-        nftJsonObj.push_back(json_spirit::Pair("timestamp", nftIndex.BlockIndex()->GetBlockTime()));
+        //nftJsonObj.pushKV("timestamp", timeStr));
+        nftJsonObj.pushKV("timestamp", nftIndex.BlockIndex()->GetBlockTime());
 
-        nftJsonObj.push_back(json_spirit::Pair("nftProtocolId", ProtocolName{nftIndex.NfTokenPtr()->tokenProtocolId}.ToString()));
-        nftJsonObj.push_back(json_spirit::Pair("nftId", nftIndex.NfTokenPtr()->tokenId.ToString()));
-        nftJsonObj.push_back(json_spirit::Pair("nftOwnerKeyId", CBitcoinAddress(nftIndex.NfTokenPtr()->tokenOwnerKeyId).ToString()));
-        nftJsonObj.push_back(json_spirit::Pair("metadataAdminKeyId", CBitcoinAddress(nftIndex.NfTokenPtr()->metadataAdminKeyId).ToString()));
+        nftJsonObj.pushKV("nftProtocolId", ProtocolName{nftIndex.NfTokenPtr()->tokenProtocolId}.ToString());
+        nftJsonObj.pushKV("nftId", nftIndex.NfTokenPtr()->tokenId.ToString());
+        nftJsonObj.pushKV("nftOwnerKeyId", EncodeDestination(PKHash(nftIndex.NfTokenPtr()->tokenOwnerKeyId)));
+        nftJsonObj.pushKV("metadataAdminKeyId", EncodeDestination(PKHash(nftIndex.NfTokenPtr()->metadataAdminKeyId)));
 
         std::string textMeta(nftIndex.NfTokenPtr()->metadata.begin(), nftIndex.NfTokenPtr()->metadata.end());
-        nftJsonObj.push_back(json_spirit::Pair("metadata", textMeta));
+        nftJsonObj.pushKV("metadata", textMeta);
 
         return nftJsonObj;
     }
 
-    UniValue ListNfTokenTxs(const JSONRPCRequest& request)
+    UniValue ListNfTokenTxs(const UniValue& params)
     {
-        if (fHelp || params.empty() || params.size() > 7)
-            ListNfTokenTxsHelp();
 
         uint64_t nftProtoId = NfToken::UNKNOWN_TOKEN_PROTOCOL;
         if (params.size() > 1)
@@ -220,23 +218,23 @@ List the most recent 20 NFT records
 
         static unsigned const int defaultTxsCount = 20;
         static unsigned const int defaultSkipFromTip = 0;
-        unsigned int count = (params.size() > 3) ? ParseUInt32V(params[3], "count") : defaultTxsCount;
-        unsigned int skipFromTip = (params.size() > 4) ? ParseUInt32V(params[4], "skipFromTip") : defaultSkipFromTip;
+        unsigned int count =  defaultTxsCount;
+        unsigned int skipFromTip = defaultSkipFromTip;
 
-        unsigned int height = (params.size() > 5 && params[5].get_str() != "*") ? ParseUInt32V(params[5], "height") : chainActive.Height();
-        if (height < 0 || height > chainActive.Height())
+        unsigned int height = ::ChainActive().Height();
+        if (height < 0 || height > ::ChainActive().Height())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height is out of range");
 
-        bool regTxOnly = (params.size() > 6) ? ParseBoolV(params[6], "regTxOnly") : false;
+        bool regTxOnly =  false;
 
-        json_spirit::Array nftList;
+        UniValue nftList(UniValue::VARR);
 
         auto nftIndexHandler = [&](const NfTokenIndex & nftIndex) -> bool
         {
             if (regTxOnly)
             {
-                json_spirit::Object hashObj;
-                hashObj.push_back(json_spirit::Pair("registrationTxHash", nftIndex.RegTxHash().GetHex()));
+                UniValue hashObj(UniValue::VOBJ);
+                hashObj.pushKV("registrationTxHash", nftIndex.RegTxHash().GetHex());
                 nftList.push_back(hashObj);
             }
             else
@@ -278,10 +276,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue GetNfToken(const JSONRPCRequest& request)
+    UniValue GetNfToken(const UniValue& params)
     {
-        if (fHelp || params.size() != 3)
-            GetNfTokenHelp();
 
         uint64_t tokenProtocolId = StringToProtocolName(params[1].get_str().c_str());
         if (tokenProtocolId == NfToken::UNKNOWN_TOKEN_PROTOCOL)
@@ -312,11 +308,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue GetNfTokenByTxId(const JSONRPCRequest& request)
+    UniValue GetNfTokenByTxId(const UniValue& params)
     {
-        if (fHelp || params.size() != 2)
-            GetNfTokenByTxIdHelp();
-
         uint256 regTxHash = ParseHashV(params[1].get_str(), "registrationTxHash");
         auto nftIndex = NfTokensManager::Instance().GetNfTokenIndex(regTxHash);
         if (nftIndex.IsNull())
@@ -342,11 +335,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue NfTokenTotalSupply(const JSONRPCRequest& request)
+    UniValue NfTokenTotalSupply(const UniValue& params)
     {
-        if (fHelp || params.empty() || params.size() > 2)
-            NfTokenTotalSupplyHelp();
-
         std::size_t totalSupply = 0;
         if (params.size() == 2)
         {
@@ -385,11 +375,8 @@ Display balance of "CRWS78Yf5kbWAyfcES6RfiTVzP87csPNhZzc" address
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue NfTokenBalanceOf(const JSONRPCRequest& request)
+    UniValue NfTokenBalanceOf(const UniValue& params)
     {
-        if (fHelp || params.size() < 2 || params.size() > 3)
-            NfTokenBalanceOfHelp();
-
         CKeyID filterKeyId = ParsePubKeyIDFromAddress(params[1].get_str(), "nfTokenOwnerAddr");
         std::size_t balance = 0;
 
@@ -426,11 +413,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue NfTokenOwnerOf(const JSONRPCRequest& request)
+    UniValue NfTokenOwnerOf(const UniValue& params)
     {
-        if (fHelp || params.size() != 3)
-            NfTokenOwnerOfHelp();
-
         uint64_t tokenProtocolId = StringToProtocolName(params[1].get_str().c_str());
         if (tokenProtocolId == NfToken::UNKNOWN_TOKEN_PROTOCOL)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "NFT protocol ID contains invalid characters");
@@ -440,6 +424,6 @@ Examples:
         if (ownerId.IsNull())
             throw std::runtime_error("Can't find an NFT record: " + std::to_string(tokenProtocolId) + " " + tokenId.ToString());
 
-        return CBitcoinAddress(ownerId).ToString();
+        return EncodeDestination(PKHash(ownerId));
     }
 }

@@ -2,16 +2,18 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <spork.h>
-#include "platform/nf-token/nf-token-protocol.h"
-#include "platform/nf-token/nft-protocol-reg-tx-builder.h"
-#include "platform/nf-token/nft-protocols-manager.h"
-#include "primitives/transaction.h"
-#include "platform/specialtx.h"
-#include "platform/platform-utils.h"
-#include "specialtx-rpc-utils.h"
-#include "rpc-nft-proto.h"
-#include "rpcserver.h"
+#include <crown/spork.h>
+#include <key_io.h>
+
+#include <platform/nf-token/nf-token-protocol.h>
+#include <platform/nf-token/nft-protocol-reg-tx-builder.h>
+#include <platform/nf-token/nft-protocols-manager.h>
+#include <primitives/transaction.h>
+#include <platform/specialtx.h>
+#include <platform/platform-utils.h>
+#include <platform/rpc/specialtx-rpc-utils.h>
+#include <platform/rpc/rpc-nft-proto.h>
+#include <rpc/server.h>
 
 UniValue nftproto(const JSONRPCRequest& request)
 {
@@ -20,57 +22,54 @@ UniValue nftproto(const JSONRPCRequest& request)
         throw std::runtime_error("NFT spork is off");
     }
 
-    std::string command = Platform::GetCommand(params, "usage: nftproto register|list|get|getbytxid|ownerof");
+    std::string command = Platform::GetCommand(request.params, "usage: nftproto register|list|get|getbytxid|ownerof");
 
     if (command == "register")
-        return Platform::RegisterNftProtocol(params, fHelp);
+        return Platform::RegisterNftProtocol(request.params);
     else if (command == "list")
-        return Platform::ListNftProtocols(params, fHelp);
+        return Platform::ListNftProtocols(request.params);
     else if (command == "get")
-        return Platform::GetNftProtocol(params, fHelp);
+        return Platform::GetNftProtocol(request.params);
     else if (command == "getbytxid")
-        return Platform::GetNftProtocolByTxId(params, fHelp);
+        return Platform::GetNftProtocolByTxId(request.params);
     else if (command == "ownerof")
-        return Platform::NftProtoOwnerOf(params, fHelp);
+        return Platform::NftProtoOwnerOf(request.params);
     else if (command == "totalsupply")
-        return Platform::NftProtoTotalSupply(params, fHelp);
+        return Platform::NftProtoTotalSupply(request.params);
 
     throw std::runtime_error("Invalid command: " + command);
 }
 
 namespace Platform
 {
-    json_spirit::Object BuildNftProtoRecord(const NftProtoIndex & nftProtoIndex)
+    UniValue BuildNftProtoRecord(const NftProtoIndex & nftProtoIndex)
     {
-        json_spirit::Object protoJsonObj;
+        UniValue protoJsonObj(UniValue::VOBJ);
 
-        protoJsonObj.push_back(json_spirit::Pair("blockHash", nftProtoIndex.BlockIndex()->phashBlock->ToString()));
-        protoJsonObj.push_back(json_spirit::Pair("registrationTxHash", nftProtoIndex.RegTxHash().ToString()));
-        protoJsonObj.push_back(json_spirit::Pair("height", nftProtoIndex.BlockIndex()->nHeight));
+        protoJsonObj.pushKV("blockHash", nftProtoIndex.BlockIndex()->phashBlock->ToString());
+        protoJsonObj.pushKV("registrationTxHash", nftProtoIndex.RegTxHash().ToString());
+        protoJsonObj.pushKV("height", nftProtoIndex.BlockIndex()->nHeight);
         //auto blockTime = static_cast<time_t>(nftProtoIndex.BlockIndex()->nTime);
         //std::string timeStr(asctime(gmtime(&blockTime)));
-        //protoJsonObj.push_back(json_spirit::Pair("timestamp", timeStr));
-        protoJsonObj.push_back(json_spirit::Pair("timestamp", nftProtoIndex.BlockIndex()->GetBlockTime()));
+        //protoJsonObj.pushKV("timestamp", timeStr));
+        protoJsonObj.pushKV("timestamp", nftProtoIndex.BlockIndex()->GetBlockTime());
 
-        protoJsonObj.push_back(json_spirit::Pair("nftProtocolId", ProtocolName{nftProtoIndex.NftProtoPtr()->tokenProtocolId}.ToString()));
-        protoJsonObj.push_back(json_spirit::Pair("tokenProtocolName", nftProtoIndex.NftProtoPtr()->tokenProtocolName));
-        protoJsonObj.push_back(json_spirit::Pair("tokenMetadataSchemaUri", nftProtoIndex.NftProtoPtr()->tokenMetadataSchemaUri));
-        protoJsonObj.push_back(json_spirit::Pair("tokenMetadataMimeType", nftProtoIndex.NftProtoPtr()->tokenMetadataMimeType));
-        protoJsonObj.push_back(json_spirit::Pair("isTokenTransferable", nftProtoIndex.NftProtoPtr()->isTokenTransferable));
-        protoJsonObj.push_back(json_spirit::Pair("isMetadataEmbedded", nftProtoIndex.NftProtoPtr()->isMetadataEmbedded));
+        protoJsonObj.pushKV("nftProtocolId", ProtocolName{nftProtoIndex.NftProtoPtr()->tokenProtocolId}.ToString());
+        protoJsonObj.pushKV("tokenProtocolName", nftProtoIndex.NftProtoPtr()->tokenProtocolName);
+        protoJsonObj.pushKV("tokenMetadataSchemaUri", nftProtoIndex.NftProtoPtr()->tokenMetadataSchemaUri);
+        protoJsonObj.pushKV("tokenMetadataMimeType", nftProtoIndex.NftProtoPtr()->tokenMetadataMimeType);
+        protoJsonObj.pushKV("isTokenTransferable", nftProtoIndex.NftProtoPtr()->isTokenTransferable);
+        protoJsonObj.pushKV("isMetadataEmbedded", nftProtoIndex.NftProtoPtr()->isMetadataEmbedded);
         auto nftRegSignStr = NftRegSignToString(static_cast<NftRegSign>(nftProtoIndex.NftProtoPtr()->nftRegSign));
-        protoJsonObj.push_back(json_spirit::Pair("nftRegSign", nftRegSignStr));
-        protoJsonObj.push_back(json_spirit::Pair("maxMetadataSize", nftProtoIndex.NftProtoPtr()->maxMetadataSize));
-        protoJsonObj.push_back(json_spirit::Pair("tokenProtocolOwnerId", CBitcoinAddress(nftProtoIndex.NftProtoPtr()->tokenProtocolOwnerId).ToString()));
+        protoJsonObj.pushKV("nftRegSign", nftRegSignStr);
+        protoJsonObj.pushKV("maxMetadataSize", nftProtoIndex.NftProtoPtr()->maxMetadataSize);
+        protoJsonObj.pushKV("tokenProtocolOwnerId", EncodeDestination(PKHash(nftProtoIndex.NftProtoPtr()->tokenProtocolOwnerId)));
 
         return protoJsonObj;
     }
 
-    UniValue RegisterNftProtocol(const JSONRPCRequest& request)
+    UniValue RegisterNftProtocol(const UniValue& params)
     {
-        if (params.size() < 4 || params.size() > 10)
-            RegisterNftProtocolHelp();
-
         CKey ownerKey;
         NftProtocolRegTxBuilder txBuilder;
         txBuilder.SetTokenProtocol(params[1]).SetTokenProtocolName(params[2]).SetTokenProtocolOwnerKey(params[3], ownerKey);
@@ -144,30 +143,26 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue ListNftProtocols(const JSONRPCRequest& request)
+    UniValue ListNftProtocols(const UniValue& params)
     {
-        if (fHelp || params.empty() || params.size() > 5)
-            ListNftProtocolsHelp();
-
         static const unsigned int defaultTxsCount = 20;
         static const unsigned int defaultSkipFromTip = 0;
-        unsigned int count = (params.size() > 1) ? ParseUInt32V(params[1], "count") : defaultTxsCount;
-        unsigned int skipFromTip = (params.size() > 2) ? ParseUInt32V(params[2], "skipFromTip") : defaultSkipFromTip;
+        unsigned int count =  defaultTxsCount;
+        unsigned int skipFromTip = defaultSkipFromTip;
 
-        unsigned int height = (params.size() > 3 && params[3].get_str() != "*") ? ParseUInt32V(params[3], "height") : chainActive.Height();
-        if (height < 0 || height > chainActive.Height())
+        unsigned int height = ::ChainActive().Height();
+        if (height < 0 || height > ::ChainActive().Height())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height is out of range");
 
-        bool regTxOnly = (params.size() > 4) ? ParseBoolV(params[4], "regTxOnly") : false;
-
-        json_spirit::Array protoList;
+        bool regTxOnly =  false;
+        UniValue protoList(UniValue::VARR);
 
         auto protoHandler = [&](const NftProtoIndex & protoIndex) -> bool
         {
             if (regTxOnly)
             {
-                json_spirit::Object hashObj;
-                hashObj.push_back(json_spirit::Pair("registrationTxHash", protoIndex.RegTxHash().GetHex()));
+                UniValue hashObj(UniValue::VOBJ);
+                hashObj.pushKV("registrationTxHash", protoIndex.RegTxHash().GetHex());
                 protoList.push_back(hashObj);
             }
             else
@@ -216,11 +211,8 @@ List the most recent 20 NFT protocol records
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue GetNftProtocol(const JSONRPCRequest& request)
+    UniValue GetNftProtocol(const UniValue& params)
     {
-        if (fHelp || params.size() != 2)
-            GetNftProtocolHelp();
-
         uint64_t tokenProtocolId = StringToProtocolName(params[1].get_str().c_str());
 
         auto nftProtoIndex = NftProtocolsManager::Instance().GetNftProtoIndex(tokenProtocolId);
@@ -264,11 +256,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue GetNftProtocolByTxId(const JSONRPCRequest& request)
+    UniValue GetNftProtocolByTxId(const UniValue& params)
     {
-        if (fHelp || params.size() != 2)
-            GetNftProtocolByTxIdHelp();
-
         uint256 regTxHash = ParseHashV(params[1].get_str(), "registrationTxHash");
         auto nftProtoIndex = NftProtocolsManager::Instance().GetNftProtoIndex(regTxHash);
         if (nftProtoIndex.IsNull())
@@ -293,11 +282,8 @@ Examples:
         throw std::runtime_error(helpMessage);
     }
 
-    UniValue NftProtoOwnerOf(const JSONRPCRequest& request)
+    UniValue NftProtoOwnerOf(const UniValue& params)
     {
-        if (fHelp || params.size() != 2)
-            NftProtoOwnerOfHelp();
-
         uint64_t tokenProtocolId = StringToProtocolName(params[1].get_str().c_str());
         if (tokenProtocolId == NfToken::UNKNOWN_TOKEN_PROTOCOL)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "NFT protocol ID contains invalid characters");
@@ -306,14 +292,11 @@ Examples:
         if (ownerId.IsNull())
             throw std::runtime_error("Can't find an NFT protocol: " + std::to_string(tokenProtocolId));
 
-        return CBitcoinAddress(ownerId).ToString();
+        return EncodeDestination(PKHash(ownerId));
     }
 
-    UniValue NftProtoTotalSupply(const JSONRPCRequest& request)
+    UniValue NftProtoTotalSupply(const UniValue& params)
     {
-        if (fHelp || params.empty() || params.size() > 1)
-            NftProtoTotalSupplyHelp();
-
         std::size_t totalSupply = NftProtocolsManager::Instance().TotalSupply();
         return static_cast<uint64_t>(totalSupply);
     }

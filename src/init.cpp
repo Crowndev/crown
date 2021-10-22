@@ -68,7 +68,7 @@
 #include <set>
 #include <stdint.h>
 #include <stdio.h>
-
+#include <platform/platform-db.h>
 #include <crown/init.h>
 #include <crown/nodesync.h>
 #include <masternode/masternode-sync.h>
@@ -263,7 +263,7 @@ void Shutdown(NodeContext& node)
             }
         }
     }
-
+    Platform::PlatformDb::DestroyInstance();
     // After there are no more peers/RPC left to give us new data which may generate
     // CValidationInterface callbacks, flush them...
     GetMainSignals().FlushBackgroundCallbacks();
@@ -1551,8 +1551,13 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     // ********************************************************* Step 7: load block chain
 
+    fPlatformReindex = args.GetBoolArg("-platformreindex", false);
+
     fReindex = args.GetBoolArg("-reindex", false);
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
+
+    bool platformOptRam = args.GetBoolArg("-platformoptram", false);
+    Platform::PlatformOpt opt = platformOptRam ? Platform::PlatformOpt::OptRam : Platform::PlatformOpt::OptSpeed;
 
     // cache size calculations
     int64_t nTotalCache = (args.GetArg("-dbcache", nDefaultDbCache) << 20);
@@ -1574,6 +1579,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     nTotalCache -= nCoinDBCache;
     int64_t nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
     int64_t nMempoolSizeMax = args.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
+    int64_t nPlatformDbCache = 1024 * 1024 * 10; //TODO: set appropriate platform db cache size
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1f MiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
     if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
@@ -1605,6 +1611,9 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 chainman.m_total_coinsdb_cache = nCoinDBCache;
 
                 UnloadBlockIndex(node.mempool.get(), chainman);
+                Platform::PlatformDb::DestroyInstance();
+
+                Platform::PlatformDb::CreateInstance(nPlatformDbCache, opt, false, fReindex || fPlatformReindex);
 
                 // new CBlockTreeDB tries to delete the existing file, which
                 // fails if it's still open from the previous loop. Close it first:
@@ -1651,6 +1660,10 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 if (!fReindex && !LoadGenesisBlock(chainparams)) {
                     strLoadError = _("Error initializing block database");
                     break;
+                }
+
+                if (fPlatformReindex) {
+                   // Platform::PlatformDb::Instance().Reindex();
                 }
 
                 // At this point we're either in reindex or we've loaded a useful
@@ -1774,7 +1787,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 failed_verification = true;
                 break;
             }
-
+            //Platform::PlatformDb::Instance().CleanupDb();
             if (!failed_verification) {
                 fLoaded = true;
                 LogPrintf(" block index %15dms\n", GetTimeMillis() - load_block_index_start_time);

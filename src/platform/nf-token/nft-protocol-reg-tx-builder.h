@@ -18,7 +18,7 @@ namespace Platform
     class NftProtocolRegTxBuilder
     {
     public:
-        NftProtocolRegTxBuilder & SetTokenProtocol(const json_spirit::Value & tokenProtocolId)
+        NftProtocolRegTxBuilder & SetTokenProtocol(const UniValue & tokenProtocolId)
         {
             auto nftProtoStr = tokenProtocolId.get_str();
             if (nftProtoStr.size() < NfTokenProtocol::TOKEN_PROTOCOL_ID_MIN || nftProtoStr.size() > NfTokenProtocol::TOKEN_PROTOCOL_ID_MAX)
@@ -29,7 +29,7 @@ namespace Platform
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetTokenProtocolName(const json_spirit::Value & tokenProtocolName)
+        NftProtocolRegTxBuilder & SetTokenProtocolName(const UniValue & tokenProtocolName)
         {
             m_nftProto.tokenProtocolName = tokenProtocolName.get_str();
             if (m_nftProto.tokenProtocolName.size() < NfTokenProtocol::TOKEN_PROTOCOL_NAME_MIN
@@ -38,14 +38,14 @@ namespace Platform
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetTokenProtocolOwnerKey(const json_spirit::Value & nftProtoOwnerAddress, CKey & ownerPrivKey)
+        NftProtocolRegTxBuilder & SetTokenProtocolOwnerKey(const UniValue & nftProtoOwnerAddress, CKey & ownerPrivKey)
         {
             ownerPrivKey = PullPrivKeyFromWallet(nftProtoOwnerAddress.get_str(), "nftProtoOwnerAddress");
             m_nftProto.tokenProtocolOwnerId = ownerPrivKey.GetPubKey().GetID();
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetMetadataSchemaUri(const json_spirit::Value & schemaUri)
+        NftProtocolRegTxBuilder & SetMetadataSchemaUri(const UniValue & schemaUri)
         {
             m_nftProto.tokenMetadataSchemaUri = schemaUri.get_str();
             if (m_nftProto.tokenMetadataSchemaUri.size() > NfTokenProtocol::TOKEN_METADATA_SCHEMA_URI_MAX)
@@ -53,7 +53,7 @@ namespace Platform
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetMetadataMimeType(const json_spirit::Value & mimeType)
+        NftProtocolRegTxBuilder & SetMetadataMimeType(const UniValue & mimeType)
         {
             m_nftProto.tokenMetadataMimeType = mimeType.get_str();
             if (m_nftProto.tokenMetadataMimeType.size() > NfTokenProtocol::TOKEN_METADATA_MIMETYPE_MAX)
@@ -61,9 +61,9 @@ namespace Platform
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetNftRegSign(const json_spirit::Value & nftRegSign)
+        NftProtocolRegTxBuilder & SetNftRegSign(const UniValue & nftRegSign)
         {
-            m_nftProto.nftRegSign = ParseInt32V(nftRegSign, "nftRegSign");
+            //m_nftProto.nftRegSign = ParseInt32V(nftRegSign, "nftRegSign");
             if (m_nftProto.nftRegSign < static_cast<uint8_t>(NftRegSignMin) || m_nftProto.nftRegSign > static_cast<uint8_t>(NftRegSignMax))
             {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Unsupported NftRegSign type");
@@ -71,21 +71,21 @@ namespace Platform
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetIsTokenTransferable(const json_spirit::Value & value)
+        NftProtocolRegTxBuilder & SetIsTokenTransferable(const UniValue & value)
         {
-            m_nftProto.isTokenTransferable = ParseBoolV(value, "isTokenTransferable");
+            //m_nftProto.isTokenTransferable = ParseBoolV(value, "isTokenTransferable");
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetIsMetadataEmbedded(const json_spirit::Value & value)
+        NftProtocolRegTxBuilder & SetIsMetadataEmbedded(const UniValue & value)
         {
-            m_nftProto.isMetadataEmbedded = ParseBoolV(value, "isMetadataEmbedded");
+            //m_nftProto.isMetadataEmbedded = ParseBoolV(value, "isMetadataEmbedded");
             return *this;
         }
 
-        NftProtocolRegTxBuilder & SetMaxMetadataSize(const json_spirit::Value & value)
+        NftProtocolRegTxBuilder & SetMaxMetadataSize(const UniValue & value)
         {
-            m_nftProto.maxMetadataSize = ParseUInt8V(value, "maxMetadataSize");
+            //m_nftProto.maxMetadataSize = ParseUInt8V(value, "maxMetadataSize");
             return *this;
         }
 

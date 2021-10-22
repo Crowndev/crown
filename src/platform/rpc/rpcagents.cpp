@@ -1,10 +1,8 @@
-#include <platform/rpc/rpcagents.h>
 #include <rpc/server.h>
 #include <rpc/protocol.h>
 #include <masternode/masternodeconfig.h>
 #include <key.h>
 #include <crown/legacysigner.h>
-#include <univalue/univalue.h>
 #include <primitives/transaction.h>
 #include <platform/agent.h>
 #include <platform/governance-vote.h>
@@ -14,7 +12,7 @@
 
 namespace Platform
 {
-    json_spirit::Object SendVotingTransaction(
+    UniValue SendVotingTransaction(
         const CPubKey& pubKeyMasternode,
         const CKey& keyMasternode,
         const CTxIn& vin,
@@ -52,7 +50,7 @@ namespace Platform
         }
     }
 
-    json_spirit::Object CastSingleVote(const uint256& hash, Platform::VoteValue vote, const CNodeEntry& mne)
+    UniValue CastSingleVote(const uint256& hash, Platform::VoteValue vote, const CNodeEntry& mne)
     {
         std::string errorMessage;
         std::vector<unsigned char> vchMasterNodeSignature;
@@ -64,7 +62,7 @@ namespace Platform
 
             UniValue statusObj(UniValue::VOBJ);
 
-        if(!legacySigner.SetKey(mne.getPrivKey(), errorMessage, keyMasternode, pubKeyMasternode)){
+        if(!legacySigner.SetKey(mne.getPrivKey(), keyMasternode, pubKeyMasternode)){
             statusObj.pushKV("result", "failed");
             statusObj.pushKV("errorMessage", "Masternode signing error, could not set key correctly: " + errorMessage);
             return statusObj;
@@ -95,18 +93,6 @@ namespace Platform
     }
 }
 
-UniValue agents(const JSONRPCRequest& request)
-{
-    auto command = request.params[0];
-
-    if (command == "vote")
-        return vote(params, fHelp);
-    else if (command == "list")
-        return list(params, fHelp);
-    else
-        throw std::runtime_error("wrong format");
-}
-
 UniValue vote(const JSONRPCRequest& request)
 {
     if (request.params.size() != 3)
@@ -122,8 +108,8 @@ UniValue vote(const JSONRPCRequest& request)
     for(const auto& mne: masternodeConfig.getEntries())
     {
         auto statusObj = CastSingleVote(hash, nVote, mne);
-        auto result = json_spirit::find_value(statusObj, "result");
-        if (result.type() != UniValue_type::str_type || result.get_str() == "failed")
+        std::string result = find_value(statusObj, "result").get_str();
+        if (result == "failed")
             ++failed;
         else
             ++success;
@@ -139,7 +125,7 @@ UniValue vote(const JSONRPCRequest& request)
     return returnObj;
 }
 
-UniValue list(const JSONRPCRequest& request)
+UniValue lists(const JSONRPCRequest& request)
 {
     UniValue result(UniValue::VARR);
 
@@ -158,9 +144,8 @@ Span<const CRPCCommand> GetAgentsRPCCommands()
 static const CRPCCommand commands[] =
 { //  category              name                                actor (function)                argNames
     //  --------------------- ------------------------          -----------------------         ----------
-    { "nft",                "agents",                           &agents,                        {"vote","list"} },
     { "nft",                "vote",                             &vote,                          {"txid"} },
-    { "nft",                "list",                             &list,                          {} },
+    { "nft",                "lists",                             &lists,                          {} },
 };
 // clang-format on
     return MakeSpan(commands);

@@ -16,7 +16,7 @@ namespace Platform
     class NfTokenRegTxBuilder
     {
     public:
-        NfTokenRegTxBuilder & SetTokenProtocol(const json_spirit::Value & tokenProtocolId)
+        NfTokenRegTxBuilder & SetTokenProtocol(const UniValue & tokenProtocolId)
         {
             m_nfToken.tokenProtocolId = StringToProtocolName(tokenProtocolId.get_str().c_str());
             if (m_nfToken.tokenProtocolId == NfToken::UNKNOWN_TOKEN_PROTOCOL)
@@ -24,19 +24,19 @@ namespace Platform
             return *this;
         }
 
-        NfTokenRegTxBuilder & SetTokenId(const json_spirit::Value & tokenIdHexValue)
+        NfTokenRegTxBuilder & SetTokenId(const UniValue & tokenIdHexValue)
         {
             m_nfToken.tokenId = ParseHashV(tokenIdHexValue.get_str(), "nfTokenId");
             return *this;
         }
 
-        NfTokenRegTxBuilder & SetTokenOwnerKey(const json_spirit::Value & tokenOwnerAddress)
+        NfTokenRegTxBuilder & SetTokenOwnerKey(const UniValue & tokenOwnerAddress)
         {
             m_nfToken.tokenOwnerKeyId = ParsePubKeyIDFromAddress(tokenOwnerAddress.get_str(), "nfTokenOwnerAddr");
             return *this;
         }
 
-        NfTokenRegTxBuilder & SetMetadataAdminKey(const json_spirit::Value & metadataAdminAddress)
+        NfTokenRegTxBuilder & SetMetadataAdminKey(const UniValue & metadataAdminAddress)
         {
             if (!metadataAdminAddress.get_str().empty() && metadataAdminAddress.get_str() != "0")
             {
@@ -45,7 +45,7 @@ namespace Platform
             return *this;
         }
 
-        NfTokenRegTxBuilder & SetMetadata(const json_spirit::Value & metadata)
+        NfTokenRegTxBuilder & SetMetadata(const UniValue & metadata)
         {
             m_nfToken.metadata.assign(metadata.get_str().begin(), metadata.get_str().end());
             return *this;
