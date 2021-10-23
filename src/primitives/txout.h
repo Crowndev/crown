@@ -9,9 +9,8 @@ class CTxOutData;
 
 enum OutputTypes
 {
-    OUT_BASIC            = 0,
-    OUT_STANDARD         = 1,
-    OUT_DATA             = 2,
+    OUT_STANDARD         = 0,
+    OUT_DATA             = 1,
 };
 
 class CTxOutBase
@@ -79,75 +78,6 @@ public:
 #define OUTPUT_PTR std::shared_ptr
 typedef OUTPUT_PTR<CTxOutBase> CTxOutBaseRef;
 #define MAKE_OUTPUT std::make_shared
-
-class CTxOutBasic : public CTxOutBase
-{
-public:
-    CTxOutBasic() : CTxOutBase(OUT_STANDARD) {};
-    CTxOutBasic(const CAmount& nValueIn, CScript scriptPubKeyIn);
-
-    CAmount nValue;
-    CScript scriptPubKey;
-
-    SERIALIZE_METHODS(CTxOutBasic, obj) { READWRITE(obj.nValue, obj.scriptPubKey); }
-
-    void SetNull()
-    {
-        nValue=0;
-        scriptPubKey.clear();
-    }
-
-    bool IsNull() const
-    {
-        return nValue==0 && scriptPubKey.empty();
-    }
-
-    void SetEmpty()
-    {
-        nValue = 0;
-        scriptPubKey.clear();
-    }
-
-    bool IsFee() const {
-        return scriptPubKey == CScript() && !nValue==0;
-    }
-
-    bool IsEmpty() const override
-    {
-        return (nValue == 0 && scriptPubKey.empty());
-    }
-
-    friend bool operator==(const CTxOutBasic& a, const CTxOutBasic& b)
-    {
-        return (a.nValue == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey);
-    }
-
-    friend bool operator!=(const CTxOutBasic& a, const CTxOutBasic& b)
-    {
-        return !(a == b);
-    }
-
-    uint256 GetHash() const;
-
-    std::string ToString() const;
-
-    CAmount GetValue() const override
-    {
-        return nValue;
-    }
-
-    bool GetScriptPubKey(CScript &scriptPubKey_) const override
-    {
-        scriptPubKey_ = scriptPubKey;
-        return true;
-    }
-
-    virtual const CScript *GetPScriptPubKey() const override
-    {
-        return &scriptPubKey;
-    }
-};
 
 class CTxOutStandard : public CTxOutBase
 {

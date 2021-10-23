@@ -233,37 +233,75 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         s >> flags;
         if (flags != 0) {
             s >> tx.vin;
-            s >> tx.vout;
+
+            if (tx.nVersion >= TX_ELE_VERSION) {
+                size_t nOutputs = ReadCompactSize(s);
+                tx.vpout.clear();
+                tx.vpout.reserve(nOutputs);
+                for (size_t k = 0; k < nOutputs; ++k) {
+                    uint8_t bv;
+                    s >> bv;
+                    switch (bv) {
+                        case OUT_STANDARD:
+                            tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
+                            break;
+                        case OUT_DATA:
+                            tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
+                            break;
+                        default:
+                            throw std::ios_base::failure("Unknown transaction output type");
+                    }
+                    tx.vpout[k]->nVersion = bv;
+                    s >> *tx.vpout[k];
+                }
+            }
+            else
+                s >> tx.vout;
         }
     } else {
         /* We read a non-empty vin. Assume a normal vout follows. */
-        s >> tx.vout;
-    }
-    if (tx.nVersion >= 3) {
-        size_t nOutputs = ReadCompactSize(s);
-        tx.vpout.clear();
-        tx.vpout.reserve(nOutputs);
-        for (size_t k = 0; k < nOutputs; ++k) {
-            uint8_t bv;
-            s >> bv;
-            switch (bv) {
-                case OUT_BASIC:
-                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutBasic>());
-                    break;
-                case OUT_STANDARD:
-                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
-                    break;
-                case OUT_DATA:
-                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
-                    break;
-                default:
-                    throw std::ios_base::failure("Unknown transaction output type");
+        if (tx.nVersion >= TX_ELE_VERSION) {
+            size_t nOutputs = ReadCompactSize(s);
+            tx.vpout.clear();
+            tx.vpout.reserve(nOutputs);
+            for (size_t k = 0; k < nOutputs; ++k) {
+                uint8_t bv;
+                s >> bv;
+                switch (bv) {
+                    case OUT_STANDARD:
+                        tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
+                        break;
+                    case OUT_DATA:
+                        tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
+                        break;
+                    default:
+                        throw std::ios_base::failure("Unknown transaction output type");
+                }
+                tx.vpout[k]->nVersion = bv;
+                s >> *tx.vpout[k];
             }
-            tx.vpout[k]->nVersion = bv;
-            s >> *tx.vpout[k];
+        }
+        else
+            s >> tx.vout;
+    }
+
+    if ((flags & 1) && fAllowWitness) {
+        /* The witness flag is present, and we support witnesses. */
+        flags ^= 1;
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            s >> tx.vin[i].scriptWitness.stack;
+        }
+        if (!tx.HasWitness()) {
+            /* It's illegal to encode witnesses when all witness stacks are empty. */
+            throw std::ios_base::failure("Superfluous witness record");
         }
     }
-    if (tx.nVersion >= 3) {
+    if (flags) {
+        /* Unknown flag in the serialization */
+        throw std::ios_base::failure("Unknown transaction optional data");
+    }
+    s >> tx.nLockTime;
+    if (tx.nVersion >= TX_ELE_VERSION) {
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
         for (size_t k = 0; k < nOutputs; ++k) {
@@ -285,24 +323,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             tx.vdata[k]->nVersion = bv;
             s >> *tx.vdata[k];
         }
-    }
-    if ((flags & 1) && fAllowWitness) {
-        /* The witness flag is present, and we support witnesses. */
-        flags ^= 1;
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s >> tx.vin[i].scriptWitness.stack;
-        }
-        if (!tx.HasWitness()) {
-            /* It's illegal to encode witnesses when all witness stacks are empty. */
-            throw std::ios_base::failure("Superfluous witness record");
-        }
-    }
-    if (flags) {
-        /* Unknown flag in the serialization */
-        throw std::ios_base::failure("Unknown transaction optional data");
-    }
-    s >> tx.nLockTime;
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
         s >> tx.extraPayload;
     }
 }
@@ -329,28 +350,31 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         s << flags;
     }
     s << tx.vin;
-    s << tx.vout;
-    if (tx.nVersion >= 3) {
+
+    if (tx.nVersion >= TX_ELE_VERSION) {
         WriteCompactSize(s, tx.vpout.size());
         for (size_t k = 0; k < tx.vpout.size(); ++k) {
             s << tx.vpout[k]->nVersion;
             s << *tx.vpout[k];
         }
     }
-    if (tx.nVersion >= 3) {
-        WriteCompactSize(s, tx.vdata.size());
-        for (size_t k = 0; k < tx.vdata.size(); ++k) {
-        s << tx.vdata[k]->nVersion;
-        s << *tx.vdata[k];
-        }
-    }
+    else
+        s << tx.vout;
+
     if (flags & 1) {
         for (size_t i = 0; i < tx.vin.size(); i++) {
             s << tx.vin[i].scriptWitness.stack;
         }
     }
     s << tx.nLockTime;
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+
+    if (tx.nVersion >= TX_ELE_VERSION) {
+        WriteCompactSize(s, tx.vdata.size());
+        for (size_t k = 0; k < tx.vdata.size(); ++k) {
+            s << tx.vdata[k]->nVersion;
+            s << *tx.vdata[k];
+        }
+    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
         s << tx.extraPayload;
     }
 }
@@ -407,7 +431,12 @@ public:
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {ComputeHash();}
 
     bool IsNull() const {
-        return vin.empty() && vout.empty();
+        return vin.empty() && vout.empty() && vpout.empty();
+    }
+
+    size_t GetNumVOuts() const
+    {
+        return nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size();
     }
 
     const uint256& GetHash() const { return hash; }
@@ -415,6 +444,7 @@ public:
 
     // Return sum of txouts.
     CAmount GetValueOut() const;
+    CAmountMap GetValueOutMap() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.
@@ -514,5 +544,10 @@ public:
     friend bool operator==(const GenTxid& a, const GenTxid& b) { return a.m_is_wtxid == b.m_is_wtxid && a.m_hash == b.m_hash; }
     friend bool operator<(const GenTxid& a, const GenTxid& b) { return std::tie(a.m_is_wtxid, a.m_hash) < std::tie(b.m_is_wtxid, b.m_hash); }
 };
+
+CAmountMap GetFeeMap(const CTransaction& tx);
+// Check if explicit TX fees overflow or are negative
+bool HasValidFee(const CTransaction& tx);
+
 
 #endif // CROWN_PRIMITIVES_TRANSACTION_H

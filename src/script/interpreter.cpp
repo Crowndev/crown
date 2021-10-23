@@ -1343,6 +1343,12 @@ public:
             ::Serialize(s, txTo.vout[nOutput]);
     }
 
+    /** Serialize data of txTo */
+    template<typename S>
+    void SerializeData(S &s, unsigned int nData) const {
+        ::Serialize(s, *(txTo.vdata[nData].get()));
+    }
+
     /** Serialize txTo */
     template<typename S>
     void Serialize(S &s) const {
@@ -1359,6 +1365,11 @@ public:
         ::WriteCompactSize(s, nOutputs);
         for (unsigned int nOutput = 0; nOutput < nOutputs; nOutput++)
              SerializeOutput(s, nOutput);
+        // Serialize vdata
+        unsigned int nDatas = txTo.vdata.size();
+        ::WriteCompactSize(s, nDatas);
+        for (unsigned int nData = 0; nData < nDatas; nData++)
+            SerializeData(s, nData);
         // Serialize nLockTime
         ::Serialize(s, txTo.nLockTime);
         if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
@@ -1393,8 +1404,24 @@ template <class T>
 uint256 GetOutputsSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
-    for (const auto& txout : txTo.vout) {
-        ss << txout;
+
+    bool have_non_plain = false;
+    if (txTo.nversion >= TX_ELE_VERSION) {
+        for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
+            ss << *txTo.vpout[n];
+            if (txTo.vpout[n]->GetType() != OUTPUT_STANDARD) {
+                have_non_plain = true;
+            }
+        }
+    } else {
+        for (const auto& txout : txTo.vout) {
+            ss << txout;
+        }
+    }
+    if (have_non_plain && (txTo.nVersion & 0xFF) > PARTICL_TXN_VERSION) {
+        for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
+            ss << txTo.vpout[n]->GetType();
+        }
     }
     return ss.GetSHA256();
 }
@@ -1418,13 +1445,17 @@ uint256 GetSpentScriptsSHA256(const std::vector<CTxOut>& outputs_spent)
     }
     return ss.GetSHA256();
 }
-
 /** Compute the (single) SHA256 of the concatenation of all data in tx. */
 template <class T>
 uint256 GetDataSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTo.extraPayload;
+    if (txTo.nversion >= TX_ELE_VERSION) {
+        for (unsigned int nData = 0; nData < txTo.vdata.size(); nData++)
+            ss << *(txTo.vdata[nData].get());
+    }
+    else
+        ss << txTo.extraPayload;
 
     return ss.GetSHA256();
 }
@@ -1539,7 +1570,9 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
     // Transaction level data
     ss << tx_to.nVersion;
     ss << tx_to.nLockTime;
-    if (tx_to.nVersion >= 3 && tx_to.nType != TRANSACTION_NORMAL)
+    if (tx_to.nVersion >= TX_ELE_VERSION)
+        ss << cache.m_data_single_hash;
+    else if (tx_to.nVersion >= 3 && tx_to.nType != TRANSACTION_NORMAL)
         ss << cache.m_data_single_hash;
     if (input_type != SIGHASH_ANYONECANPAY) {
         ss << cache.m_prevouts_single_hash;
@@ -1608,12 +1641,16 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
             hashSequence = cacheready ? cache->hashSequence : SHA256Uint256(GetSequencesSHA256(txTo));
         }
 
-
         if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
             hashOutputs = cacheready ? cache->hashOutputs : SHA256Uint256(GetOutputsSHA256(txTo));
-        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.GetNumVOuts()) {
             CHashWriter ss(SER_GETHASH, 0);
-            ss << txTo.vout[nIn];
+
+            if (txTo.nVersion >= TX_ELE_VERSION) {
+                ss << *(txTo.vpout[nIn].get());
+            } else {
+                ss << txTo.vout[nIn];
+            }
             hashOutputs = ss.GetHash();
         }
         
@@ -1636,7 +1673,9 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
         ss << hashOutputs;
         // Locktime
         ss << txTo.nLockTime;
-        if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
+        if (txTo.nVersion >= TX_ELE_VERSION)
+            ss << hashData;
+        else if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
             ss << hashData;
         // Sighash type
         ss << nHashType;
@@ -1646,7 +1685,7 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 
     // Check for invalid use of SIGHASH_SINGLE
     if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
-        if (nIn >= txTo.vout.size()) {
+        if (nIn >= txTo.GetNumVOuts()) {
             //  nOut out of range
             return uint256::ONE;
         }
