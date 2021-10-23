@@ -7,6 +7,8 @@
 #define CROWN_PRIMITIVES_TRANSACTION_H
 
 #include <stdint.h>
+#include <primitives/txout.h>
+#include <primitives/txdata.h>
 #include <amount.h>
 #include <script/script.h>
 #include <serialize.h>
@@ -15,12 +17,13 @@
 #include <tuple>
 
 #define TX_NFT_VERSION 3
+#define TX_ELE_VERSION 4
 
 enum TxVersion : int16_t {
     LEGACY = 1,
     SEGWIT = 2,
     NFT = 3,
-    EVO = 4
+    ELE = 4
 };
 
 enum TxType : int16_t {
@@ -221,6 +224,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     unsigned char flags = 0;
     tx.vin.clear();
     tx.vout.clear();
+    tx.vpout.clear();
+    tx.vdata.clear();
     /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
     s >> tx.vin;
     if (tx.vin.size() == 0 && fAllowWitness) {
@@ -233,6 +238,53 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     } else {
         /* We read a non-empty vin. Assume a normal vout follows. */
         s >> tx.vout;
+    }
+    if (tx.nVersion >= 3) {
+        size_t nOutputs = ReadCompactSize(s);
+        tx.vpout.clear();
+        tx.vpout.reserve(nOutputs);
+        for (size_t k = 0; k < nOutputs; ++k) {
+            uint8_t bv;
+            s >> bv;
+            switch (bv) {
+                case OUT_BASIC:
+                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutBasic>());
+                    break;
+                case OUT_STANDARD:
+                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
+                    break;
+                case OUT_DATA:
+                    tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
+                    break;
+                default:
+                    throw std::ios_base::failure("Unknown transaction output type");
+            }
+            tx.vpout[k]->nVersion = bv;
+            s >> *tx.vpout[k];
+        }
+    }
+    if (tx.nVersion >= 3) {
+        size_t nOutputs = ReadCompactSize(s);
+        tx.vdata.reserve(nOutputs);
+        for (size_t k = 0; k < nOutputs; ++k) {
+            uint8_t bv;
+            s >> bv;
+            switch (bv) {
+                case OUTPUT_DATA:
+                    tx.vdata.push_back(MAKE_OUTPUT<CTxData>());
+                    break;
+                case OUTPUT_CONTRACT:
+                    tx.vdata.push_back(MAKE_OUTPUT<CContract>());
+                    break;
+                case OUTPUT_ID:
+                    tx.vdata.push_back(MAKE_OUTPUT<CChainID>());
+                    break;
+                default:
+                    throw std::ios_base::failure("Unknown transaction output type");
+            }
+            tx.vdata[k]->nVersion = bv;
+            s >> *tx.vdata[k];
+        }
     }
     if ((flags & 1) && fAllowWitness) {
         /* The witness flag is present, and we support witnesses. */
@@ -278,6 +330,20 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     }
     s << tx.vin;
     s << tx.vout;
+    if (tx.nVersion >= 3) {
+        WriteCompactSize(s, tx.vpout.size());
+        for (size_t k = 0; k < tx.vpout.size(); ++k) {
+            s << tx.vpout[k]->nVersion;
+            s << *tx.vpout[k];
+        }
+    }
+    if (tx.nVersion >= 3) {
+        WriteCompactSize(s, tx.vdata.size());
+        for (size_t k = 0; k < tx.vdata.size(); ++k) {
+        s << tx.vdata[k]->nVersion;
+        s << *tx.vdata[k];
+        }
+    }
     if (flags & 1) {
         for (size_t i = 0; i < tx.vin.size(); i++) {
             s << tx.vin[i].scriptWitness.stack;
@@ -307,6 +373,8 @@ public:
     // structure, including the hash.
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
+    const std::vector<CTxOutBaseRef> vpout;
+    const std::vector<CTxDataBaseRef> vdata;
     const int16_t nVersion;
     const int16_t nType;
     const uint32_t nLockTime;
@@ -386,6 +454,8 @@ struct CMutableTransaction
 {
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
+    std::vector<CTxOutBaseRef> vpout;
+    std::vector<CTxDataBaseRef> vdata;
     int16_t nVersion;
     int16_t nType;
     uint32_t nLockTime;
@@ -398,7 +468,6 @@ struct CMutableTransaction
     inline void Serialize(Stream& s) const {
         SerializeTransaction(*this, s);
     }
-
 
     template <typename Stream>
     inline void Unserialize(Stream& s) {
