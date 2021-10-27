@@ -3,8 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <interfaces/chain.h>
-
 #include <chain.h>
+#include <chainiddb.h>
+#include <contractdb.h>
+
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
@@ -204,6 +206,48 @@ public:
         }
         return std::nullopt;
     }
+
+    CAsset getAsset(std::string sAssetName) override
+    {
+        return ::GetAsset(sAssetName);
+    }
+    std::vector<CAsset> getAllAssets() override
+    {
+        return ::GetAllAssets();
+    }
+
+    bool existsID(const std::string& alias, const CPubKey& pubkey) override
+    {
+		return (pIdCache->Exists(alias) || ExistsID(alias, pubkey));
+    }
+
+    CChainID getID(std::string alias) override
+    {
+        return ::GetID(alias);
+    }
+
+    CLRUCache<std::string, CIDData> *getIDCache() override
+    {
+        CLRUCache<std::string, CIDData> *cache = pIdCache;
+        return cache;
+    }
+
+    CContract getContract(std::string name) override
+    {
+        return ::GetContract(name);
+    }
+
+    bool existsContract(std::string name) override
+    {
+        return (pcontractCache->Exists(name) || ExistsContract(name));
+    }
+    
+    bool isequals(const std::string& str1, const std::string& str2) override
+    {
+        return iequals(str1,str2);
+    }
+    
+
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);

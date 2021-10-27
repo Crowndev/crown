@@ -164,6 +164,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                          strprintf("%s: inputs missing/spent", __func__));
     }
 
+    CAmountMap inputAssets;
+    CAmountMap outputAssets;
+
+    std::vector<CTxOut> spent_inputs;
     CAmount nValueIn = 0;
     for (unsigned int i = 0; i < tx.vin.size(); ++i) {
         const COutPoint &prevout = tx.vin[i].prevout;
@@ -171,10 +175,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         assert(!coin.IsSpent());
 
         // If prev is coinbase, check that it's matured
-        if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
+        if ((coin.IsCoinBase() || coin.IsCoinStake()) && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
             return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "bad-txns-premature-spend-of-coinbase",
                 strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
         }
+        
+        if(tx.nVersion >= TX_ELE_VERSION && coin.out.nAsset.IsEmpty())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-not-explicit-asset",
+                         strprintf("%s: inputs missing/spent", __func__));
+
+        spent_inputs.push_back(coin.out);
+        inputAssets.insert(std::make_pair(coin.out.nAsset, coin.out.nValue));
 
         // Check for negative or overflow input values
         nValueIn += coin.out.nValue;
@@ -182,6 +193,28 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
     }
+
+    for (unsigned int i = 0; i < tx.vout.size(); ++i) {
+        outputAssets.insert(std::make_pair(tx.vout[i].nAsset, tx.vout[i].nValue));
+    }
+
+    // enforce asset rules
+    {
+        //prevent asset merging
+        if(inputAssets.size() > 1)
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset", strprintf("found (%d) , expected 1", inputAssets.size()));
+
+        if(outputAssets.size() > 2)
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset", strprintf("found (%d) , expected 2", outputAssets.size()));
+
+        //
+
+        //check asset conversion
+
+        //
+
+    }
+
 
     const CAmount value_out = tx.GetValueOut();
     if (nValueIn < value_out) {

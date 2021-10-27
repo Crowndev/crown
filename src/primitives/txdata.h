@@ -18,17 +18,6 @@ enum DataTypes
     OUTPUT_VOTE             = 4,
 };
 
-enum DataOutputTypes
-{
-    DO_NULL                 = 0, // Reserved
-    DO_FUND_MSG             = 1,
-    DO_SMSG_FEE             = 2,
-    DO_SMSG_DIFFICULTY      = 3,
-};
-
-bool ExtractCoinStakeInt64(const std::vector<uint8_t> &vData, DataOutputTypes get_type, CAmount &out);
-bool ExtractCoinStakeUint32(const std::vector<uint8_t> &vData, DataOutputTypes get_type, uint32_t &out);
-
 class CTxDataBase
 {
 public:
@@ -175,16 +164,6 @@ public:
     std::vector<uint8_t> vData;
 
     SERIALIZE_METHODS(CTxData, obj) { READWRITE(obj.nType, obj.vData); }
-
-    bool GetSmsgFeeRate(CAmount &fee_rate) const override
-    {
-        return ExtractCoinStakeInt64(vData, DO_SMSG_FEE, fee_rate);
-    }
-
-    bool GetSmsgDifficulty(uint32_t &compact) const override
-    {
-        return ExtractCoinStakeUint32(vData, DO_SMSG_DIFFICULTY, compact);
-    }
 
     std::vector<uint8_t> *GetPData() override
     {

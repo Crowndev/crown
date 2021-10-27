@@ -153,6 +153,7 @@ public:
 class CTxOut
 {
 public:
+    CAsset nAsset;
     CAmount nValue;
     CScript scriptPubKey;
 
@@ -161,19 +162,45 @@ public:
         SetNull();
     }
 
+    CTxOut(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
-    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey); }
+    SERIALIZE_METHODS(CTxOut, obj) {
+        READWRITE(obj.nValue, obj.scriptPubKey);
+        READWRITE(obj.nAsset);
+    }
 
     void SetNull()
     {
-        nValue = -1;
+        nAsset.SetNull();
+        nValue=0;
         scriptPubKey.clear();
     }
 
     bool IsNull() const
     {
-        return (nValue == -1);
+        return nAsset.IsNull() && nValue==0 && scriptPubKey.empty();
+    }
+
+    void SetEmpty()
+    {
+        nValue = 0;
+        nAsset.SetNull();
+        scriptPubKey.clear();
+    }
+
+    bool IsFee() const {
+        return scriptPubKey == CScript() && !nValue==0 && !nAsset.IsNull();
+    }
+
+    bool IsEmpty() const
+    {
+        return (nValue == 0 && scriptPubKey.empty());
+    }
+
+    CAmount GetValue() const
+    {
+        return nValue;
     }
 
     uint256 GetHash() const;
@@ -509,10 +536,17 @@ struct CMutableTransaction
         Unserialize(s);
     }
 
+    size_t GetNumVOuts() const
+    {
+        return nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size();
+    }
+
     /** Compute the hash of this CMutableTransaction. This is computed on the
      * fly, as opposed to GetHash() in CTransaction, which uses a cached result.
      */
     uint256 GetHash() const;
+
+    std::string ToString() const;
 
     bool HasWitness() const
     {

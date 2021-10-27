@@ -246,6 +246,27 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
     return nResult;
 }
 
+CAmountMap CCoinsViewCache::GetValueInMap(const CTransaction& tx) const
+{
+    if (tx.IsCoinBase())
+        return CAmountMap();
+
+    CAmountMap nResult;
+    for (unsigned int i = 0; i < tx.vin.size(); i++){
+		COutPoint prevout = tx.vin[i].prevout;
+		CAsset asset;
+		CAmount amount;
+		
+		    asset = AccessCoin(prevout).out.nAsset;
+
+		    amount = AccessCoin(prevout).out.nValue;	
+		
+        nResult[asset] += amount;
+	}
+
+    return nResult;
+}
+
 bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
 {
     if (!tx.IsCoinBase()) {

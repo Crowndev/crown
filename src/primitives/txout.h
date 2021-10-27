@@ -89,7 +89,14 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
 
-    SERIALIZE_METHODS(CTxOutStandard, obj) { READWRITE(obj.nAsset, obj.nValue, obj.scriptPubKey); }
+    SERIALIZE_METHODS(CTxOutStandard, obj) { 
+		READWRITE(obj.nValue, obj.scriptPubKey);
+        try{
+            READWRITE(obj.nAsset);
+        }
+        catch (const std::exception&) {
+		}
+    }
 
     void SetNull()
     {

@@ -1013,5 +1013,6 @@ inline bool IsBlockPruned(const CBlockIndex* pblockindex)
 bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin);
 int GetUTXOHeight(const COutPoint& outpoint);
 int GetUTXOConfirmations(const COutPoint& outpoint);
-
+CAsset GetAsset(std::string asset);
+std::vector<CAsset> GetAllAssets();
 #endif // CROWN_VALIDATION_H

@@ -19,6 +19,8 @@
 
 #include <functional>
 #include <unordered_map>
+#include <insight/addressindex.h>
+#include <insight/spentindex.h>
 
 /**
  * A UTXO entry.
@@ -259,6 +261,10 @@ protected:
     /* Cached dynamic memory usage for the inner Coin objects. */
     mutable size_t cachedCoinsUsage;
 
+    mutable std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    mutable std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    mutable std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
 public:
     CCoinsViewCache(CCoinsView *baseIn);
 
@@ -337,6 +343,7 @@ public:
      * @return	Sum of value of all inputs (scriptSigs)
      */
     CAmount GetValueIn(const CTransaction& tx) const;
+    CAmountMap GetValueInMap(const CTransaction& tx) const;
 
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;

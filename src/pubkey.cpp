@@ -6,6 +6,7 @@
 #include <pubkey.h>
 
 #include <secp256k1.h>
+#include <secp256k1_extrakeys.h>
 #include <secp256k1_recovery.h>
 #include <secp256k1_schnorrsig.h>
 
@@ -173,6 +174,12 @@ XOnlyPubKey::XOnlyPubKey(Span<const unsigned char> bytes)
     std::copy(bytes.begin(), bytes.end(), m_keydata.begin());
 }
 
+bool XOnlyPubKey::IsFullyValid() const
+{
+    secp256k1_xonly_pubkey pubkey;
+    return secp256k1_xonly_pubkey_parse(secp256k1_context_verify, &pubkey, m_keydata.data());
+}
+
 bool XOnlyPubKey::VerifySchnorr(const uint256& msg, Span<const unsigned char> sigbytes) const
 {
     assert(sigbytes.size() == 64);
@@ -187,6 +194,45 @@ bool XOnlyPubKey::CheckPayToContract(const XOnlyPubKey& base, const uint256& has
     if (!secp256k1_xonly_pubkey_parse(secp256k1_context_verify, &base_point, base.data())) return false;
     return secp256k1_xonly_pubkey_tweak_add_check(secp256k1_context_verify, m_keydata.begin(), parity, &base_point, hash.begin());
 }
+
+static const CHashWriter HASHER_TAPTWEAK = TaggedHash("TapTweak");
+
+uint256 XOnlyPubKey::ComputeTapTweakHash(const uint256* merkle_root) const
+{
+    if (merkle_root == nullptr) {
+        // We have no scripts. The actual tweak does not matter, but follow BIP341 here to
+        // allow for reproducible tweaking.
+        return (CHashWriter(HASHER_TAPTWEAK) << m_keydata).GetSHA256();
+    } else {
+        return (CHashWriter(HASHER_TAPTWEAK) << m_keydata << *merkle_root).GetSHA256();
+    }
+}
+
+bool XOnlyPubKey::CheckTapTweak(const XOnlyPubKey& internal, const uint256& merkle_root, bool parity) const
+{
+    secp256k1_xonly_pubkey internal_key;
+    if (!secp256k1_xonly_pubkey_parse(secp256k1_context_verify, &internal_key, internal.data())) return false;
+    uint256 tweak = internal.ComputeTapTweakHash(&merkle_root);
+    return secp256k1_xonly_pubkey_tweak_add_check(secp256k1_context_verify, m_keydata.begin(), parity, &internal_key, tweak.begin());
+}
+
+std::optional<std::pair<XOnlyPubKey, bool>> XOnlyPubKey::CreateTapTweak(const uint256* merkle_root) const
+{
+    secp256k1_xonly_pubkey base_point;
+    if (!secp256k1_xonly_pubkey_parse(secp256k1_context_verify, &base_point, data())) return std::nullopt;
+    secp256k1_pubkey out;
+    uint256 tweak = ComputeTapTweakHash(merkle_root);
+    if (!secp256k1_xonly_pubkey_tweak_add(secp256k1_context_verify, &out, &base_point, tweak.data())) return std::nullopt;
+    int parity = -1;
+    std::pair<XOnlyPubKey, bool> ret;
+    secp256k1_xonly_pubkey out_xonly;
+    if (!secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_verify, &out_xonly, &parity, &out)) return std::nullopt;
+    secp256k1_xonly_pubkey_serialize(secp256k1_context_verify, ret.first.begin(), &out_xonly);
+    assert(parity == 0 || parity == 1);
+    ret.second = parity;
+    return ret;
+}
+
 
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {
     if (!IsValid())
@@ -204,6 +250,22 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
      * not historically been enforced in Crown, so normalize them first. */
     secp256k1_ecdsa_signature_normalize(secp256k1_context_verify, &sig, &sig);
     return secp256k1_ecdsa_verify(secp256k1_context_verify, &sig, hash.begin(), &pubkey);
+}
+
+bool CPubKey::RecoverLaxDER(const uint256 &hash, const std::vector<unsigned char>& vchSig, uint8_t recid, bool fComp) {
+    secp256k1_ecdsa_signature sig;
+    if (!ecdsa_signature_parse_der_lax(secp256k1_context_verify, &sig, vchSig.data(), vchSig.size())) {
+        return false;
+    }
+
+    std::vector<unsigned char> strictVchSig(65);
+    strictVchSig[0] = recid | (fComp ? 4 : 0);
+    strictVchSig[0] += 27;
+    if(!secp256k1_ecdsa_signature_serialize_compact(secp256k1_context_verify, strictVchSig.data()+1, &sig)) {
+        return false;
+    }
+
+    return RecoverCompact(hash, strictVchSig);
 }
 
 bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
@@ -272,6 +334,17 @@ bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChi
     return true;
 }
 
+CKeyID CPubKey::GetID() const
+{
+	return CKeyID(Hash160(MakeSpan(vch).first(size())));
+}
+
+//! Get the 256-bit hash of this public key.
+uint256 CPubKey::GetHash() const
+{
+	return Hash(MakeSpan(vch).first(size()));
+}
+
 void CExtPubKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const {
     code[0] = nDepth;
     memcpy(code+1, vchFingerprint, 4);
@@ -296,6 +369,18 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int _nChild) const {
     memcpy(&out.vchFingerprint[0], &id, 4);
     out.nChild = _nChild;
     return pubkey.Derive(out.pubkey, out.chaincode, _nChild, chaincode);
+}
+
+bool CPubKey::CheckLowS(const boost::sliced_range<const std::vector<uint8_t>> &vchSig) {
+    secp256k1_ecdsa_signature sig;
+    assert(secp256k1_context_verify &&
+           "secp256k1_context_verify must be initialized to use CPubKey.");
+    if (!ecdsa_signature_parse_der_lax(secp256k1_context_verify, &sig,
+                                       &vchSig.front(), vchSig.size())) {
+        return false;
+    }
+    return (!secp256k1_ecdsa_signature_normalize(secp256k1_context_verify,
+                                                 nullptr, &sig));
 }
 
 /* static */ bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig) {
@@ -327,4 +412,8 @@ ECCVerifyHandle::~ECCVerifyHandle()
         secp256k1_context_destroy(secp256k1_context_verify);
         secp256k1_context_verify = nullptr;
     }
+}
+
+const secp256k1_context* GetVerifyContext() {
+    return secp256k1_context_verify;
 }

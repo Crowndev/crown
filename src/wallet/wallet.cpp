@@ -4,8 +4,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <wallet/wallet.h>
-
 #include <chain.h>
+#include <chainiddb.h>
+
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <fs.h>
@@ -40,6 +41,7 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <regex>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -2816,7 +2818,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
 
     CTransactionRef tx_new;
     FeeCalculation fee_calc_out;
-    if (!CreateTransaction(vecSend, tx_new, nFeeRet, nChangePosInOut, error, coinControl, fee_calc_out, false, ALL_COINS, extraPayloadSize)) {
+    if (!CreateTransaction(vecSend, tx_new, nFeeRet, nChangePosInOut, error, coinControl, fee_calc_out, false, CTxDataBase(), ALL_COINS, extraPayloadSize)) {
         return false;
     }
 
@@ -2933,6 +2935,323 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
     return m_default_address_type;
 }
 
+
+bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, CChainID& chainID, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
+{
+    LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
+    LOCK(cs_wallet);
+
+    CContract newcontract;
+    newcontract.contract_url = contract_url;
+    newcontract.website_url = website_url;
+    newcontract.description = description;
+    newcontract.scriptcode = script;
+    newcontract.issuer_id = chainID;
+    newcontract.asset_symbol = shortname;
+    newcontract.asset_name = name;
+    newcontract.sIssuingaddress = EncodeDestination(WitnessV0KeyHash(chainID.pubKey.GetID()));
+
+    CKey key;
+    if (!spk_man->GetKey(chainID.pubKey.GetID(), key)) {
+        strFailReason = "Private key for address " + EncodeDestination(WitnessV0KeyHash(chainID.pubKey.GetID())) + " is not known";
+        return false;
+    }
+
+    if(!key.Sign(newcontract.GetHashWithoutSign(), newcontract.vchContractSig)){
+        strFailReason = "unable to sign contract with key";
+        return false;
+    }
+
+    CAmount nAmount = 10.0001 * COIN;
+    CAsset asset = Params().GetConsensus().subsidy_asset;
+
+    CCoinControl coin_control;
+
+    std::vector<COutput> vecOutputs;
+    {
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        AvailableCoins(vecOutputs, false, &cctl, 0, nAmount, MAX_MONEY, 0);
+    }
+
+    CTxDestination dest = WitnessV0KeyHash(chainID.pubKey.GetID());
+
+    for (const COutput& out : vecOutputs) {
+        CTxDestination address;
+        const CScript& scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
+        bool fValidAddress = ExtractDestination(scriptPubKey, address);
+
+        if(std::get<WitnessV0KeyHash>(dest) != std::get<WitnessV0KeyHash>(address))
+            continue;
+
+        if (!fValidAddress)
+            continue;
+
+        // Elements
+        CAmount amount = out.tx->tx->vout[out.i].nValue;
+        CAsset assetid = out.tx->tx->vout[out.i].nAsset;
+
+        if ((amount < 0 || assetid.IsNull())) {
+            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
+            continue;
+        }
+
+        if (asset != assetid) {
+            continue;
+        }
+
+        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
+    }
+
+    mapValue_t mapValue;
+
+    //coin_control.m_add_inputs = false;
+    std::vector<CRecipient> recipients;
+
+    CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
+    recipients.push_back(recipient);
+
+    // Send
+    CAmount nFeeRequired;
+    int nChangePosRet = -1;
+    bilingual_str error;
+    FeeCalculation fee_calc_out;
+    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS), newcontract);
+    if (!fCreated) {
+        strFailReason = "Failed to create Contract " + error.original;
+        return false;
+    }
+
+    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    contract = newcontract;
+    return true;
+}
+
+bool CWallet::CreateID(CChainID& chainID, CTransactionRef& tx, std::string &strAddress, std::string &alias, std::string &email, std::string& strFailReason)
+{
+    LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
+    LOCK(cs_wallet);
+
+    if(alias == "" || alias.length() < 4){
+        strFailReason ="Alias too short";
+        return false;
+    }
+
+    if(alias.length() > 16){
+        strFailReason ="Alias exceeds limit (16 characters)";
+        return false;
+    }
+    
+    //check alias validity 
+    {
+        const std::regex pattern ("^[A-Za-z0-9]+$");
+        bool match = std::regex_match(alias, pattern);
+        if(!match){
+            strFailReason = "Alias contains illegal characters";
+            return false;
+        }		
+	}
+
+    //check email validity here
+    {
+        const std::regex pattern ("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
+        // try to match the string with the regular expression
+        bool match = std::regex_match(email, pattern);
+        if(!match){
+            strFailReason = "Email pattern error";
+            return false;
+        }
+    }
+
+    CTxDestination dest = DecodeDestination(strAddress);
+    if (!IsValidDestination(dest)) {
+        strFailReason = "Invalid Crown address " + strAddress;
+        return false;
+    }
+    auto keyid = GetKeyForDestination(*spk_man, dest);
+    if (keyid.IsNull()) {
+        strFailReason = "Address does not refer to a key";
+        return false;
+    }
+
+    CPubKey pubKey;
+    if (spk_man->GetPubKey(keyid, pubKey) && !pubKey.IsFullyValid()) {
+        strFailReason ="unable to retrieve public key";
+        return false;
+    }
+
+    if(chain().existsID(alias, pubKey)){
+        strFailReason ="Alias or pubkey already reserved";
+        return false;
+    }
+
+    CKey key;
+    if (!spk_man->GetKey(keyid, key)) {
+        strFailReason = "Private key for address " + strAddress + " is not known";
+        return false;
+    }
+
+    CAmount nAmount = 10.0001 * COIN;
+    CAsset asset = Params().GetConsensus().subsidy_asset;
+    CCoinControl coin_control;
+
+    std::vector<COutput> vecOutputs;
+    {
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        AvailableCoins(vecOutputs, false, &cctl, 0, nAmount, MAX_MONEY, 0);
+    }
+
+    for (const COutput& out : vecOutputs) {
+        CTxDestination address;
+        const CScript& scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
+        bool fValidAddress = ExtractDestination(scriptPubKey, address);
+
+        if(std::get<WitnessV0KeyHash>(dest) != std::get<WitnessV0KeyHash>(address))
+            continue;
+
+        if (!fValidAddress)
+            continue;
+
+        // Elements
+        CAmount amount = out.tx->tx->vout[out.i].nValue;
+        CAsset assetid = out.tx->tx->vout[out.i].nAsset;
+
+        if ((amount < 0 || assetid.IsNull())) {
+            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
+            continue;
+        }
+
+        if (asset != assetid) {
+            continue;
+        }
+
+        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
+    }
+
+    mapValue_t mapValue;
+
+    //coin_control.m_add_inputs = false;
+    std::vector<CRecipient> recipients;
+
+    CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
+    recipients.push_back(recipient);
+
+    CChainID newID;
+
+    newID.setAlias(alias.c_str());
+    newID.sEmail = email.c_str();
+    newID.pubKey = pubKey;
+
+    if(!key.Sign(newID.GetHashWithoutSign(), newID.vchIDSignature)){
+        strFailReason = "unable to sign ChainID with key";
+        return false;
+    }
+
+    // Send
+    CAmount nFeeRequired;
+    int nChangePosRet = -1;
+    bilingual_str error;
+    FeeCalculation fee_calc_out;
+    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS), newID);
+    if (!fCreated) {
+        strFailReason = "Failed to create ID " + error.original;
+        return false;
+    }
+
+    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    chainID=newID;
+    return true;
+}
+
+bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited)
+{
+
+    // first check that the asset name and symbol are not taken
+    // or reserved
+
+    std::vector<CAsset> AllAssets = chain().getAllAssets();
+
+    for(auto const& x : AllAssets){
+        if(chain().isequals(x.getName() , assetname)){
+            strFailReason = "Asset name already reserved";
+            return false;
+        }
+
+        if(chain().isequals(x.getShortName() , assetname)){
+            strFailReason = "Asset name already reserved as code for another asset";
+            return false;
+        }
+
+        if(chain().isequals(x.getName() , shortname)){
+            strFailReason = "Code already reserved as another asset's name'";
+            return false;
+        }
+
+        if(chain().isequals(x.getShortName() , shortname)){
+            strFailReason = "Code already reserved";
+            return false;
+        }
+    }
+
+    //Fill in the meta data
+
+    AssetMetadata meta;
+    if (transferable)
+        meta.nFlags |= AssetMetadata::AssetFlags::ASSET_TRANSFERABLE;
+    if (convertable)
+        meta.nFlags |= AssetMetadata::AssetFlags::ASSET_CONVERTABLE;
+    if (restricted)
+        meta.nFlags |= AssetMetadata::AssetFlags::ASSET_RESTRICTED;
+    if (limited)
+        meta.nFlags |= AssetMetadata::AssetFlags::ASSET_LIMITED;
+
+    meta.nVersion = 1;
+    meta.setName(assetname);
+    meta.setShortName(shortname);
+
+    if(expiry != 0 && expiry < GetTime() + 84000){
+       strFailReason = "Bad expiry";
+       return false;
+    }
+
+    meta.nExpiry = expiry;
+    meta.nType = type;
+    meta.contract_hash = contract.GetHash();
+
+    //Create the Asset
+
+    CAsset assetNew = CAsset(meta);
+
+    std::vector<CRecipient> recipients;
+
+    CRecipient recipient = {GetScriptForDestination(WitnessV0KeyHash(contract.issuer_id.pubKey.GetID())), outputamt/100, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
+    recipients.push_back(recipient);
+
+    // Send
+    CAmount nFeeRequired;
+    int nChangePosRet = -1;
+    bilingual_str error;
+    FeeCalculation fee_calc_out;
+    CCoinControl coin_control;
+    mapValue_t mapValue;
+
+
+    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
+    if (!fCreated) {
+        strFailReason = "Failed to create Asset " + error.original;
+        return false;
+    }
+
+    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    asset=assetNew;
+    return true;
+}
+
 bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash)
 {
     // make our change address
@@ -2950,7 +3269,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash)
     CCoinControl coinControl;
     FeeCalculation fee_calc_out;
 
-    bool success = CreateTransaction(vecSend, tx, nFeeRet, nChangePosRet, strFail, coinControl, fee_calc_out, true, ALL_COINS, (CAmount)0);
+    bool success = CreateTransaction(vecSend, tx, nFeeRet, nChangePosRet, strFail, coinControl, fee_calc_out, true, CTxDataBase(), ALL_COINS, (CAmount)0);
     if(!success){
         LogPrintf("GetBudgetSystemCollateralTX: Error - %s\n", strFail.original);
         return false;
@@ -2968,7 +3287,7 @@ bool CWallet::CreateTransactionInternal(
         bilingual_str& error,
         const CCoinControl& coin_control,
         FeeCalculation& fee_calc_out,
-        bool sign, AvailableCoinsType coin_type, int extraPayloadSize)
+        bool sign, const CTxDataBase& datar, AvailableCoinsType coin_type, int extraPayloadSize)
 {
     bool fUseInstantX = UseInstantSend();
 
@@ -3003,6 +3322,55 @@ bool CWallet::CreateTransactionInternal(
     }
 
     CMutableTransaction txNew;
+
+    uint8_t vers = datar.GetVersion();
+    switch (vers) {
+        case OUTPUT_DATA:{
+            OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
+            CTxData *s = (CTxData*) &datar;
+            out0->nType = s->nType;
+            out0->vData = s->vData;
+            txNew.vdata.push_back(out0);
+            break;
+        }
+        case OUTPUT_CONTRACT:{
+            OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
+            CContract *s = (CContract*) &datar;
+
+            if(chain().existsContract(s->asset_name)){
+                error = _("Contract name already reserved");
+                return false;
+            }
+
+            out0->contract_url = s->contract_url;
+            out0->website_url = s->website_url;
+            out0->description = s->description;
+            out0->scriptcode = s->scriptcode;
+            out0->issuer_id = s->issuer_id;
+            out0->asset_symbol = s->asset_symbol;
+            out0->asset_name = s->asset_name;
+            out0->sIssuingaddress = s->sIssuingaddress;
+            out0->vchContractSig = s->vchContractSig;
+            txNew.vdata.push_back(out0);
+            break;
+        }
+        case OUTPUT_ID:{
+            OUTPUT_PTR<CChainID> out0 = MAKE_OUTPUT<CChainID>();
+            CChainID *s = (CChainID*) &datar;
+
+            if(chain().existsID(s->sAlias, s->pubKey)){
+                error = _("Alias or pubkey already reserved");
+                return false;
+            }
+
+            out0->pubKey = s->pubKey;
+            out0->sEmail = s->sEmail;
+            out0->setAlias(s->sAlias);
+            out0->vchIDSignature = s->vchIDSignature;
+            txNew.vdata.push_back(out0);
+            break;
+        }
+    }
     FeeCalculation feeCalc;
     CAmount nFeeNeeded;
     int nBytes;
@@ -3021,7 +3389,7 @@ bool CWallet::CreateTransactionInternal(
             CScript scriptChange;
 
             // coin control: send change to custom address
-            if (!boost::get<CNoDestination>(&coin_control.destChange)) {
+            if (!std::get_if<CNoDestination>(&coin_control.destChange)) {
                 scriptChange = GetScriptForDestination(coin_control.destChange);
             } else { // no coin control: send change to newly generated address
                 // Note: We use a new key here to keep it from being obvious which side is the change.
@@ -3350,11 +3718,11 @@ bool CWallet::CreateTransaction(
         bilingual_str& error,
         const CCoinControl& coin_control,
         FeeCalculation& fee_calc_out,
-        bool sign, AvailableCoinsType coin_type, int extraPayloadSize)
+        bool sign, const CTxDataBase& datar, AvailableCoinsType coin_type, int extraPayloadSize)
 {
     int nChangePosIn = nChangePosInOut;
     CTransactionRef tx2 = tx;
-    bool res = CreateTransactionInternal(vecSend, tx, nFeeRet, nChangePosInOut, error, coin_control, fee_calc_out, sign, coin_type, extraPayloadSize);
+    bool res = CreateTransactionInternal(vecSend, tx, nFeeRet, nChangePosInOut, error, coin_control, fee_calc_out, sign, datar, coin_type, extraPayloadSize);
     // try with avoidpartialspends unless it's enabled already
     if (res && nFeeRet > 0 /* 0 means non-functional fee rate estimation */ && m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
         CCoinControl tmp_cc = coin_control;
@@ -3362,7 +3730,7 @@ bool CWallet::CreateTransaction(
         CAmount nFeeRet2;
         int nChangePosInOut2 = nChangePosIn;
         bilingual_str error2; // fired and forgotten; if an error occurs, we discard the results
-        if (CreateTransactionInternal(vecSend, tx2, nFeeRet2, nChangePosInOut2, error2, tmp_cc, fee_calc_out, sign, coin_type, extraPayloadSize)) {
+        if (CreateTransactionInternal(vecSend, tx2, nFeeRet2, nChangePosInOut2, error2, tmp_cc, fee_calc_out, sign, datar, coin_type, extraPayloadSize)) {
             // if fee of this alternative one is within the range of the max fee, we use this one
             const bool use_aps = nFeeRet2 <= nFeeRet + m_max_aps_fee;
             WalletLogPrintf("Fee non-grouped = %lld, grouped = %lld, using %s\n", nFeeRet, nFeeRet2, use_aps ? "grouped" : "non-grouped");
@@ -3966,7 +4334,7 @@ unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
 
 bool CWallet::AddDestData(WalletBatch& batch, const CTxDestination &dest, const std::string &key, const std::string &value)
 {
-    if (boost::get<CNoDestination>(&dest))
+    if (std::get_if<CNoDestination>(&dest))
         return false;
 
     m_address_book[dest].destdata.insert(std::make_pair(key, value));

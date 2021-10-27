@@ -82,8 +82,9 @@ public:
         {
             for (const auto& address : wallet.getAddresses())
             {
-                if (pk_hash_only && address.dest.type() != typeid(PKHash))
+                if (pk_hash_only && !std::holds_alternative<PKHash>(address.dest)) {
                     continue;
+                }
                 AddressTableEntry::Type addressType = translateTransactionType(
                         QString::fromStdString(address.purpose), address.is_mine);
                 cachedAddressTable.append(AddressTableEntry(addressType,
@@ -257,7 +258,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
         } else if(index.column() == Address) {
             CTxDestination newAddress = DecodeDestination(value.toString().toStdString());
             // Refuse to set invalid address, set error status and return false
-            if(boost::get<CNoDestination>(&newAddress))
+            if(std::get_if<CNoDestination>(&newAddress))
             {
                 editStatus = INVALID_ADDRESS;
                 return false;

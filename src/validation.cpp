@@ -6,7 +6,11 @@
 #include <validation.h>
 
 #include <arith_uint256.h>
+#include <assetdb.h>
 #include <chain.h>
+#include <chainiddb.h>
+#include <contractdb.h>
+
 #include <chainparams.h>
 #include <checkqueue.h>
 #include <consensus/consensus.h>
@@ -51,6 +55,7 @@
 #include <util/translation.h>
 #include <validationinterface.h>
 #include <warnings.h>
+#include <insight/insight.h>
 #include <platform/specialtx.h>
 #include <platform/platform-db.h>
 #include <masternode/masternode-payments.h>
@@ -58,6 +63,7 @@
 #include <systemnode/systemnode-payments.h>
 
 #include <string>
+#include <regex>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -616,6 +622,59 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     if (!CheckTransaction(tx, state)) {
         return false; // state filled in by CheckTransaction
+    }
+
+    { //data checking is done here
+        bool fHasFee = false;
+        for (const CTxOut &txout :tx.vout){
+            if(txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination && txout.nAsset == Params().GetConsensus().subsidy_asset && txout.nValue == 10.0001 * COIN){
+                fHasFee = true;
+            }
+        }
+
+        for (unsigned int i = 0; i < tx.vdata.size(); i++){
+        uint8_t vers = tx.vdata[i].get()->GetVersion();
+        switch(vers){
+            case OUTPUT_CONTRACT:{
+                CContract *contract = (CContract*)tx.vdata[i].get();
+                if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
+                }
+                if(!fHasFee)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
+                break;
+            }
+            case OUTPUT_ID:{
+                CChainID *chainid = (CChainID*)tx.vdata[i].get();
+                //check email validity here
+                {
+                    const std::regex pattern ("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
+                    // try to match the string with the regular expression
+                    bool match = std::regex_match(chainid->sEmail, pattern);
+                    if(!match)
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID email is of unkown pattern.\n", __func__));
+                }
+                {
+                    const std::regex pattern ("^[A-Za-z0-9]+$");
+                    bool match = std::regex_match(chainid->sAlias, pattern);
+                    if(!match)
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID alias contains illegal characters.\n", __func__));
+                }
+                if(pIdCache->Exists(chainid->sAlias) || ExistsID(chainid->sAlias, chainid->pubKey)){
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID DB already contains public key or Alias 1.\n", __func__));
+                }
+                if(!fHasFee)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
+                break;
+            }
+            case OUTPUT_DATA:{
+                CTxData *data = (CTxData*)tx.vdata[i].get();
+                break;
+            }
+            default:
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
+            }
+        }
     }
 
     // Coinbase is only valid in a block, not as a loose transaction
@@ -1303,7 +1362,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000) 
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -2137,12 +2196,12 @@ bool CheckBlockProofPointer(const CBlockIndex* pindex, const CBlock& block, CPub
             CTxDestination addressReward(dest);
             CTxDestination addressCollateralCheck(PKHash(stakePointer.pubKeyCollateral));
 
-            if (addressCollateralCheck != addressReward)
+            if (std::get<PKHash>(addressCollateralCheck) != std::get<PKHash>(addressReward))
                 return error("%s: Wrong pubkeys: Pubkey Collateral in proof pointer = %s, pubkey in reward payment = %s", __func__, EncodeDestination(addressCollateralCheck), EncodeDestination(addressReward));
 
             pubkeyMasternode = stakePointer.pubKeyCollateral;
 
-            if (addressProof != addressReward) {
+            if (std::get<PKHash>(addressProof) != std::get<PKHash>(addressReward)) {
                 //Check if the key was signed over to another privkey
                 if (!stakePointer.VerifyCollateralSignOver())
                     return error("%s: Collateral signover is not validated!", __func__);
@@ -2176,7 +2235,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
     if (block.vtx[0]->vout[0].nValue > 0){
         errormsg = "Coinbase output 0 must have 0 value";
         return false;
-	}
+    }
 
     CPubKey pubkeyMasternode;
     COutPoint outpointStakePointer;
@@ -2184,19 +2243,19 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
     if (!CheckBlockProofPointer(pindex, block, pubkeyMasternode, outpointStakePointer, txPayment)){
         errormsg = "Invalid block proof pointer";
         return false;
-	}
+    }
 
     // Check the transaction the stakepointer is from
     if (!IsMasternodeOrSystemnodeReward(txPayment, outpointStakePointer)){
         errormsg = "block's stake pointer points to an invalid payment";
         return false;
-	}
+    }
 
     // Validate the block's signature to prevent malleation
     if (!CheckBlockSignature(block, pubkeyMasternode)){
         errormsg = "Invalid signature";
         return false;
-	}
+    }
 
     //cs_main is locked and mapblockindex checks for hashblock in CheckBlockProofPointer. Fine to access directly.
     CBlockIndex* pindexFrom = g_chainman.m_blockman.m_block_index.at(block.stakePointer.hashBlock);
@@ -2425,6 +2484,19 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
+    std::vector<PrecomputedTransactionData> txdata;
+    txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    CAmountMap nValueOutMap;
+    CAmountMap nValueInMap;
+
+    CAmount block_balances[3] = {0};
+    bool reset_balances = false;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
@@ -2527,6 +2599,75 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     LogPrint(BCLog::BENCH, "      - ProcessNftTxsInBlock: %.2fms [%.2fs (%.2fms/blk)]\n", MICRO * (nTime8_2 - nTime8_1), nTimeProcessNftValid * MICRO, nTimeProcessNftValid * MILLI / nBlocksTotal);
 
     // CROWN : FINISH //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //Money Supply
+    {
+        CAmountMap results = nValueOutMap - nValueInMap;
+        //LogPrintf(" In %s \n Out %s \n Result %s\n", nValueInMap, nValueOutMap, results);
+        //LogPrintf(" Current %s \n Result %s\n", pindex->pprev->nMoneySupply, results);
+
+        if (pindex->pprev)
+            pindex->nMoneySupply =  pindex->pprev->nMoneySupply + results;
+        else
+            pindex->nMoneySupply = results;
+    }
+
+    //Asset DB
+    {
+        for(unsigned int i = 0; i < block.vtx.size(); i++){
+            const CTransactionRef &tx = block.vtx[i];
+            for(unsigned int j = 0; j < tx->vout.size(); j++){
+                const CTxOut &out = tx->vout[j];
+                CAsset asset = out.nAsset;
+                bool exists = false;
+
+                for(auto const& x : passetsCache->GetItemsMap()){
+                    CAsset checkasset = x.second->second.asset;
+                    if(iequals(asset.getName(), checkasset.getName()) || iequals(asset.getName(), checkasset.getSymbol()))
+                        if(!fJustCheck)
+                            exists = true;
+                }
+
+                if (!exists && !passetsCache->Exists(asset.getName()))
+                    if(!fJustCheck)
+                        passetsCache->Put(asset.getName(), CAssetData(asset, tx, j, view, block.nTime));
+
+            }
+
+            for (unsigned int i = 0; i < tx->vdata.size(); i++){
+                uint8_t vers = tx->vdata[i].get()->GetVersion();
+                switch (vers) {
+                    case OUTPUT_CONTRACT:{
+                        CContract *contract = (CContract*)tx->vdata[i].get();
+                        LogPrintf("NOTIFICATION: %s: FOUND CONTRACT %s\n", __func__, contract->ToString());
+                        if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name)){
+                            if(!fJustCheck)
+                                pcontractCache->Put(contract->asset_name, CContractData(*contract, tx->GetHash(), block.nTime));
+                        }
+                        break;
+                    }
+                    case OUTPUT_ID:{
+                        CChainID *chainid = (CChainID*)tx->vdata[i].get();
+                        LogPrintf("NOTIFICATION: %s: FOUND ID %s\n", __func__, chainid->ToString());
+                        if (!pIdCache->Exists(chainid->sAlias) && !ExistsID(chainid->sAlias, chainid->pubKey)){
+                            if(!fJustCheck)
+                                pIdCache->Put(chainid->sAlias, CIDData(*chainid, tx->GetHash(), block.nTime));
+                        }
+                        break;
+                    }
+                    case OUTPUT_DATA:{
+                        CTxData *data = (CTxData*)tx->vdata[i].get();
+                        break;
+                    }
+                    default:
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
+                }
+
+                //LogPrintf("TXDATA CONNECT: %s\n", tx->vdata[i]->ToString());
+            }
+        }
+    }
+
 
     if (!control.Wait()) {
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
@@ -5598,6 +5739,26 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     }
 
     return std::min<double>(pindex->nChainTx / fTxTotal, 1.0);
+}
+
+CAsset GetAsset(std::string asset){
+    CAsset tmp;
+
+    for(auto const& x : passetsCache->GetItemsMap()){
+        if(x.second->second.asset.getName() == asset)
+            tmp = x.second->second.asset;
+    }
+
+    return tmp;
+}
+
+std::vector<CAsset> GetAllAssets(){
+    std::vector<CAsset> tmp;
+
+    for(auto const& x : passetsCache->GetItemsMap())
+       tmp.push_back(x.second->second.asset);
+
+    return tmp;
 }
 
 std::optional<uint256> ChainstateManager::SnapshotBlockhash() const {

@@ -1406,10 +1406,10 @@ uint256 GetOutputsSHA256(const T& txTo)
     CHashWriter ss(SER_GETHASH, 0);
 
     bool have_non_plain = false;
-    if (txTo.nversion >= TX_ELE_VERSION) {
+    if (txTo.nVersion >= TX_ELE_VERSION) {
         for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
             ss << *txTo.vpout[n];
-            if (txTo.vpout[n]->GetType() != OUTPUT_STANDARD) {
+            if (txTo.vpout[n]->GetType() != OUT_STANDARD) {
                 have_non_plain = true;
             }
         }
@@ -1418,7 +1418,7 @@ uint256 GetOutputsSHA256(const T& txTo)
             ss << txout;
         }
     }
-    if (have_non_plain && (txTo.nVersion & 0xFF) > PARTICL_TXN_VERSION) {
+    if (have_non_plain && (txTo.nVersion >= TX_ELE_VERSION)) {
         for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
             ss << txTo.vpout[n]->GetType();
         }
@@ -1450,7 +1450,7 @@ template <class T>
 uint256 GetDataSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
-    if (txTo.nversion >= TX_ELE_VERSION) {
+    if (txTo.nVersion >= TX_ELE_VERSION) {
         for (unsigned int nData = 0; nData < txTo.vdata.size(); nData++)
             ss << *(txTo.vdata[nData].get());
     }
@@ -1528,12 +1528,23 @@ template PrecomputedTransactionData::PrecomputedTransactionData(const CTransacti
 template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTransaction& txTo);
 
 static const CHashWriter HASHER_TAPSIGHASH = TaggedHash("TapSighash");
-static const CHashWriter HASHER_TAPLEAF = TaggedHash("TapLeaf");
-static const CHashWriter HASHER_TAPBRANCH = TaggedHash("TapBranch");
-static const CHashWriter HASHER_TAPTWEAK = TaggedHash("TapTweak");
+const CHashWriter HASHER_TAPLEAF = TaggedHash("TapLeaf");
+const CHashWriter HASHER_TAPBRANCH = TaggedHash("TapBranch");
+
+static bool HandleMissingData(MissingDataBehavior mdb)
+{
+    switch (mdb) {
+    case MissingDataBehavior::ASSERT_FAIL:
+        assert(!"Missing data");
+        break;
+    case MissingDataBehavior::FAIL:
+        return false;
+    }
+    assert(!"Unknown MissingDataBehavior value");
+}
 
 template<typename T>
-bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache)
+bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache, MissingDataBehavior mdb)
 {
     uint8_t ext_flag, key_version;
     switch (sigversion) {
@@ -1553,7 +1564,9 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
         assert(false);
     }
     assert(in_pos < tx_to.vin.size());
-    assert(cache.m_bip341_taproot_ready && cache.m_spent_outputs_ready);
+    if (!(cache.m_bip341_taproot_ready && cache.m_spent_outputs_ready)) {
+        return HandleMissingData(mdb);
+    }
 
     CHashWriter ss = HASHER_TAPSIGHASH;
 
@@ -1700,6 +1713,13 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
     return ss.GetHash();
 }
 
+bool BaseSignatureChecker::VerifySignature(const std::vector<uint8_t> &vchSig,
+                                           const CPubKey &pubkey,
+                                           const uint256 &sighash) const {
+    return pubkey.Verify(sighash, vchSig);
+
+}
+
 template <class T>
 bool GenericTransactionSignatureChecker<T>::VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
@@ -1725,6 +1745,9 @@ bool GenericTransactionSignatureChecker<T>::CheckECDSASignature(const std::vecto
         return false;
     int nHashType = vchSig.back();
     vchSig.pop_back();
+
+    // Witness sighashes need the amount.
+    if (sigversion == SigVersion::WITNESS_V0 && amount < 0) return HandleMissingData(m_mdb);
 
     uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
 
@@ -1754,8 +1777,8 @@ bool GenericTransactionSignatureChecker<T>::CheckSchnorrSignature(Span<const uns
         if (hashtype == SIGHASH_DEFAULT) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_HASHTYPE);
     }
     uint256 sighash;
-    assert(this->txdata);
-    if (!SignatureHashSchnorr(sighash, execdata, *txTo, nIn, hashtype, sigversion, *this->txdata)) {
+    if (!this->txdata) return HandleMissingData(m_mdb);
+    if (!SignatureHashSchnorr(sighash, execdata, *txTo, nIn, hashtype, sigversion, *this->txdata, m_mdb)) {
         return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_HASHTYPE);
     }
     if (!VerifySchnorrSignature(sig, pubkey, sighash)) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG);
@@ -1890,12 +1913,14 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
     return true;
 }
 
-static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script, uint256& tapleaf_hash)
+uint256 ComputeTapleafHash(uint8_t leaf_version, const CScript& script)
+{
+    return (CHashWriter(HASHER_TAPLEAF) << leaf_version << script).GetSHA256();
+}
+
+uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint256& tapleaf_hash)
 {
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
-    const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
-    const XOnlyPubKey q{uint256(program)};
-    tapleaf_hash = (CHashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
         CHashWriter ss_branch{HASHER_TAPBRANCH};
@@ -1907,8 +1932,21 @@ static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, c
         }
         k = ss_branch.GetSHA256();
     }
-    k = (CHashWriter(HASHER_TAPTWEAK) << MakeSpan(p) << k).GetSHA256();
-    return q.CheckPayToContract(p, k, control[0] & 1);
+    return k;
+}
+
+static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const uint256& tapleaf_hash)
+{
+    assert(control.size() >= TAPROOT_CONTROL_BASE_SIZE);
+    assert(program.size() >= uint256::size());
+    //! The internal pubkey (x-only, so no Y coordinate parity).
+    const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
+    //! The output pubkey (taken from the scriptPubKey).
+    const XOnlyPubKey q{uint256(program)};
+    // Compute the Merkle root from the leaf and the provided path.
+    const uint256 merkle_root = ComputeTaprootMerkleRoot(control, tapleaf_hash);
+    // Verify that the output pubkey matches the tweaked internal pubkey, after correcting for parity.
+    return q.CheckTapTweak(p, merkle_root, control[0] & 1);
 }
 
 static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror, bool is_p2sh)
@@ -1968,7 +2006,8 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             if (control.size() < TAPROOT_CONTROL_BASE_SIZE || control.size() > TAPROOT_CONTROL_MAX_SIZE || ((control.size() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE) != 0) {
                 return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
             }
-            if (!VerifyTaprootCommitment(control, program, exec_script, execdata.m_tapleaf_hash)) {
+            execdata.m_tapleaf_hash = ComputeTapleafHash(control[0] & TAPROOT_LEAF_MASK, exec_script);
+            if (!VerifyTaprootCommitment(control, program, execdata.m_tapleaf_hash)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
             execdata.m_tapleaf_hash_init = true;

@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <chainiddb.h>
 
 class ArgsManager;
 class CBlock;
@@ -90,11 +91,20 @@ public:
     //! any blocks)
     virtual std::optional<int> getHeight() = 0;
 
+    virtual CAsset getAsset(std::string sAssetName) = 0;
+    virtual std::vector<CAsset> getAllAssets() =0;
+
     //! Get block height above genesis block. Returns 0 for genesis block,
     //! 1 for following block, and so on. Returns nullopt for a block not
     //! included in the current chain.
     virtual std::optional<int> getBlockHeight(const uint256& hash) = 0;
 
+    virtual bool existsID(const std::string& alias, const CPubKey& pubkey) =0;
+    virtual CChainID getID(std::string alias)=0;
+    virtual CLRUCache<std::string, CIDData> *getIDCache() =0;
+    virtual CContract getContract(std::string name)=0;
+    virtual bool isequals(const std::string& str1, const std::string& str2) =0;
+    virtual bool existsContract(std::string name)=0;
     //! Get block hash. Height must be valid or this function will abort.
     virtual uint256 getBlockHash(int height) = 0;
 

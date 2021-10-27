@@ -224,7 +224,11 @@ struct CRecipient
 {
     CScript scriptPubKey;
     CAmount nAmount;
+    CAmount OutAmount;
+    CAsset asset;
+    CAsset OutAsset;
     bool fSubtractFeeFromAmount;
+    bool fNewAsset;
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -748,7 +752,7 @@ private:
     // ScriptPubKeyMan::GetID. In many cases it will be the hash of an internal structure
     std::map<uint256, std::unique_ptr<ScriptPubKeyMan>> m_spk_managers;
 
-    bool CreateTransactionInternal(const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, const CCoinControl& coin_control, FeeCalculation& fee_calc_out, bool sign, AvailableCoinsType coin_type=ALL_COINS, int extraPayloadSize = 0);
+    bool CreateTransactionInternal(const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, const CCoinControl& coin_control, FeeCalculation& fee_calc_out, bool sign, const CTxDataBase& datar, AvailableCoinsType coin_type=ALL_COINS, int extraPayloadSize = 0);
 
 public:
     /*
@@ -1002,7 +1006,7 @@ public:
      * selected by SelectCoins(); Also create the change output, when needed
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
-    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, const CCoinControl& coin_control, FeeCalculation& fee_calc_out, bool sign = true, AvailableCoinsType coin_type=ALL_COINS, int extraPayloadSize = 0);
+    bool CreateTransaction(const std::vector<CRecipient>& vecSend, CTransactionRef& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, const CCoinControl& coin_control, FeeCalculation& fee_calc_out, bool sign = true, const CTxDataBase& datar = CTxDataBase(), AvailableCoinsType coin_type=ALL_COINS, int extraPayloadSize = 0);
     /**
      * Submit the transaction to the node's mempool and then relay to peers.
      * Should be called after CreateTransaction unless you want to abort
@@ -1012,6 +1016,10 @@ public:
      * @param[in] mapValue key-values to be set on the transaction.
      * @param[in] orderForm BIP 70 / BIP 21 order form details to be set on the transaction.
      */
+    bool CreateID(CChainID& chainID, CTransactionRef& tx, std::string &strAddress, std::string &alias, std::string &email, std::string& strFailReason);
+    bool CreateContract(CContract& contract, CTransactionRef& tx, CChainID& chainID, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason);
+    bool CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable = false, bool convertable = false, bool restricted = false, bool limited = false);
+
     void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
 
     bool DummySignTx(CMutableTransaction &txNew, const std::set<CTxOut> &txouts, bool use_max_sig = false) const

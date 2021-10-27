@@ -109,6 +109,7 @@ endif
 # crown core #
 CROWN_CORE_H = \
   addrdb.h \
+  assetdb.h \
   addrman.h \
   attributes.h \
   auxpow.h \
@@ -119,6 +120,7 @@ CROWN_CORE_H = \
   blockfilter.h \
   bloom.h \
   chain.h \
+  chainiddb.h \
   chainparams.h \
   chainparamsbase.h \
   chainparamsseeds.h \
@@ -135,6 +137,7 @@ CROWN_CORE_H = \
   consensus/consensus.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
+  contractdb.h \
   core_io.h \
   core_memusage.h \
   crown/cache.h \
@@ -313,8 +316,11 @@ CROWN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zmq/zmqrpc.h \
-  zmq/zmqutil.h
-
+  zmq/zmqutil.h \
+  insight/addressindex.h \
+  insight/spentindex.h \
+  insight/timestampindex.h \
+  insight/insight.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -331,10 +337,12 @@ libcrown_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libcrown_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  assetdb.cpp \
   banman.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
+  chainiddb.cpp \
   consensus/tx_verify.cpp \
   crown/cache.cpp \
   crown/init.cpp \
@@ -344,6 +352,7 @@ libcrown_server_a_SOURCES = \
   crown/nodesync.cpp \
   crown/nodewallet.cpp \
   crown/spork.cpp \
+  contractdb.cpp \
   dbwrapper.cpp \
   flatfile.cpp \
   dbdetails.cpp \
@@ -401,7 +410,7 @@ libcrown_server_a_SOURCES = \
   platform/rpc/specialtx-rpc-utils.cpp \
   platform/rpc/rpcagents.cpp \
   platform/rpc/rpc-nf-token.cpp \
-  platform/rpc/rpc-nft-proto.cpp \  
+  platform/rpc/rpc-nft-proto.cpp \
   platform/nf-token/nf-token-multiindex-utils.cpp \
   platform/nf-token/nf-token-protocol-reg-tx.cpp \
   platform/nf-token/nf-token-protocol-tx-mem-pool-handler.cpp \
@@ -416,6 +425,7 @@ libcrown_server_a_SOURCES = \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/contracts.cpp \
   rpc/budget.cpp \
   rpc/masternode.cpp \
   rpc/systemnode.cpp \
@@ -448,6 +458,8 @@ libcrown_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  insight/insight.cpp \
+  insight/rpc.cpp \
   $(CROWN_CORE_H)
 
 if ENABLE_WALLET
@@ -572,6 +584,8 @@ libcrown_consensus_a_SOURCES = \
   hash.cpp \
   hash.h \
   prevector.h \
+  primitives/asset.h \
+  primitives/asset.cpp \
   primitives/block.cpp \
   primitives/block.h \
   primitives/pureheader.cpp \

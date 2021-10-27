@@ -53,7 +53,7 @@ namespace Platform
         if (!IsValidDestination(dest))
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid P2PKH address, not %s", paramName, strAddress));
 
-        CKeyID keyId = ToKeyID(boost::get<PKHash>(dest));
+        CKeyID keyId = ToKeyID(std::get<PKHash>(dest));
 
 //#ifdef ENABLE_WALLET
         CKey key;
@@ -73,7 +73,7 @@ namespace Platform
         if (!IsValidDestination(dest))
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid P2PKH address, not %s", paramName, strAddress));
 
-        CKeyID keyID = ToKeyID(boost::get<PKHash>(dest));
+        CKeyID keyID = ToKeyID(std::get<PKHash>(dest));
         return keyID;
     }
 
@@ -133,7 +133,7 @@ namespace Platform
         CTxDestination payer;
         if (ExtractDestination(txFrom->vout[txFromOutIdx].scriptPubKey, payer))
         {
-			CKeyID keyID = ToKeyID(boost::get<PKHash>(payer));
+			CKeyID keyID = ToKeyID(std::get<PKHash>(payer));
 			return !keyID.IsNull();
         }
 

@@ -98,6 +98,13 @@ std::string CTxIn::ToString() const
     return str;
 }
 
+CTxOut::CTxOut(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn)
+{
+    nAsset = nAssetIn;
+    nValue = nValueIn;
+    scriptPubKey = scriptPubKeyIn;
+}
+
 CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
@@ -117,51 +124,29 @@ std::string CTxOut::ToString() const
 void CTxOutBase::SetValue(int64_t value)
 {
     // convenience function intended for use with CTxOutStandard only
-    assert(nVersion == OUTPUT_STANDARD);
+    assert(nVersion == OUT_STANDARD);
     ((CTxOutStandard*) this)->nValue = value;
 }
 
 CAmount CTxOutBase::GetValue() const
 {
     // convenience function intended for use with CTxOutStandard only
-    /*
-    switch (nVersion)
-    {
-        case OUTPUT_STANDARD:
-            return ((CTxOutStandard*) this)->nValue;
-        case OUTPUT_DATA:
-            return 0;
-        default:
-            assert(false);
-
-    }
-    */
-    assert(nVersion == OUTPUT_STANDARD);
+    assert(nVersion == OUT_STANDARD);
     return ((CTxOutStandard*) this)->nValue;
 }
 
 std::string CTxOutBase::ToString() const
 {
     switch (nVersion) {
-        case OUTPUT_STANDARD:
+        case OUT_STANDARD:
             {
             CTxOutStandard *so = (CTxOutStandard*)this;
             return strprintf("CTxOutStandard(nValue=%d.%08d, scriptPubKey=%s)", so->nValue / COIN, so->nValue % COIN, HexStr(so->scriptPubKey).substr(0, 30));
             }
-        case OUTPUT_DATA:
+        case OUT_DATA:
             {
             CTxOutData *data_output = (CTxOutData*)this;
             return strprintf("CTxOutData(data=%s)", HexStr(data_output->vData).substr(0, 30));
-            }
-        case OUTPUT_CT:
-            {
-            CTxOutCT *cto = (CTxOutCT*)this;
-            return strprintf("CTxOutCT(data=%s, scriptPubKey=%s)", HexStr(cto->vData).substr(0, 30), HexStr(cto->scriptPubKey).substr(0, 30));
-            }
-        case OUTPUT_RINGCT:
-            {
-            CTxOutRingCT *rcto = (CTxOutRingCT*)this;
-            return strprintf("CTxOutRingCT(data=%s, pk=%s)", HexStr(rcto->vData).substr(0, 30), HexStr(rcto->pk).substr(0, 30));
             }
         default:
             break;
@@ -169,8 +154,9 @@ std::string CTxOutBase::ToString() const
     return strprintf("CTxOutBase unknown version %d", nVersion);
 }
 
-CTxOutStandard::CTxOutStandard(const CAmount& nValueIn, CScript scriptPubKeyIn) : CTxOutBase(OUTPUT_STANDARD)
+CTxOutStandard::CTxOutStandard(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn) : CTxOutBase(OUT_STANDARD)
 {
+    nAsset = nAssetIn;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
 }
@@ -283,12 +269,7 @@ void DeepCopy(CTxOutBaseRef &to, const CTxOutBaseRef &from)
             to = MAKE_OUTPUT<CTxOutStandard>();
             *((CTxOutStandard*)to.get()) = *((CTxOutStandard*)from.get());
             break;
-
-        case OUTPUT_RINGCT:
-            to = MAKE_OUTPUT<CTxOutRingCT>();
-            *((CTxOutRingCT*)to.get()) = *((CTxOutRingCT*)from.get());
-            break;
-        case OUTPUT_DATA:
+        case OUT_DATA:
             to = MAKE_OUTPUT<CTxOutData>();
             *((CTxOutData*)to.get()) = *((CTxOutData*)from.get());
             break;
@@ -409,15 +390,14 @@ std::string CTransaction::ToString() const
 std::string CMutableTransaction::ToString() const
 {
     std::string str;
-    str += strprintf("CTransaction(hash=%s, ver=%d, type=%d, nTime=%d, vin.size=%u, vout.size=%u, nLockTime=%u, vExtraPayload.size=%d)\n",
+    str += strprintf("CTransaction(hash=%s, ver=%d, type=%d, vin.size=%u, vout.size=%u, nLockTime=%u, vExtraPayload.size=%d)\n",
         GetHash().ToString().substr(0,10),
         nVersion,
         nType,
-        nTime,
         vin.size(),
         vout.size(),
         nLockTime,
-        vExtraPayload.size());
+        extraPayload.size());
     for (const auto& tx_in : vin)
         str += tx_in.ToString() + "\n";
     for (const auto& tx_in : vin)
