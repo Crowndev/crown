@@ -2615,6 +2615,38 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 LogPrintf("ERROR: %s: contains a non-BIP68-final transaction\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal");
             }
+
+            if (g_txindex)
+            {
+                for (size_t j = 0; j < tx.vin.size(); j++) {
+                    const CTxIn input = tx.vin[j];
+                    const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
+                    const CTxOut &prevout = coin.out;
+
+                    std::string sAssetName = prevout.nAsset.getName();
+
+                    const CScript *pScript = &prevout.scriptPubKey;
+                    std::vector<uint8_t> hashBytes;
+                    int scriptType = 0;
+
+                    if (!ExtractIndexInfo(pScript, scriptType, hashBytes)
+                        || scriptType == 0) {
+                        continue;
+                    }
+
+                    if (g_txindex && scriptType > 0) {
+                        // record spending activity
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
+                        // remove address from unspent index
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+                    }
+                    if (fSpentIndex) {
+                        // add the spent index to determine the txid and input that spent an output
+                        // and to find the amount and address from an input
+                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, scriptType, uint160(hashBytes))));
+                    }
+                }
+            }
         }
 
         // GetTransactionSigOpCost counts 3 types of sigops:
