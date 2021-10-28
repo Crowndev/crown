@@ -1131,6 +1131,14 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
+    // Update mempool indices
+    if (fAddressIndex) {
+        m_pool.addAddressIndex(*entry, m_view);
+    }
+    if (fSpentIndex) {
+        m_pool.addSpentIndex(*entry, m_view);
+    }
+
     return true;
 }
 
@@ -1892,6 +1900,10 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
     if (!UndoNftTxsInBlock(block, pindex)) {
         return DISCONNECT_FAILED;
     }
@@ -1902,6 +1914,30 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
         bool is_coinstake = tx.IsCoinStake();
+
+        if (g_txindex) {
+
+            //CAmount assetAmount;
+            uint160 hashBytes;
+            for (unsigned int k = tx.vout.size(); k-- > 0;) {
+                const CTxOut &out = tx.vout[k];
+                std::string sAssetName = out.nAsset.getName();
+
+                const CScript *pScript;
+                std::vector<unsigned char> hashBytes;
+                int scriptType = 0;
+                CAmount nValue;
+                CAsset nAsset;
+                if (!ExtractIndexInfo(&out, scriptType, hashBytes, nValue, nAsset, pScript)
+                    || scriptType == 0) {
+                    continue;
+                }
+                // undo receiving activity
+                addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, Hash160(hashBytes), sAssetName, pindex->nHeight, i, hash, k, false), out.nValue));
+                // undo unspent index
+                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, Hash160(hashBytes), sAssetName, hash, k), CAddressUnspentValue()));
+            }
+        }
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
@@ -1931,8 +1967,55 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
+
+                const CTxIn input = tx.vin[j];
+
+                if (g_txindex) {
+                    // undo and delete the spent index
+                    spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
+                }
+
+                    if (fAddressIndex) {
+                        const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
+
+                        const CTxOut &prevout = coin.out;
+
+                        std::string sAssetName = prevout.nAsset.getName();
+
+                        const CScript *pScript = &coin.out.scriptPubKey;
+
+                        std::vector<uint8_t> hashBytes;
+                        int scriptType = 0;
+                        if (!ExtractIndexInfo(pScript, scriptType, hashBytes)
+                            || scriptType == 0) {
+                            continue;
+                        }
+
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, hash, j, false), prevout.nValue));
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, hash, j), CAddressUnspentValue()));
+                    }
+
             }
             // At this point, all of txundo.vprevout should have been moved out.
+        }
+    }
+
+
+    if (g_txindex) {
+        if (!pblocktree->UpdateSpentIndex(spentIndex)) {
+            AbortNode("Failed to delete spent index");
+            return DISCONNECT_FAILED;
+        }
+    }
+
+    if (g_txindex) {
+        if (!pblocktree->EraseAddressIndex(addressIndex)) {
+            AbortNode("Failed to delete address index");
+            return DISCONNECT_FAILED;
+        }
+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
+            AbortNode("Failed to write address unspent index");
+            return DISCONNECT_FAILED;
         }
     }
 
@@ -2500,6 +2583,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
+        const uint256 txhash = tx.GetHash();
 
         nInputs += tx.vin.size();
 
@@ -2556,6 +2640,28 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     tx.GetHash().ToString(), state.ToString());
             }
             control.Add(vChecks);
+        }
+
+        if (g_txindex) {
+            for (unsigned int k = 0; k < tx.vout.size(); k++) {
+                const CTxOut &out = tx.vout[k];
+
+                std::string sAssetName = out.nAsset.getName();
+
+                const CScript *pScript;
+                std::vector<unsigned char> hashBytes;
+                int scriptType = 0;
+                CAmount nValue;
+                CAsset nAsset;
+                if (!ExtractIndexInfo(&out, scriptType, hashBytes, nValue, nAsset, pScript) || scriptType == 0) {
+                    continue;
+                }
+
+                // Record receiving activity
+                view.addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, k, false), out.nValue));
+                // Record unspent output
+                view.addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+            }
         }
 
         CTxUndo undoDummy;
@@ -2690,6 +2796,35 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     if (block.IsProofOfStake()) {
         COutPoint stakeSource(block.stakePointer.txid, block.stakePointer.nPos);
         mapUsedStakePointers.emplace(stakeSource.GetHash(), block.GetHash());
+    }
+
+    if (g_txindex) {
+
+        if (!pblocktree->WriteAddressIndex(addressIndex)) {
+            return AbortNode(state, "Failed to write address index");
+        }
+
+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
+            return AbortNode(state, "Failed to write address unspent index");
+        }
+
+        if (!pblocktree->UpdateSpentIndex(spentIndex))
+            return AbortNode(state, "Failed to write transaction index");
+
+        unsigned int logicalTS = pindex->nTime;
+        if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(logicalTS, pindex->GetBlockHash()))) {
+            return AbortNode(state, "Failed to write timestamp index");
+        }
+
+        if (!pblocktree->WriteTimestampBlockIndex(CTimestampBlockIndexKey(pindex->GetBlockHash()), CTimestampBlockIndexValue(logicalTS))) {
+            return AbortNode(state, "Failed to write blockhash index");
+        }
+
+        BlockBalances values(block_balances);
+
+        if (!pblocktree->WriteBlockBalancesIndex(block.GetHash(), values)) {
+            return AbortNode(state, "Failed to write balances index");
+        }
     }
 
     assert(pindex->phashBlock);
@@ -4735,6 +4870,20 @@ bool static LoadBlockIndexDB(ChainstateManager& chainman, const CChainParams& ch
     pblocktree->ReadReindexing(fReindexing);
     if(fReindexing) fReindex = true;
 
+    // Check whether we have an address index
+    pblocktree->ReadFlag("addressindex", fAddressIndex);
+    LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+
+    // Check whether we have a timestamp index
+    pblocktree->ReadFlag("timestampindex", fTimestampIndex);
+    LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
+
+    // Check whether we have a spent index
+    pblocktree->ReadFlag("spentindex", fSpentIndex);
+    LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+    pblocktree->ReadFlag("balancesindex", fBalancesIndex);
+    LogPrintf("%s: balances index %s\n", __func__, fBalancesIndex ? "enabled" : "disabled");
+
     return true;
 }
 
@@ -5160,6 +5309,24 @@ bool ChainstateManager::LoadBlockIndex(const CChainParams& chainparams)
         // needs_init.
 
         LogPrintf("Initializing databases...\n");
+
+        // Use the provided setting for -addressindex in the new database
+        fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        pblocktree->WriteFlag("addressindex", fAddressIndex);
+        LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+
+        // Use the provided setting for -timestampindex in the new database
+        fTimestampIndex = gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+        pblocktree->WriteFlag("timestampindex", fTimestampIndex);
+        LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
+
+        // Use the provided setting for -spentindex in the new database
+        fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        pblocktree->WriteFlag("spentindex", fSpentIndex);
+        LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+        fBalancesIndex = gArgs.GetBoolArg("-balancesindex", DEFAULT_BALANCESINDEX);
+        pblocktree->WriteFlag("balancesindex", fBalancesIndex);
+        LogPrintf("%s: balances index %s\n", __func__, fBalancesIndex ? "enabled" : "disabled");
     }
     return true;
 }
@@ -5199,6 +5366,11 @@ void LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, FlatFi
     // Map of disk positions for blocks with unknown parent (only used for reindex)
     static std::multimap<uint256, FlatFilePos> mapBlocksUnknownParent;
     int64_t nStart = GetTimeMillis();
+
+    fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+    fTimestampIndex = gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+    fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+    fBalancesIndex = gArgs.GetBoolArg("-balancesindex", DEFAULT_BALANCESINDEX);
 
     int nLoaded = 0;
     try {
@@ -5766,7 +5938,7 @@ std::optional<uint256> ChainstateManager::SnapshotBlockhash() const {
         // If a snapshot chainstate exists, it will always be our active.
         return m_active_chainstate->m_from_snapshot_blockhash;
     }
-    return {};
+    return std::nullopt;
 }
 
 std::vector<CChainState*> ChainstateManager::GetAll()

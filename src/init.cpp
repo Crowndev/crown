@@ -11,12 +11,16 @@
 
 #include <addrman.h>
 #include <amount.h>
+#include <assetdb.h>
 #include <banman.h>
 #include <blockfilter.h>
 #include <crown/cache.h>
 #include <chain.h>
+#include <chainiddb.h>
 #include <chainparams.h>
 #include <compat/sanity.h>
+#include <contractdb.h>
+
 #include <consensus/validation.h>
 #include <fs.h>
 #include <hash.h>
@@ -88,6 +92,8 @@
 #include <zmq/zmqnotificationinterface.h>
 #include <zmq/zmqrpc.h>
 #endif
+
+#include <insight/insight.h>
 
 static bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -224,6 +230,9 @@ void Shutdown(NodeContext& node)
 
     StopTorControl();
 
+    DumpAssets();
+    DumpIDs();
+    DumpContracts();
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue, scheduler and load block thread.
     if (node.scheduler) node.scheduler->stop();
@@ -291,6 +300,15 @@ void Shutdown(NodeContext& node)
             }
         }
         pblocktree.reset();
+        passetsdb.reset();
+        delete passetsCache;
+        passetsCache = nullptr;
+        piddb.reset();
+        delete pIdCache;
+        pIdCache = nullptr;
+        pcontractdb.reset();
+        delete pcontractCache;
+        pcontractCache = nullptr;
     }
     for (const auto& client : node.chain_clients) {
         client->stop();
@@ -444,6 +462,11 @@ void SetupServerArgs(NodeContext& node)
                  strprintf("Maintain an index of compact filters by block (default: %s, values: %s).", DEFAULT_BLOCKFILTERINDEX, ListBlockFilterTypes()) +
                  " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled.",
                  ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+
+    argsman.AddArg("-addressindex", strprintf("Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: %u)", DEFAULT_ADDRESSINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-balancesindex", strprintf("Maintain a full balance index, used to query for the balance, txids and unspent outputs for addresses (default: %u)", DEFAULT_BALANCESINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-timestampindex", strprintf("Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)", DEFAULT_TIMESTAMPINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-spentindex", strprintf("Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)", DEFAULT_SPENTINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 
     argsman.AddArg("-addnode=<ip>", "Add a node to connect to and attempt to keep the connection open (see the `addnode` RPC command help for more info). This option can be specified multiple times to add multiple nodes.", ArgsManager::ALLOW_ANY | ArgsManager::NETWORK_ONLY, OptionsCategory::CONNECTION);
     argsman.AddArg("-asmap=<file>", strprintf("Specify asn mapping used for bucketing of the peers (default: %s). Relative paths will be prefixed by the net-specific datadir location.", DEFAULT_ASMAP_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -871,6 +894,18 @@ void InitParameterInteraction(ArgsManager& args)
     if (args.GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
         if (args.SoftSetBoolArg("-whitelistrelay", true))
             LogPrintf("%s: parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1\n", __func__);
+    }
+
+    // Make sure additional indexes are recalculated correctly in VerifyDB
+    // (we must reconnect blocks whenever we disconnect them for these indexes to work)
+    bool fAdditionalIndexes =
+        gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) ||
+        gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) ||
+        gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+
+    if (fAdditionalIndexes && gArgs.GetArg("-checklevel", DEFAULT_CHECKLEVEL) < 4) {
+        gArgs.ForceSetArg("-checklevel", "4");
+        LogPrintf("%s: parameter interaction: additional indexes -> setting -checklevel=4\n", __func__);
     }
 }
 
@@ -1563,7 +1598,18 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     int64_t nTotalCache = (args.GetArg("-dbcache", nDefaultDbCache) << 20);
     nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
-    int64_t nBlockTreeDBCache = std::min(nTotalCache / 8, nMaxBlockDBCache << 20);
+    int64_t nBlockTreeDBCache = nTotalCache / 8;
+
+    if (gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX))
+    {
+        // enable 3/4 of the cache if addressindex and/or spentindex is enabled
+        nBlockTreeDBCache = nTotalCache * 3 / 4;
+    } else
+    {
+        nBlockTreeDBCache = std::min(nBlockTreeDBCache, (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache : nMaxBlockDBCache) << 20);
+    };
+
+    //int64_t nBlockTreeDBCache = std::min(nTotalCache / 8, nMaxBlockDBCache << 20);
     nTotalCache -= nBlockTreeDBCache;
     int64_t nTxIndexCache = std::min(nTotalCache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache << 20 : 0);
     nTotalCache -= nTxIndexCache;
@@ -1620,6 +1666,44 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 pblocktree.reset();
                 pblocktree.reset(new CBlockTreeDB(nBlockTreeDBCache, false, fReset));
 
+                passetsdb.reset();
+                passetsdb.reset(new CAssetsDB(nBlockTreeDBCache, false, fReset));
+                delete passetsCache;
+                passetsCache = new CLRUCache<std::string, CAssetData>(MAX_CACHE_ASSETS_SIZE);
+
+                // Read for fAssetIndex to make sure that we only load asset address balances if it if true
+                //pblocktree->ReadFlag("assetindex", fAssetIndex);
+                // Need to load assets before we verify the database
+                if (!passetsdb->LoadAssets()) {
+                    strLoadError = _("Failed to load Assets Database");
+                    break;
+                }
+
+                LogPrintf("Loaded Assets from database without error\nCache of assets size: %d\n", passetsCache->Size());
+
+                piddb.reset();
+                piddb.reset(new CIdDB(nBlockTreeDBCache, false, fReset));
+                delete pIdCache;
+                pIdCache = new CLRUCache<std::string, CIDData>(MAX_CACHE_ASSETS_SIZE);
+                if (!piddb->LoadIDs()) {
+                    strLoadError = _("Failed to load ID Database");
+                    break;
+                }
+
+                LogPrintf("Loaded IDs from database without error\nCache of ids count: %d\n", pIdCache->Size());
+
+                pcontractdb.reset();
+                pcontractdb.reset(new CContractDB(nBlockTreeDBCache, false, fReset));
+                delete pcontractCache;
+                pcontractCache = new CLRUCache<std::string, CContractData>(MAX_CACHE_ASSETS_SIZE);
+                if (!pcontractdb->LoadContracts()) {
+                    strLoadError = _("Failed to load Contract Database");
+                    break;
+                }
+
+                LogPrintf("Loaded Contracts from database without error\nCache of contracts count: %d\n", pcontractCache->Size());
+
+
                 if (fReset) {
                     pblocktree->WriteReindexing(true);
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
@@ -1644,6 +1728,28 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 if (!chainman.BlockIndex().empty() &&
                         !LookupBlockIndex(chainparams.GetConsensus().hashGenesisBlock)) {
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
+
+                // Check for changed -addressindex state
+                if (fAddressIndex != gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex to change -addressindex");
+                    break;
+                }
+
+                // Check for changed -spentindex state
+                if (fSpentIndex != gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex to change -spentindex");
+                    break;
+                }
+
+                // Check for changed -timestampindex state
+                if (fTimestampIndex != gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex to change -timestampindex");
+                    break;
+                }
+                if (fBalancesIndex != gArgs.GetBoolArg("-balancesindex", DEFAULT_BALANCESINDEX)) {
+                    strLoadError = _("You need to rebuild the database using -reindex to change -balancesindex");
+                    break;
                 }
 
                 // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
@@ -2058,6 +2164,9 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     BanMan* banman = node.banman.get();
     node.scheduler->scheduleEvery([banman]{
         banman->DumpBanlist();
+        DumpAssets();
+        DumpContracts();
+        DumpIDs();
     }, DUMP_BANS_INTERVAL);
 
     node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::milliseconds{1000});

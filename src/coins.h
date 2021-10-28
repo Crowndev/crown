@@ -124,6 +124,27 @@ public:
     }
 };
 
+class SpentCoin
+{
+public:
+    SpentCoin(const Coin &coin_, int spent_at) : coin(coin_), spent_height(spent_at) {}
+    SpentCoin() {}
+    Coin coin;
+    uint32_t spent_height = 0;
+
+    template<typename Stream>
+    void Serialize(Stream &s) const {
+        ::Serialize(s, coin);
+        ::Serialize(s, VARINT(spent_height));
+    }
+    template<typename Stream>
+    void Unserialize(Stream &s) {
+        ::Unserialize(s, coin);
+        ::Unserialize(s, VARINT(spent_height));
+    }
+};
+
+
 /**
  * A Coin in one level of the coins database caching hierarchy.
  *
@@ -250,7 +271,9 @@ public:
 /** CCoinsView that adds a memory cache for transactions to another CCoinsView */
 class CCoinsViewCache : public CCoinsViewBacked
 {
-protected:
+public:
+//protected:
+
     /**
      * Make mutable so that we can "fill the cache" even from Get-methods
      * declared as "const".
@@ -264,6 +287,8 @@ protected:
     mutable std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
     mutable std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     mutable std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
+    mutable std::vector<std::pair<COutPoint, SpentCoin> > spent_cache;
 
 public:
     CCoinsViewCache(CCoinsView *baseIn);
