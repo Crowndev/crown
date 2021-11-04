@@ -440,7 +440,7 @@ struct Stacks
 }
 
 // Extracts signatures and scripts from incomplete scriptSigs. Please do not extend this, use PSBT instead
-SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nIn, const CTxOut& txout)
+SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nIn, const CTxOutAsset& txout)
 {
     SignatureData data;
     assert(tx.vin.size() > nIn);
@@ -544,7 +544,7 @@ bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, 
     assert(nIn < txTo.vin.size());
     CTxIn& txin = txTo.vin[nIn];
     assert(txin.prevout.n < txFrom.vout.size());
-    const CTxOut& txout = txFrom.vout[txin.prevout.n];
+    const auto& txout = (txFrom.nVersion >= TX_ELE_VERSION ? txFrom.vpout[txin.prevout.n] : txFrom.vout[txin.prevout.n]);
 
     return SignSignature(provider, txout.scriptPubKey, txTo, nIn, txout.nValue, nHashType);
 }
@@ -638,7 +638,7 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
     const CTransaction txConst(mtx);
 
     PrecomputedTransactionData txdata;
-    std::vector<CTxOut> spent_outputs;
+    std::vector<CTxOutAsset> spent_outputs;
     spent_outputs.resize(mtx.vin.size());
     bool have_all_spent_outputs = true;
     for (unsigned int i = 0; i < mtx.vin.size(); i++) {
@@ -647,7 +647,7 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
         if (coin == coins.end() || coin->second.IsSpent()) {
             have_all_spent_outputs = false;
         } else {
-            spent_outputs[i] = CTxOut(coin->second.out.nAsset, coin->second.out.nValue, coin->second.out.scriptPubKey);
+            spent_outputs[i] = (tx.nVersion >= TX_ELE_VERSION ? CTxOutAsset(coin->second.out2.nAsset, coin->second.out2.nValue, coin->second.out2.scriptPubKey) : CTxOut(coin->second.out.nValue, coin->second.out.scriptPubKey));
         }
     }
     if (have_all_spent_outputs) {

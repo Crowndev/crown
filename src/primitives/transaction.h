@@ -7,13 +7,8 @@
 #define CROWN_PRIMITIVES_TRANSACTION_H
 
 #include <stdint.h>
-#include <primitives/txout.h>
 #include <primitives/txdata.h>
-#include <amount.h>
-#include <script/script.h>
-#include <serialize.h>
-#include <uint256.h>
-
+#include <primitives/asset.h>
 #include <tuple>
 
 #define TX_NFT_VERSION 3
@@ -153,7 +148,6 @@ public:
 class CTxOut
 {
 public:
-    CAsset nAsset;
     CAmount nValue;
     CScript scriptPubKey;
 
@@ -162,35 +156,29 @@ public:
         SetNull();
     }
 
-    CTxOut(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
-    SERIALIZE_METHODS(CTxOut, obj) {
-        READWRITE(obj.nValue, obj.scriptPubKey);
-        READWRITE(obj.nAsset);
-    }
+    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);    }
 
     void SetNull()
     {
-        nAsset.SetNull();
         nValue=0;
         scriptPubKey.clear();
     }
 
     bool IsNull() const
     {
-        return nAsset.IsNull() && nValue==0 && scriptPubKey.empty();
+        return nValue==0 && scriptPubKey.empty();
     }
 
     void SetEmpty()
     {
         nValue = 0;
-        nAsset.SetNull();
         scriptPubKey.clear();
     }
 
     bool IsFee() const {
-        return scriptPubKey == CScript() && !nValue==0 && !nAsset.IsNull();
+        return scriptPubKey == CScript() && !nValue==0;
     }
 
     bool IsEmpty() const
@@ -218,6 +206,90 @@ public:
 
     std::string ToString() const;
 };
+
+class CTxOutAsset : public CTxOut
+{
+public:
+    CTxOutAsset()
+    {
+        SetNull();      
+    }
+    CTxOutAsset(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOutAsset(const CTxOut &out)
+    {
+        SetNull();
+        *(static_cast<CTxOut*>(this)) = out;
+    }
+    int16_t nVersion;
+    CAsset nAsset;
+
+    SERIALIZE_METHODS(CTxOutAsset, obj) { 
+        READWRITEAS(CTxOut, obj);
+        READWRITE(obj.nVersion);
+        READWRITE(obj.nAsset);
+    }
+
+    void SetNull()
+    {
+        CTxOut::SetNull();
+        nAsset.SetNull();
+        nVersion=0;
+    }
+
+    bool IsNull() const
+    {
+        return nAsset.IsNull() && CTxOut::IsNull();
+    }
+
+    void SetEmpty()
+    {
+        CTxOut::SetEmpty();
+        nAsset.SetNull();
+        nVersion=0;
+    }
+
+    bool IsFee() const {
+        return scriptPubKey == CScript() && !nValue==0 && !nAsset.IsNull();
+    }
+
+    bool IsEmpty() const
+    {
+        return (nValue == 0 && scriptPubKey.empty());
+    }
+
+    friend bool operator==(const CTxOutAsset& a, const CTxOutAsset& b)
+    {
+        return (a.nAsset == b.nAsset &&
+                a.nValue == b.nValue &&
+                a.scriptPubKey == b.scriptPubKey);
+    }
+
+    friend bool operator!=(const CTxOutAsset& a, const CTxOutAsset& b)
+    {
+        return !(a == b);
+    }
+
+    uint256 GetHash() const;
+
+    std::string ToString() const;
+
+    CAmount GetValue() const
+    {
+        return nValue;
+    }
+
+    bool GetScriptPubKey(CScript &scriptPubKey_) const
+    {
+        scriptPubKey_ = scriptPubKey;
+        return true;
+    }
+
+    const CScript *GetPScriptPubKey() const
+    {
+        return &scriptPubKey;
+    }
+};
+
 
 struct CMutableTransaction;
 
@@ -261,53 +333,15 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         if (flags != 0) {
             s >> tx.vin;
 
-            if (tx.nVersion >= TX_ELE_VERSION) {
-                size_t nOutputs = ReadCompactSize(s);
-                tx.vpout.clear();
-                tx.vpout.reserve(nOutputs);
-                for (size_t k = 0; k < nOutputs; ++k) {
-                    uint8_t bv;
-                    s >> bv;
-                    switch (bv) {
-                        case OUT_STANDARD:
-                            tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
-                            break;
-                        case OUT_DATA:
-                            tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
-                            break;
-                        default:
-                            throw std::ios_base::failure("Unknown transaction output type");
-                    }
-                    tx.vpout[k]->nVersion = bv;
-                    s >> *tx.vpout[k];
-                }
-            }
+            if (tx.nVersion >= TX_ELE_VERSION)
+                s >> tx.vpout;
             else
                 s >> tx.vout;
         }
     } else {
         /* We read a non-empty vin. Assume a normal vout follows. */
-        if (tx.nVersion >= TX_ELE_VERSION) {
-            size_t nOutputs = ReadCompactSize(s);
-            tx.vpout.clear();
-            tx.vpout.reserve(nOutputs);
-            for (size_t k = 0; k < nOutputs; ++k) {
-                uint8_t bv;
-                s >> bv;
-                switch (bv) {
-                    case OUT_STANDARD:
-                        tx.vpout.push_back(MAKE_OUTPUT<CTxOutStandard>());
-                        break;
-                    case OUT_DATA:
-                        tx.vpout.push_back(MAKE_OUTPUT<CTxOutData>());
-                        break;
-                    default:
-                        throw std::ios_base::failure("Unknown transaction output type");
-                }
-                tx.vpout[k]->nVersion = bv;
-                s >> *tx.vpout[k];
-            }
-        }
+        if (tx.nVersion >= TX_ELE_VERSION)
+            s >> tx.vpout;
         else
             s >> tx.vout;
     }
@@ -378,13 +412,8 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     }
     s << tx.vin;
 
-    if (tx.nVersion >= TX_ELE_VERSION) {
-        WriteCompactSize(s, tx.vpout.size());
-        for (size_t k = 0; k < tx.vpout.size(); ++k) {
-            s << tx.vpout[k]->nVersion;
-            s << *tx.vpout[k];
-        }
-    }
+    if (tx.nVersion >= TX_ELE_VERSION)
+        s << tx.vpout;
     else
         s << tx.vout;
 
@@ -424,7 +453,7 @@ public:
     // structure, including the hash.
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
-    const std::vector<CTxOutBaseRef> vpout;
+    const std::vector<CTxOutAsset> vpout;
     const std::vector<CTxDataBaseRef> vdata;
     const int16_t nVersion;
     const int16_t nType;
@@ -511,7 +540,7 @@ struct CMutableTransaction
 {
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
-    std::vector<CTxOutBaseRef> vpout;
+    std::vector<CTxOutAsset> vpout;
     std::vector<CTxDataBaseRef> vdata;
     int16_t nVersion;
     int16_t nType;

@@ -34,7 +34,9 @@ class Coin
 public:
     //! unspent transaction output
     CTxOut out;
-
+    //! newer unspent transaction output
+    CTxOutAsset out2;
+    
     //! whether containing transaction was a coinbase
     unsigned int fCoinBase : 1;
     unsigned int fCoinStake : 1;
@@ -47,9 +49,15 @@ public:
         out(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
     Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
         out(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
-
+    //! construct a Coin from a CTxOutAsset and height/coinbase information.
+    Coin(CTxOutAsset&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out2(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+    Coin(const CTxOutAsset& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out2(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+        
     void Clear() {
         out.SetNull();
+        out2.SetNull();
         fCoinBase = false;
         fCoinStake = false;
         nHeight = 0;

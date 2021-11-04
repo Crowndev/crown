@@ -258,6 +258,7 @@ struct COutputEntry
     CTxDestination destination;
     CAmount amount;
     int vout;
+    CAsset asset;
 };
 
 /** Legacy class used for deserializing vtxPrev for backwards compatibility.
@@ -347,8 +348,8 @@ public:
     std::multimap<int64_t, CWalletTx*>::const_iterator m_it_wtxOrdered;
 
     // memory only
-    enum AmountType { DEBIT, CREDIT, IMMATURE_CREDIT, AVAILABLE_CREDIT, AMOUNTTYPE_ENUM_ELEMENTS };
-    CAmount GetCachableAmount(AmountType type, const isminefilter& filter, bool recalculate = false) const;
+    enum AmountType { DEBIT, CREDIT, IMMATURE_CREDIT, AVAILABLE_CREDIT, LOCKED, UNLOCKED, AMOUNTTYPE_ENUM_ELEMENTS };
+    CAmountMap GetCachableAmount(AmountType type, const isminefilter& filter, bool recalculate = false) const;
     mutable CachableAmount m_amounts[AMOUNTTYPE_ENUM_ELEMENTS];
     /**
      * This flag is true if all m_amounts caches are empty. This is particularly
@@ -359,7 +360,7 @@ public:
     mutable bool m_is_cache_empty{true};
     mutable bool fChangeCached;
     mutable bool fInMempool;
-    mutable CAmount nChangeCached;
+    mutable CAmountMap nChangeCached;
 
     CWalletTx(const CWallet* wallet, CTransactionRef arg)
         : pwallet(wallet),
@@ -378,7 +379,7 @@ public:
         fFromMe = false;
         fChangeCached = false;
         fInMempool = false;
-        nChangeCached = 0;
+        nChangeCached = CAmountMap();
         nOrderPos = -1;
         m_confirm = Confirmation{};
     }
@@ -482,21 +483,28 @@ public:
         m_amounts[CREDIT].Reset();
         m_amounts[IMMATURE_CREDIT].Reset();
         m_amounts[AVAILABLE_CREDIT].Reset();
+        m_amounts[LOCKED].Reset();
+        m_amounts[UNLOCKED].Reset();
         fChangeCached = false;
         m_is_cache_empty = true;
     }
 
     //! filter decides which addresses will count towards the debit
-    CAmount GetDebit(const isminefilter& filter) const;
-    CAmount GetCredit(const isminefilter& filter) const;
-    CAmount GetImmatureCredit(bool fUseCache = true) const;
+    CAmountMap GetDebit(const isminefilter& filter) const;
+    CAmountMap GetCredit(const isminefilter& filter) const;
+    CAmountMap GetImmatureCredit(bool fUseCache = true) const;
+
     // TODO: Remove "NO_THREAD_SAFETY_ANALYSIS" and replace it with the correct
+    // Return sum of unlocked coins
+    CAmountMap GetUnlockedCredit(const isminefilter& filter) const;
     // annotation "EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)". The
+    // Return sum of locked coins
+    CAmountMap GetLockedCredit(const isminefilter& filter) const;
     // annotation "NO_THREAD_SAFETY_ANALYSIS" was temporarily added to avoid
     // having to resolve the issue of member access into incomplete type CWallet.
-    CAmount GetAvailableCredit(bool fUseCache = true, const isminefilter& filter = ISMINE_SPENDABLE) const NO_THREAD_SAFETY_ANALYSIS;
-    CAmount GetImmatureWatchOnlyCredit(const bool fUseCache = true) const;
-    CAmount GetChange() const;
+    CAmountMap GetAvailableCredit(bool fUseCache = true, const isminefilter& filter = ISMINE_SPENDABLE) const NO_THREAD_SAFETY_ANALYSIS;
+    CAmountMap GetImmatureWatchOnlyCredit(const bool fUseCache = true) const;
+    CAmountMap GetChange() const;
 
     // Get the marginal bytes if spending the specified output from this transaction
     int GetSpendSize(unsigned int out, bool use_max_sig = false) const
@@ -505,11 +513,11 @@ public:
     }
 
     void GetAmounts(std::list<COutputEntry>& listReceived,
-                    std::list<COutputEntry>& listSent, CAmount& nFee, const isminefilter& filter) const;
+                    std::list<COutputEntry>& listSent, CAmountMap& mapFee, const isminefilter& filter) const;
 
     bool IsFromMe(const isminefilter& filter) const
     {
-        return (GetDebit(filter) > 0);
+        return (GetDebit(filter) > CAmountMap());
     }
 
     // True if only scriptSigs are different
@@ -612,6 +620,24 @@ public:
         if (fSpendable && tx) {
             nInputBytes = tx->GetSpendSize(i, use_max_sig);
         }
+    }
+
+    CAmount Value() const
+    {
+		CAmount value =0;
+		if(tx->tx->nVersion >= TX_ELE_VERSION)
+            value = tx->tx->vpout[i].nValue;
+            		
+        return value;
+    }
+
+    CAsset Asset() const
+    {
+		CAsset asset;
+		if(tx->tx->nVersion >= TX_ELE_VERSION)
+            asset = tx->tx->vpout[i].nAsset;
+            
+        return asset;
     }
 
     std::string ToString() const;
@@ -775,7 +801,7 @@ public:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet,
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmountMap& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmountMap& nValueRet,
                     const CCoinControl& coin_control, CoinSelectionParams& coin_selection_params, bool& bnb_used) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /** Get a name for this wallet for logging/debugging purposes.
@@ -838,7 +864,7 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const CAsset* asset_filter=nullptr) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, AvailableCoinsType coin_type=ALL_COINS, bool useIX = false) const;
     /**
      * Return list of available coins and locked coins grouped by non-change output address.
@@ -856,8 +882,8 @@ public:
      * completion the coin set and corresponding actual target value is
      * assembled
      */
-    bool SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibilityFilter& eligibility_filter, std::vector<OutputGroup> groups,
-        std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, const CoinSelectionParams& coin_selection_params, bool& bnb_used) const;
+    bool SelectCoinsMinConf(const CAmountMap& mapTargetValue, const CoinEligibilityFilter& eligibility_filter, std::vector<OutputGroup> groups,
+        std::set<CInputCoin>& setCoinsRet, CAmountMap& mapValueRet, const CoinSelectionParams& coin_selection_params, bool& bnb_used) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
@@ -958,16 +984,19 @@ public:
     void ReacceptWalletTransactions() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void ResendWalletTransactions();
     struct Balance {
-        CAmount m_mine_trusted{0};           //!< Trusted, at depth=GetBalance.min_depth or more
-        CAmount m_mine_untrusted_pending{0}; //!< Untrusted, but in mempool (pending)
-        CAmount m_mine_immature{0};          //!< Immature coinbases in the main chain
-        CAmount m_watchonly_trusted{0};
-        CAmount m_watchonly_untrusted_pending{0};
-        CAmount m_watchonly_immature{0};
+        CAmountMap m_mine_trusted{CAmountMap()};           //!< Trusted, at depth=GetBalance.min_depth or more
+        CAmountMap m_mine_untrusted_pending{CAmountMap()}; //!< Untrusted, but in mempool (pending)
+        CAmountMap m_mine_immature{CAmountMap()};          //!< Immature coinbases in the main chain
+        CAmountMap m_mine_locked{CAmountMap()};
+        CAmountMap m_mine_unlocked{CAmountMap()};
+        CAmountMap m_watchonly_trusted{CAmountMap()};
+        CAmountMap m_watchonly_untrusted_pending{CAmountMap()};
+        CAmountMap m_watchonly_immature{CAmountMap()};
     };
     Balance GetBalance(int min_depth = 0, bool avoid_reuse = true) const;
-    CAmount GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
-
+    CAmountMap GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
+    CAmountMap GetLockedCoins() const;
+    CAmountMap GetUnlockedCoins() const;
     OutputType TransactionChangeType(const std::optional<OutputType>& change_type, const std::vector<CRecipient>& vecSend);
 
     /**
@@ -1029,7 +1058,7 @@ public:
         return DummySignTx(txNew, v_txouts, use_max_sig);
     }
     bool DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOut> &txouts, bool use_max_sig = false) const;
-    bool DummySignInput(CTxIn &tx_in, const CTxOut &txout, bool use_max_sig = false) const;
+    bool DummySignInput(CTxIn &tx_in, const CTxOutAsset &txout, bool use_max_sig = false) const;
 
     bool ImportScripts(const std::set<CScript> scripts, int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool ImportPrivKeys(const std::map<CKeyID, CKey>& privkey_map, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1067,7 +1096,7 @@ public:
     int64_t GetOldestKeyPoolTime() const;
 
     std::set<std::set<CTxDestination>> GetAddressGroupings() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    std::map<CTxDestination, CAmount> GetAddressBalances() const;
+    std::map<CTxDestination, CAmountMap> GetAddressBalances() const;
 
     std::set<CTxDestination> GetLabelAddresses(const std::string& label) const;
 
@@ -1087,20 +1116,20 @@ public:
      * Returns amount of debit if the input matches the
      * filter, otherwise returns 0
      */
-    CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
-    isminetype IsMine(const CTxOut& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
-    bool IsChange(const CTxOut& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    CAmountMap GetDebit(const CTxIn& txin, const isminefilter& filter) const;
+    isminetype IsMine(const CTxOutAsset& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    CAmountMap GetCredit(const CTxOutAsset& txout, const isminefilter& filter) const;
+    bool IsChange(const CTxOutAsset& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool IsChange(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    CAmount GetChange(const CTxOut& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    CAmountMap GetChange(const CTxOutAsset& txout) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool IsMine(const CTransaction& tx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     /** should probably be renamed to IsRelevantToMe */
     bool IsFromMe(const CTransaction& tx) const;
-    CAmount GetDebit(const CTransaction& tx, const isminefilter& filter) const;
+    CAmountMap GetDebit(const CTransaction& tx, const isminefilter& filter) const;
     /** Returns whether all of the inputs match the filter */
     bool IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount GetCredit(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount GetChange(const CTransaction& tx) const;
+    CAmountMap GetCredit(const CTransaction& tx, const isminefilter& filter) const;
+    CAmountMap GetChange(const CTransaction& tx) const;
     void chainStateFlushed(const CBlockLocator& loc) override;
 
     DBErrors LoadWallet(bool& fFirstRunRet);

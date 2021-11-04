@@ -1338,9 +1338,9 @@ public:
     void SerializeOutput(S &s, unsigned int nOutput) const {
         if (fHashSingle && nOutput != nIn)
             // Do not lock-in the txout payee at other indices as txin
-            ::Serialize(s, CTxOut());
+            ::Serialize(s, (txTo.nVersion >= TX_ELE_VERSION ? CTxOutAsset() : CTxOut()));
         else
-            ::Serialize(s, txTo.vout[nOutput]);
+            ::Serialize(s, (txTo.nVersion >= TX_ELE_VERSION ? txTo.vpout[nOutput] : txTo.vout[nOutput]));
     }
 
     /** Serialize data of txTo */

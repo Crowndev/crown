@@ -617,9 +617,8 @@ static UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blocki
         entry.pushKV("inputs", inputs);
 
         UniValue outputs(UniValue::VARR);
-
-        for (unsigned int k = 0; k < tx.vout.size(); k++) {
-            CTxOut out = tx.vout[k];
+		for(unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+			CTxOutAsset out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
             UniValue delta(UniValue::VOBJ);
 

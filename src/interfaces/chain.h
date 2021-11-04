@@ -107,7 +107,10 @@ public:
     virtual bool existsContract(std::string name)=0;
     //! Get block hash. Height must be valid or this function will abort.
     virtual uint256 getBlockHash(int height) = 0;
-
+    
+    // get version of tx to create 
+    virtual int getTxVersion() =0;
+    
     //! Check that the block is available on disk (i.e. has not been
     //! pruned), and contains transactions.
     virtual bool haveBlockOnDisk(int height) = 0;

@@ -218,7 +218,7 @@ public:
 
     bool existsID(const std::string& alias, const CPubKey& pubkey) override
     {
-		return (pIdCache->Exists(alias) || ExistsID(alias, pubkey));
+        return (pIdCache->Exists(alias) || ExistsID(alias, pubkey));
     }
 
     CChainID getID(std::string alias) override
@@ -241,12 +241,23 @@ public:
     {
         return (pcontractCache->Exists(name) || ExistsContract(name));
     }
-    
+
+    int getTxVersion() override
+    {
+        int height = ::ChainActive().Height();
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && height > 20000)
+            return TX_ELE_VERSION;
+        /*if (height > 3700000) {
+            return TX_ELE_VERSION;
+        }*/
+        return TX_NFT_VERSION;
+    }
+
     bool isequals(const std::string& str1, const std::string& str2) override
     {
         return iequals(str1,str2);
     }
-    
+
 
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {

@@ -25,7 +25,7 @@ extern bool fSpentIndex;
 extern bool fTimestampIndex;
 extern bool fBalancesIndex;
 
-class CTxOut;
+class CTxOutAsset;
 struct CAsset;
 class CScript;
 class uint256;
@@ -41,7 +41,7 @@ struct CSpentIndexKey;
 struct CSpentIndexValue;
 
 bool ExtractIndexInfo(const CScript *pScript, int &scriptType, std::vector<uint8_t> &hashBytes);
-bool ExtractIndexInfo(const CTxOut *out, int &scriptType, std::vector<uint8_t> &hashBytes, CAmount &nValue, CAsset &nAsset, const CScript *&pScript);
+bool ExtractIndexInfo(const CTxOutAsset *out, int &scriptType, std::vector<uint8_t> &hashBytes, CAmount &nValue, CAsset &nAsset, const CScript *&pScript);
 
 /** Functions for insight block explorer */
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes) EXCLUSIVE_LOCKS_REQUIRED(cs_main);

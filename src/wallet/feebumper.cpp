@@ -81,7 +81,12 @@ static feebumper::Result CheckFeeRate(const CWallet& wallet, const CWalletTx& wt
 
     // Given old total fee and transaction size, calculate the old feeRate
     isminefilter filter = wallet.GetLegacyScriptPubKeyMan() && wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) ? ISMINE_WATCH_ONLY : ISMINE_SPENDABLE;
-    CAmount old_fee = wtx.GetDebit(filter) - wtx.tx->GetValueOut();
+    CAmount old_fee = 0;
+    if(wtx.tx->nVersion >= TX_ELE_VERSION)
+        old_fee = (wtx.GetDebit(filter) - wtx.tx->GetValueOutMap())[wtx.tx->vpout[0].nAsset];
+
+    
+    
     const int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
     CFeeRate nOldFeeRate(old_fee, txSize);
     // Min total fee is old fee + relay fee
@@ -185,7 +190,8 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
     }
 
     isminefilter filter = wallet.GetLegacyScriptPubKeyMan() && wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) ? ISMINE_WATCH_ONLY : ISMINE_SPENDABLE;
-    old_fee = wtx.GetDebit(filter) - wtx.tx->GetValueOut();
+    if(wtx.tx->nVersion >= TX_ELE_VERSION)
+        old_fee = (wtx.GetDebit(filter) - wtx.tx->GetValueOutMap())[wtx.tx->vpout[0].nAsset];
 
     if (coin_control.m_feerate) {
         // The user provided a feeRate argument.

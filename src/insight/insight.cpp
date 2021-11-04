@@ -50,7 +50,7 @@ bool ExtractIndexInfo(const CScript *pScript, int &scriptType, std::vector<uint8
     return true;
 };
 
-bool ExtractIndexInfo(const CTxOut *out, int &scriptType, std::vector<uint8_t> &hashBytes, CAmount &nValue, CAsset &nAsset, const CScript *&pScript)
+bool ExtractIndexInfo(const CTxOutAsset *out, int &scriptType, std::vector<uint8_t> &hashBytes, CAmount &nValue, CAsset &nAsset, const CScript *&pScript)
 {
     if (!(pScript = &out->scriptPubKey)) {
         return error("%s: Expected script pointer.", __func__);

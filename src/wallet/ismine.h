@@ -35,12 +35,12 @@ struct CachableAmount
 {
     // NO and ALL are never (supposed to be) cached
     std::bitset<ISMINE_ENUM_ELEMENTS> m_cached;
-    CAmount m_value[ISMINE_ENUM_ELEMENTS];
+    CAmountMap m_value[ISMINE_ENUM_ELEMENTS];
     inline void Reset()
     {
         m_cached.reset();
     }
-    void Set(isminefilter filter, CAmount value)
+    void Set(isminefilter filter, CAmountMap value)
     {
         m_cached.set(filter);
         m_value[filter] = value;

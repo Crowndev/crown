@@ -322,14 +322,13 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("data", vdata);
 
     UniValue vout(UniValue::VARR);
-    for (unsigned int i = 0; i < tx.vout.size(); i++) {
-        const CTxOut& txout = tx.vout[i];
+	for(unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+		CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
         UniValue out(UniValue::VOBJ);
-
         out.pushKV("value", ValueFromAmount(txout.nValue));
 		out.pushKV("asset", txout.nAsset.getName());
-        out.pushKV("n", (int64_t)i);
+        out.pushKV("n", (int64_t)k);
 
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);

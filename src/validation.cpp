@@ -626,10 +626,10 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     { //data checking is done here
         bool fHasFee = false;
-        for (const CTxOut &txout :tx.vout){
-            if(txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination && txout.nAsset == Params().GetConsensus().subsidy_asset && txout.nValue == 10.0001 * COIN){
+        for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+			CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+            if(txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination && txout.nAsset == Params().GetConsensus().subsidy_asset && txout.nValue == 10.0001 * COIN)
                 fHasFee = true;
-            }
         }
 
         for (unsigned int i = 0; i < tx.vdata.size(); i++){
@@ -1920,7 +1920,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             //CAmount assetAmount;
             uint160 hashBytes;
             for (unsigned int k = tx.vout.size(); k-- > 0;) {
-                const CTxOut &out = tx.vout[k];
+                const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
                 std::string sAssetName = out.nAsset.getName();
 
                 const CScript *pScript;
@@ -1977,8 +1977,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
                     if (fAddressIndex) {
                         const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
-
-                        const CTxOut &prevout = coin.out;
+                        const CTxOutAsset &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
 
                         std::string sAssetName = prevout.nAsset.getName();
 
@@ -2621,8 +2620,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 for (size_t j = 0; j < tx.vin.size(); j++) {
                     const CTxIn input = tx.vin[j];
                     const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
-                    const CTxOut &prevout = coin.out;
-
+                    const CTxOutAsset &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
                     std::string sAssetName = prevout.nAsset.getName();
 
                     const CScript *pScript = &prevout.scriptPubKey;
@@ -2675,8 +2673,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
 
         if (g_txindex) {
-            for (unsigned int k = 0; k < tx.vout.size(); k++) {
-                const CTxOut &out = tx.vout[k];
+            for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
+                const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
                 std::string sAssetName = out.nAsset.getName();
 
@@ -2754,8 +2752,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     {
         for(unsigned int i = 0; i < block.vtx.size(); i++){
             const CTransactionRef &tx = block.vtx[i];
-            for(unsigned int j = 0; j < tx->vout.size(); j++){
-                const CTxOut &out = tx->vout[j];
+            for(unsigned int j = 0; j < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; j++){
+			    const CTxOutAsset &out = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[j] : tx->vout[j]);
+
                 CAsset asset = out.nAsset;
                 bool exists = false;
 

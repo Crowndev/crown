@@ -1,9 +1,12 @@
 #ifndef CROWN_PRIMITIVES_TXDATA_H
 #define CROWN_PRIMITIVES_TXDATA_H
 
+#include <script/script.h>
+
 #include <serialize.h>
 #include <uint256.h>
 #include <pubkey.h>
+#include <amount.h>
 
 class CChainID;
 class CContract;

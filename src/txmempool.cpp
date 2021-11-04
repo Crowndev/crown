@@ -417,7 +417,8 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
         const Coin& coin = view.AccessCoin(input.prevout);
-        const CTxOut &prevout = coin.out;
+        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
             CMempoolAddressDeltaKey key(2, uint160(hashBytes), txhash, j, 1);
@@ -439,8 +440,8 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
         }
     }
 
-    for (unsigned int k = 0; k < tx.vout.size(); k++) {
-        const CTxOut &out = tx.vout[k];
+    for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); k++) {
+        const auto &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
         if (out.scriptPubKey.IsPayToScriptHash()) {
             std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
             CMempoolAddressDeltaKey key(2, uint160(hashBytes), txhash, k, 0);
@@ -505,7 +506,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
         const Coin& coin = view.AccessCoin(input.prevout);
-        const CTxOut &prevout = coin.out;
+        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
         uint160 addressHash;
         int addressType;
 
