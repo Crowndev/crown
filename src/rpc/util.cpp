@@ -11,7 +11,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
-
+#include <core_io.h>
 #include <tuple>
 
 #include <boost/algorithm/string/classification.hpp>
@@ -818,6 +818,24 @@ static std::pair<int64_t, int64_t> ParseRange(const UniValue& value)
         return {low, high};
     }
     throw JSONRPCError(RPC_INVALID_PARAMETER, "Range must be specified as end or as [begin,end]");
+}
+
+UniValue AmountMapToUniv(const CAmountMap& balanceOrig)
+{
+    // Make sure the policyAsset is always present in the balance map.
+    CAmountMap balance = balanceOrig;
+
+    UniValue obj(UniValue::VOBJ);
+    for(auto it = balance.begin(); it != balance.end(); ++it) {
+        // Unknown assets
+        if (it->first.IsNull())
+            continue;
+        UniValue pair(UniValue::VOBJ);
+        std::string label = it->first.getAssetName();
+
+        obj.pushKV(label, ValueFromAmount(it->second));
+    }
+    return obj;
 }
 
 std::pair<int64_t, int64_t> ParseDescriptorRange(const UniValue& value)

@@ -647,7 +647,7 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
         if (coin == coins.end() || coin->second.IsSpent()) {
             have_all_spent_outputs = false;
         } else {
-            spent_outputs[i] = (tx.nVersion >= TX_ELE_VERSION ? CTxOutAsset(coin->second.out2.nAsset, coin->second.out2.nValue, coin->second.out2.scriptPubKey) : CTxOut(coin->second.out.nValue, coin->second.out.scriptPubKey));
+            spent_outputs[i] = (mtx.nVersion >= TX_ELE_VERSION ? CTxOutAsset(coin->second.out2.nAsset, coin->second.out2.nValue, coin->second.out2.scriptPubKey) : CTxOut(coin->second.out.nValue, coin->second.out.scriptPubKey));
         }
     }
     if (have_all_spent_outputs) {

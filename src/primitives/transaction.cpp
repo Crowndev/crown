@@ -98,15 +98,15 @@ std::string CTxIn::ToString() const
     return str;
 }
 
-CTxOut::CTxOut(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn)
+CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
-    nAsset = nAssetIn;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
 }
 
-CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
+CTxOutAsset::CTxOutAsset(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
+    nAsset = nAssetIn;
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
 }
@@ -121,46 +121,15 @@ std::string CTxOut::ToString() const
     return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
 }
 
-void CTxOutBase::SetValue(int64_t value)
+std::string CTxOutAsset::ToString() const
 {
-    // convenience function intended for use with CTxOutStandard only
-    assert(nVersion == OUT_STANDARD);
-    ((CTxOutStandard*) this)->nValue = value;
-}
+    std::string strAsset;
+    if (IsEmpty()) return "CTxOut(empty)";
 
-CAmount CTxOutBase::GetValue() const
-{
-    // convenience function intended for use with CTxOutStandard only
-    assert(nVersion == OUT_STANDARD);
-    return ((CTxOutStandard*) this)->nValue;
-}
+        strAsset += strprintf("%s", nAsset.ToString(false));
 
-std::string CTxOutBase::ToString() const
-{
-    switch (nVersion) {
-        case OUT_STANDARD:
-            {
-            CTxOutStandard *so = (CTxOutStandard*)this;
-            return strprintf("CTxOutStandard(nValue=%d.%08d, scriptPubKey=%s)", so->nValue / COIN, so->nValue % COIN, HexStr(so->scriptPubKey).substr(0, 30));
-            }
-        case OUT_DATA:
-            {
-            CTxOutData *data_output = (CTxOutData*)this;
-            return strprintf("CTxOutData(data=%s)", HexStr(data_output->vData).substr(0, 30));
-            }
-        default:
-            break;
-    }
-    return strprintf("CTxOutBase unknown version %d", nVersion);
+    return strprintf("CTxOut \n%s \n(nValue=%s, scriptPubKey=%s)\n", strAsset, strprintf("%d.%08d", nValue / COIN, nValue % COIN), scriptPubKey.ToString());
 }
-
-CTxOutStandard::CTxOutStandard(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn) : CTxOutBase(OUT_STANDARD)
-{
-    nAsset = nAssetIn;
-    nValue = nValueIn;
-    scriptPubKey = scriptPubKeyIn;
-}
-
 
 std::string CTxDataBase::ToString() const
 {
@@ -261,37 +230,8 @@ std::vector<CTxDataBaseRef> DeepCopy(const std::vector<CTxDataBaseRef> &from)
     return vdata;
 }
 
-
-void DeepCopy(CTxOutBaseRef &to, const CTxOutBaseRef &from)
-{
-    switch (from->GetType()) {
-        case OUT_STANDARD:
-            to = MAKE_OUTPUT<CTxOutStandard>();
-            *((CTxOutStandard*)to.get()) = *((CTxOutStandard*)from.get());
-            break;
-        case OUT_DATA:
-            to = MAKE_OUTPUT<CTxOutData>();
-            *((CTxOutData*)to.get()) = *((CTxOutData*)from.get());
-            break;
-        default:
-            break;
-    }
-    return;
-}
-
-std::vector<CTxOutBaseRef> DeepCopy(const std::vector<CTxOutBaseRef> &from)
-{
-    std::vector<CTxOutBaseRef> vpout;
-    vpout.resize(from.size());
-    for (size_t i = 0; i < from.size(); ++i) {
-        DeepCopy(vpout[i], from[i]);
-    }
-
-    return vpout;
-}
-
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0) {}
-CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout{DeepCopy(tx.vpout)}, vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload) {}
+CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload) {}
 
 uint256 CMutableTransaction::GetHash() const
 {
@@ -313,7 +253,7 @@ uint256 CTransaction::ComputeWitnessHash() const
 
 /* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
 CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0), hash{}, m_witness_hash{} {}
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout{DeepCopy(tx.vpout)}, vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
+CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
 CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), vpout(std::move(tx.vpout)), vdata(std::move(tx.vdata)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
 
 CAmount CTransaction::GetValueOut() const
@@ -331,7 +271,7 @@ CAmount CTransaction::GetValueOut() const
 CAmountMap CTransaction::GetValueOutMap() const {
 
     CAmountMap values;
-    for (const auto& tx_out : vout) {
+    for (const auto& tx_out : vpout) {
         CAmountMap m;
         m[tx_out.nAsset] = tx_out.nValue;
         values += m;
@@ -381,7 +321,7 @@ std::string CTransaction::ToString() const
     for (const auto& tx_out : vout)
         str += "    " + tx_out.ToString() + "\n";
     for (unsigned int i = 0; i < vpout.size(); i++)
-        str += "    " + vpout[i]->ToString() + "\n";
+        str += "    " + vpout[i].ToString() + "\n";
     for (unsigned int i = 0; i < vdata.size(); i++)
         str += vdata[i].get()->ToString() + "\n";
     return str;
@@ -405,7 +345,7 @@ std::string CMutableTransaction::ToString() const
     for (const auto& tx_out : vout)
         str += tx_out.ToString() + "\n";
     for (unsigned int i = 0; i < vpout.size(); i++)
-        str += "    " + vpout[i]->ToString() + "\n";
+        str += "    " + vpout[i].ToString() + "\n";
     for (unsigned int i = 0; i < vdata.size(); i++)
         str += vdata[i].get()->ToString() + "\n";
     return str;
@@ -496,7 +436,7 @@ bool CChainID::IsEmpty() const {
 
 CAmountMap GetFeeMap(const CTransaction& tx) {
     CAmountMap fee;
-    for (const CTxOut& txout : tx.vout) {
+    for (const auto& txout : tx.vpout) {
         if (txout.IsFee()) {
             fee[txout.nAsset] += txout.nValue;
         }
@@ -506,13 +446,13 @@ CAmountMap GetFeeMap(const CTransaction& tx) {
 
 bool HasValidFee(const CTransaction& tx) {
     CAmountMap totalFee;
-    for (unsigned int i = 0; i < tx.vout.size(); i++) {
+    for (unsigned int i = 0; i < tx.vpout.size(); i++) {
         CAmount fee = 0;
-        if (tx.vout[i].IsFee()) {
-            fee = tx.vout[i].nValue;
+        if (tx.vpout[i].IsFee()) {
+            fee = tx.vpout[i].nValue;
             if (fee == 0 || !MoneyRange(fee))
                 return false;
-            totalFee[tx.vout[i].nAsset] += fee;
+            totalFee[tx.vpout[i].nAsset] += fee;
             if (!MoneyRange(totalFee)) {
                 return false;
             }

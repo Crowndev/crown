@@ -162,14 +162,14 @@ struct PrecomputedTransactionData
     //! Whether the 3 fields above are initialized.
     bool m_bip143_segwit_ready = false;
 
-    std::vector<CTxOut> m_spent_outputs;
+    std::vector<CTxOutAsset> m_spent_outputs;
     //! Whether m_spent_outputs is initialized.
     bool m_spent_outputs_ready = false;
 
     PrecomputedTransactionData() = default;
 
     template <class T>
-    void Init(const T& tx, std::vector<CTxOut>&& spent_outputs);
+    void Init(const T& tx, std::vector<CTxOutAsset>&& spent_outputs);
 
     template <class T>
     explicit PrecomputedTransactionData(const T& tx);

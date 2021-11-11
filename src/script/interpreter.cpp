@@ -1405,29 +1405,21 @@ uint256 GetOutputsSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
 
-    bool have_non_plain = false;
     if (txTo.nVersion >= TX_ELE_VERSION) {
-        for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
-            ss << *txTo.vpout[n];
-            if (txTo.vpout[n]->GetType() != OUT_STANDARD) {
-                have_non_plain = true;
-            }
+        for (const auto& txout : txTo.vpout) {
+            ss << txout;
         }
     } else {
         for (const auto& txout : txTo.vout) {
             ss << txout;
         }
     }
-    if (have_non_plain && (txTo.nVersion >= TX_ELE_VERSION)) {
-        for (unsigned int n = 0; n < txTo.vpout.size(); n++) {
-            ss << txTo.vpout[n]->GetType();
-        }
-    }
+
     return ss.GetSHA256();
 }
 
 /** Compute the (single) SHA256 of the concatenation of all amounts spent by a tx. */
-uint256 GetSpentAmountsSHA256(const std::vector<CTxOut>& outputs_spent)
+uint256 GetSpentAmountsSHA256(const std::vector<CTxOutAsset>& outputs_spent)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : outputs_spent) {
@@ -1437,7 +1429,7 @@ uint256 GetSpentAmountsSHA256(const std::vector<CTxOut>& outputs_spent)
 }
 
 /** Compute the (single) SHA256 of the concatenation of all scriptPubKeys spent by a tx. */
-uint256 GetSpentScriptsSHA256(const std::vector<CTxOut>& outputs_spent)
+uint256 GetSpentScriptsSHA256(const std::vector<CTxOutAsset>& outputs_spent)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : outputs_spent) {
@@ -1462,7 +1454,7 @@ uint256 GetDataSHA256(const T& txTo)
 } // namespace
 
 template <class T>
-void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent_outputs)
+void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOutAsset>&& spent_outputs)
 {
     assert(!m_spent_outputs_ready);
 
@@ -1522,8 +1514,8 @@ PrecomputedTransactionData::PrecomputedTransactionData(const T& txTo)
 }
 
 // explicit instantiation
-template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
-template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
+template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOutAsset>&& spent_outputs);
+template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOutAsset>&& spent_outputs);
 template PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo);
 template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTransaction& txTo);
 
@@ -1660,7 +1652,7 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
             CHashWriter ss(SER_GETHASH, 0);
 
             if (txTo.nVersion >= TX_ELE_VERSION) {
-                ss << *(txTo.vpout[nIn].get());
+                ss << txTo.vpout[nIn];
             } else {
                 ss << txTo.vout[nIn];
             }

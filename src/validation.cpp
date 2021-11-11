@@ -1707,14 +1707,17 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
     }
 
     if (!txdata.m_spent_outputs_ready) {
-        std::vector<CTxOut> spent_outputs;
+        std::vector<CTxOutAsset> spent_outputs;
         spent_outputs.reserve(tx.vin.size());
 
         for (const auto& txin : tx.vin) {
             const COutPoint& prevout = txin.prevout;
             const Coin& coin = inputs.AccessCoin(prevout);
             assert(!coin.IsSpent());
-            spent_outputs.emplace_back(coin.out);
+            if(tx.nVersion >= TX_ELE_VERSION)
+                spent_outputs.emplace_back(coin.out2);
+            else
+                spent_outputs.emplace_back(coin.out);
         }
         txdata.Init(tx, std::move(spent_outputs));
     }
