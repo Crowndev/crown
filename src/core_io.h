@@ -50,7 +50,7 @@ std::string SighashToStr(unsigned char sighash_type);
 void ScriptPubKeyToUniv(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 void ScriptToUniv(const CScript& script, UniValue& out, bool include_address);
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex = true, int serialize_flags = 0);
-void ChainIDToUniv(CChainID *s , UniValue &entry);
 void ContractToUniv(CContract *s , UniValue &entry);
+void AssetToUniv(CAsset& asset, UniValue &entry);
 
 #endif // CROWN_CORE_IO_H

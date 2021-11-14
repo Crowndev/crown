@@ -177,3 +177,14 @@ bool CAssetsDB::AssetDir(std::vector<CAssetData>& assets)
 {
     return CAssetsDB::AssetDir(assets, "*", MAX_SIZE, 0);
 }
+
+CAsset GetAsset(const std::string& name)
+{
+	CAsset cCheck;
+    for(auto const& x : passetsCache->GetItemsMap()){
+		if(iequals(x.first , name)){
+		    cCheck = x.second->second.asset;
+		}
+    }	
+	return cCheck;
+}

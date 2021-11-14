@@ -3,7 +3,6 @@
 #include <core_io.h>
 #include <key_io.h>
 #include <logging.h>
-#include <chainiddb.h>
 #include <contractdb.h>
 
 #include <rpc/rawtransaction_util.h>
@@ -65,39 +64,10 @@ static RPCHelpMan hashmessage()
     };
 }
 
-static RPCHelpMan getid()
-{
-    return RPCHelpMan{"getid",
-                "\n Get Details of a chainID \n",
-                {
-                    {"Chain ID", RPCArg::Type::STR, RPCArg::Optional::NO, "The ID to retrieve."},
-                },
-                RPCResult{
-                    RPCResult::Type::STR, "details", "The details of the ID requested"
-                },
-                RPCExamples{
-            "\nCreate the signature\n"
-            + HelpExampleCli("getid", "\"ChainID\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("getid", "\"ChainID\"")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    std::string id = request.params[0].get_str();
-    CChainID chainID = GetID(id);
-    UniValue result(UniValue::VOBJ);
-
-    ChainIDToUniv(&chainID,result);
-
-    return result;
-},
-    };
-}
-
 static RPCHelpMan getcontract()
 {
     return RPCHelpMan{"getcontract",
-                "\n  Get Details of a chainID \n",
+                "\n  Get Details of a contract \n",
                 {
                     {"contract", RPCArg::Type::STR, RPCArg::Optional::NO, "The contract to retrieve"},
                 },
@@ -123,59 +93,12 @@ static RPCHelpMan getcontract()
     };
 }
 
-static RPCHelpMan registerchainid()
-{
-    return RPCHelpMan{"registerchainid",
-                "\n Register a new ChainID on the network\n",
-                {
-                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to register"},
-                    {"alias", RPCArg::Type::STR, RPCArg::Optional::NO, "The alias of this ID."},
-                    {"email", RPCArg::Type::STR, RPCArg::Optional::NO, "The email address of this ID."},
-                },
-                RPCResult{
-                    RPCResult::Type::STR, "signature", "The signature of the message encoded in base 64"
-                },
-                RPCExamples{
-            "\nCreate the signature\n"
-            + HelpExampleCli("registerchainid", "\"hash type\" \"my message\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("registerchainid", "\"hash type\", \"my message\"")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
-    CWallet* const pwallet = wallet.get();
-
-    std::string strAddress = request.params[0].get_str();
-    std::string alias = request.params[1].get_str();
-    std::string email = request.params[2].get_str();
-
-    CTransactionRef tx;
-    std::string strFailReason;
-    CChainID chainID;
-    
-    if(!pwallet->CreateID(chainID, tx, strAddress, alias, email, strFailReason))
-        throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
-
-    UniValue result(UniValue::VOBJ);
-
-    CDataStream ssID(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
-    ssID << chainID;
-
-    result.pushKV("txid", tx->GetHash().GetHex());
-    result.pushKV("hex", HexStr(ssID));
-    return result;
-},
-    };
-}
-
 static RPCHelpMan createcontract()
 {
     return RPCHelpMan{"createcontract",
                 "\n Create a smart contract \n",
                 {
-                    {"ChainID", RPCArg::Type::STR, RPCArg::Optional::NO, "ChainID to create contract with"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Issuing address"},
                     {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 10 characters"},
                     {"short_name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 4 characters"},
 					{"contract_url", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "contract location online"},
@@ -198,16 +121,7 @@ static RPCHelpMan createcontract()
     if (!wallet) return NullUniValue;
     CWallet* const pwallet = wallet.get();
 
-    CChainID chainID;
-
-    if (request.params[0].isStr()) {
-		
-		chainID = GetID(request.params[0].get_str());
-
-		if(chainID == CChainID())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid chainID");
-    }
-
+    std::string address = request.params[0].get_str();
     std::string name = request.params[1].get_str();
     std::string shortname = request.params[2].get_str();
     std::string contract_url = request.params[3].get_str();
@@ -221,7 +135,7 @@ static RPCHelpMan createcontract()
     CContract contract;
     CTransactionRef tx;
     std::string strFailReason;
-    if(!pwallet->CreateContract(contract, tx, chainID, contract_url, website_url, description, script, name, shortname, strFailReason))
+    if(!pwallet->CreateContract(contract, tx, address, contract_url, website_url, description, script, name, shortname, strFailReason))
         throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
 
     CDataStream ssCt(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
@@ -251,7 +165,7 @@ static RPCHelpMan createasset()
                     {"convertable", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can be converted to another asset (set false for NFTs)"},
                     {"restricted", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can only be issued/reissued by creation address"},
                     {"limited", RPCArg::Type::BOOL, RPCArg::Optional::NO, "other assets cannot be converted to this one"},
-                    {"contract", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Address/ChainID to issue asset to"},
+                    {"contract", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Contract to issue asset to"},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "signature", "The signature of the message encoded in base 64"
@@ -309,6 +223,34 @@ static RPCHelpMan createasset()
     };
 }
 
+static RPCHelpMan getasset()
+{
+    return RPCHelpMan{"getasset",
+                "\n  Get Details of an asset \n",
+                {
+                    {"asset", RPCArg::Type::STR, RPCArg::Optional::NO, "The asset to retrieve"},
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "details", "The asset "
+                },
+                RPCExamples{
+            "\nRetrieve a asset\n"
+            + HelpExampleCli("getasset", "\"Asset Name\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("getasset", "\"Asset Name\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::string assetstring = request.params[0].get_str();
+    CAsset asset = GetAsset(assetstring);
+    UniValue result(UniValue::VOBJ);
+
+    AssetToUniv(asset,result);
+
+    return result;
+},
+    };
+}
 
 void RegisterContractRPCCommands(CRPCTable &t)
 {
@@ -317,11 +259,10 @@ static const CRPCCommand commands[] =
 { //  category              actor (function)
   //  --------------------- ------------------------
     { "contracts",  "hashmessage",         &hashmessage,            {}    },
-    { "contracts",  "registerchainid",     &registerchainid,        {}    },
     { "contracts",  "createcontract",      &createcontract,         {}    },
     { "contracts",  "createasset",         &createasset,            {}    },
-    { "contracts",  "getid",               &getid,                  {}    },
     { "contracts",  "getcontract",         &getcontract,            {}    },
+    { "contracts",  "getasset",            &getasset,               {}    },
 
 };
 

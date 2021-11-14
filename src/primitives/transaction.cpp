@@ -139,11 +139,6 @@ std::string CTxDataBase::ToString() const
             CTxData *data_output = (CTxData*)this;
             return strprintf("%s", data_output->ToString());
             }
-        case OUTPUT_ID:
-            {
-            CChainID *cto = (CChainID*)this;
-            return strprintf("%s", cto->ToString());
-            }
         case OUTPUT_CONTRACT:
             {
             CContract *rcto = (CContract*)this;
@@ -158,11 +153,6 @@ std::string CTxDataBase::ToString() const
 uint256 CTxDataBase::GetHash() const
 {
     switch (nVersion) {
-        case OUTPUT_ID:
-            {
-            CChainID *cto = (CChainID*)this;
-            return cto->GetHash();
-            }
         case OUTPUT_CONTRACT:
             {
             CContract *rcto = (CContract*)this;
@@ -177,11 +167,6 @@ uint256 CTxDataBase::GetHash() const
 uint256 CTxDataBase::GetHashWithoutSign() const
 {
     switch (nVersion) {
-        case OUTPUT_ID:
-            {
-            CChainID *cto = (CChainID*)this;
-            return cto->GetHashWithoutSign();
-            }
         case OUTPUT_CONTRACT:
             {
             CContract *rcto = (CContract*)this;
@@ -208,10 +193,6 @@ void DeepCopy(CTxDataBaseRef &to, const CTxDataBaseRef &from)
         case OUTPUT_CONTRACT:
             to = MAKE_OUTPUT<CContract>();
             *((CContract*)to.get()) = *((CContract*)from.get());
-            break;
-        case OUTPUT_ID:
-            to = MAKE_OUTPUT<CChainID>();
-            *((CChainID*)to.get()) = *((CChainID*)from.get());
             break;
         default:
             break;
@@ -351,43 +332,10 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
-uint256 CChainID::GetHashWithoutSign() const
-{
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << sAlias << pubKey;
-    return ss.GetHash();
-}
-
-uint256 CChainID::GetHash() const
-{
-    return SerializeHash(*this);
-}
-
-void CChainID::setAlias(std::string _sAlias)
-{
-    sAlias=_sAlias.c_str();
-}
-
-const std::string CChainID::getAlias() const
-{
-    return sAlias;
-}
-
-std::string CChainID::ToString() const
-{
-    std::string str ="";
-    str +=    strprintf("Public Key : %s ", HexStr(pubKey));
-    str +=    strprintf("Alias : %s", getAlias());
-    str +=    strprintf("Signature : %s\n", HexStr(vchIDSignature));
-
-    return strprintf("CChainID(%s)\n", str);
-}
-
 std::string CContract::ToString()
 {
     std::string str ="";
     str +=    strprintf("Contract Link  : %s\n", contract_url);
-    str +=    strprintf("Issued by  : %s\n", issuer_id.ToString());
 
     str +=    strprintf("Contract Name : %s\n", asset_name);
     str +=    strprintf("Issuing Address : %s \n", sIssuingaddress);
@@ -402,7 +350,7 @@ std::string CContract::ToString()
 uint256 CContract::GetHashWithoutSign() const
 {
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << contract_url << asset_symbol << asset_name << sIssuingaddress << description << website_url << scriptcode << issuer_id;
+    ss << contract_url << asset_symbol << asset_name << sIssuingaddress << description << website_url << scriptcode;
     return ss.GetHash();
 }
 
@@ -424,14 +372,6 @@ std::string dataTypeToString(DataTypes &dt)
             break;
     }
     return "";
-}
-
-void CChainID::SetEmpty() {
-    pubKey = CPubKey();
-}
-
-bool CChainID::IsEmpty() const {
-    return pubKey == CPubKey();
 }
 
 CAmountMap GetFeeMap(const CTransaction& tx) {

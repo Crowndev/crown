@@ -5,7 +5,6 @@
 
 #include <wallet/wallet.h>
 #include <chain.h>
-#include <chainiddb.h>
 
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -2999,24 +2998,35 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
 }
 
 
-bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, CChainID& chainID, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
+bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
 {
     LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
     LOCK(cs_wallet);
+
+    CTxDestination dest = DecodeDestination(address);
+    if (!IsValidDestination(dest)) {
+		strFailReason = "Invalid Crown address";
+		return false;
+    }
 
     CContract newcontract;
     newcontract.contract_url = contract_url;
     newcontract.website_url = website_url;
     newcontract.description = description;
     newcontract.scriptcode = script;
-    newcontract.issuer_id = chainID;
     newcontract.asset_symbol = shortname;
     newcontract.asset_name = name;
-    newcontract.sIssuingaddress = EncodeDestination(WitnessV0KeyHash(chainID.pubKey.GetID()));
+    newcontract.sIssuingaddress = address;
+
+    auto keyid = GetKeyForDestination(*spk_man, dest);
+    if (keyid.IsNull()) {
+		strFailReason = "Address does not refer to a key";
+		return false;
+    }
 
     CKey key;
-    if (!spk_man->GetKey(chainID.pubKey.GetID(), key)) {
-        strFailReason = "Private key for address " + EncodeDestination(WitnessV0KeyHash(chainID.pubKey.GetID())) + " is not known";
+    if (!spk_man->GetKey(keyid, key)) {
+        strFailReason = "Private key for address " + address + " is not known";
         return false;
     }
 
@@ -3038,8 +3048,6 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, CChainID&
         cctl.m_max_depth = 9999999;
         AvailableCoins(vecOutputs, false, &cctl, 0, nAmount, MAX_MONEY, 0);
     }
-
-    CTxDestination dest = WitnessV0KeyHash(chainID.pubKey.GetID());
 
     for (const COutput& out : vecOutputs) {
         CTxDestination address;
@@ -3091,147 +3099,6 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, CChainID&
 
     CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
     contract = newcontract;
-    return true;
-}
-
-bool CWallet::CreateID(CChainID& chainID, CTransactionRef& tx, std::string &strAddress, std::string &alias, std::string &email, std::string& strFailReason)
-{
-    LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
-    LOCK(cs_wallet);
-
-    if(alias == "" || alias.length() < 4){
-        strFailReason ="Alias too short";
-        return false;
-    }
-
-    if(alias.length() > 16){
-        strFailReason ="Alias exceeds limit (16 characters)";
-        return false;
-    }
-
-    //check alias validity
-    {
-        const std::regex pattern ("^[A-Za-z0-9]+$");
-        bool match = std::regex_match(alias, pattern);
-        if(!match){
-            strFailReason = "Alias contains illegal characters";
-            return false;
-        }
-    }
-
-    //check email validity here
-    {
-        const std::regex pattern ("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
-        // try to match the string with the regular expression
-        bool match = std::regex_match(email, pattern);
-        if(!match){
-            strFailReason = "Email pattern error";
-            return false;
-        }
-    }
-
-    CTxDestination dest = DecodeDestination(strAddress);
-    if (!IsValidDestination(dest)) {
-        strFailReason = "Invalid Crown address " + strAddress;
-        return false;
-    }
-    auto keyid = GetKeyForDestination(*spk_man, dest);
-    if (keyid.IsNull()) {
-        strFailReason = "Address does not refer to a key";
-        return false;
-    }
-
-    CPubKey pubKey;
-    if (spk_man->GetPubKey(keyid, pubKey) && !pubKey.IsFullyValid()) {
-        strFailReason ="unable to retrieve public key";
-        return false;
-    }
-
-    if(chain().existsID(alias, pubKey)){
-        strFailReason ="Alias or pubkey already reserved";
-        return false;
-    }
-
-    CKey key;
-    if (!spk_man->GetKey(keyid, key)) {
-        strFailReason = "Private key for address " + strAddress + " is not known";
-        return false;
-    }
-
-    CAmount nAmount = 10.0001 * COIN;
-    CAsset asset = Params().GetConsensus().subsidy_asset;
-    CCoinControl coin_control;
-
-    std::vector<COutput> vecOutputs;
-    {
-        CCoinControl cctl;
-        cctl.m_avoid_address_reuse = false;
-        cctl.m_min_depth = 1;
-        cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, nAmount, MAX_MONEY, 0);
-    }
-
-    for (const COutput& out : vecOutputs) {
-        CTxDestination address;
-        const CScript& scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
-        bool fValidAddress = ExtractDestination(scriptPubKey, address);
-
-        if(std::get<WitnessV0KeyHash>(dest) != std::get<WitnessV0KeyHash>(address))
-            continue;
-
-        if (!fValidAddress)
-            continue;
-
-        // Elements
-        CAmount amount = out.tx->tx->vout[out.i].nValue;
-        CAsset assetid;
-        if(out.tx->tx->nVersion >= TX_ELE_VERSION)
-            assetid = out.tx->tx->vpout[out.i].nAsset;
-
-        if ((amount < 0 || assetid.IsNull())) {
-            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
-            continue;
-        }
-
-        if (asset != assetid) {
-            continue;
-        }
-
-        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
-    }
-
-    mapValue_t mapValue;
-
-    //coin_control.m_add_inputs = false;
-    std::vector<CRecipient> recipients;
-
-    CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
-    recipients.push_back(recipient);
-
-    CChainID newID;
-
-    newID.setAlias(alias.c_str());
-    newID.sEmail = email.c_str();
-    newID.pubKey = pubKey;
-
-    if(!key.Sign(newID.GetHashWithoutSign(), newID.vchIDSignature)){
-        strFailReason = "unable to sign ChainID with key";
-        return false;
-    }
-
-    // Send
-    CAmount nFeeRequired;
-    int nChangePosRet = -1;
-    bilingual_str error;
-    FeeCalculation fee_calc_out;
-    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS), newID);
-    if (!fCreated) {
-        strFailReason = "Failed to create ID " + error.original;
-        return false;
-    }
-
-    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
-    chainID=newID;
     return true;
 }
 
@@ -3296,7 +3163,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
 
     std::vector<CRecipient> recipients;
 
-    CRecipient recipient = {GetScriptForDestination(WitnessV0KeyHash(contract.issuer_id.pubKey.GetID())), outputamt/100, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
+    CRecipient recipient = {GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), outputamt/100, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
     recipients.push_back(recipient);
 
     // Send
@@ -3427,27 +3294,10 @@ bool CWallet::CreateTransactionInternal(
             out0->website_url = s->website_url;
             out0->description = s->description;
             out0->scriptcode = s->scriptcode;
-            out0->issuer_id = s->issuer_id;
             out0->asset_symbol = s->asset_symbol;
             out0->asset_name = s->asset_name;
             out0->sIssuingaddress = s->sIssuingaddress;
             out0->vchContractSig = s->vchContractSig;
-            txNew.vdata.push_back(out0);
-            break;
-        }
-        case OUTPUT_ID:{
-            OUTPUT_PTR<CChainID> out0 = MAKE_OUTPUT<CChainID>();
-            CChainID *s = (CChainID*) &datar;
-
-            if(chain().existsID(s->sAlias, s->pubKey)){
-                error = _("Alias or pubkey already reserved");
-                return false;
-            }
-
-            out0->pubKey = s->pubKey;
-            out0->sEmail = s->sEmail;
-            out0->setAlias(s->sAlias);
-            out0->vchIDSignature = s->vchIDSignature;
             txNew.vdata.push_back(out0);
             break;
         }

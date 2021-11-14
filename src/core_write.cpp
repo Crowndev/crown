@@ -177,27 +177,6 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
-void ChainIDToUniv(CChainID *s , UniValue &entry){
-
-    if(!s->IsEmpty()){
-        std::string alias = s->getAlias();
-        CPubKey pubKey = s->pubKey;
-
-        entry.pushKV("alias", alias);
-
-        if (!pubKey.IsFullyValid()){
-            entry.pushKV("error", "Pubkey is not a valid public key");
-        }
-        else
-        {
-            entry.pushKV("email", s->sEmail);
-            entry.pushKV("address", EncodeDestination(WitnessV0KeyHash(s->pubKey.GetID())));
-            entry.pushKV("pubkey", HexStr(pubKey));
-            entry.pushKV("signature", HexStr(s->vchIDSignature));
-        }
-    }
-}
-
 void ContractToUniv(CContract *s , UniValue &entry){
     if(!s->IsEmpty()){
 		entry.pushKV("url", s->contract_url);
@@ -207,7 +186,6 @@ void ContractToUniv(CContract *s , UniValue &entry){
 		entry.pushKV("description", s->description);
 		entry.pushKV("website", s->website_url);
 		entry.pushKV("script", HexStr(s->scriptcode));
-		ChainIDToUniv(&s->issuer_id, entry);
 		entry.pushKV("signature", HexStr(s->vchContractSig));
     }
 }
@@ -227,12 +205,6 @@ void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
             if (s->GetSmsgDifficulty(difficulty)) {
                 entry.pushKV("smsgdifficulty", strprintf("%08x", difficulty));
             }
-            break;
-        }
-        case OUTPUT_ID:{
-            entry.pushKV("type", "id");
-            CChainID *s = (CChainID*) baseOut;
-            ChainIDToUniv(s, entry);
             break;
         }
         case OUTPUT_CONTRACT:{

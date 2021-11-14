@@ -375,9 +375,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
                 case OUTPUT_CONTRACT:
                     tx.vdata.push_back(MAKE_OUTPUT<CContract>());
                     break;
-                case OUTPUT_ID:
-                    tx.vdata.push_back(MAKE_OUTPUT<CChainID>());
-                    break;
                 default:
                     throw std::ios_base::failure("Unknown transaction output type");
             }

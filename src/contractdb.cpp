@@ -5,7 +5,6 @@
 
 #include <streams.h>
 #include <contractdb.h>
-#include <chainiddb.h>
 
 #include <fs.h>
 #include <clientversion.h>

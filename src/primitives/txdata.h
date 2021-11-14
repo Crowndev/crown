@@ -8,7 +8,6 @@
 #include <pubkey.h>
 #include <amount.h>
 
-class CChainID;
 class CContract;
 class CTxData;
 
@@ -38,9 +37,6 @@ public:
                 break;
             case OUTPUT_CONTRACT:
                 READWRITE(*(CContract*) &obj);
-                break;
-            case OUTPUT_ID:
-                READWRITE(*(CChainID*) &obj);
                 break;
             default:
                 assert(false);
@@ -78,41 +74,6 @@ public:
 typedef OUTPUT_PTR<CTxDataBase> CTxDataBaseRef;
 #define MAKE_OUTPUT std::make_shared
 
-class CChainID : public CTxDataBase
-{
-public:
-    CChainID() : CTxDataBase(OUTPUT_ID) {SetEmpty();};
-    CChainID (std::string alias);
-    std::string sAlias;
-    std::string sEmail;
-    CPubKey pubKey;
-    std::vector<unsigned char> vchIDSignature; // all the above fields signed with the private key associated with the public key
-
-    SERIALIZE_METHODS(CChainID, obj)
-    {
-        READWRITE(obj.sAlias, obj.sEmail, obj.pubKey, obj.vchIDSignature);
-    }
-
-    void SetEmpty() override;
-
-    bool IsEmpty() const override;
-
-    uint256 GetHashWithoutSign() const;
-
-    uint256 GetHash() const;
-
-    std::string ToString() const;
-
-    const std::string getAlias() const;
-    void setAlias(std::string _sAlias);
-
-    friend bool operator==(const CChainID& a, const CChainID& b)
-    {
-        return a.pubKey == b.pubKey;
-    }
-
-};
-
 class CContract : public CTxDataBase
 {
 public:
@@ -127,10 +88,9 @@ public:
     std::string website_url;
     CScript scriptcode;
 
-    CChainID issuer_id;
     std::vector<unsigned char> vchContractSig; // contract signature
 
-    SERIALIZE_METHODS(CContract, obj) { READWRITE(obj.contract_url, obj.asset_symbol, obj.asset_name, obj.sIssuingaddress, obj.description, obj.website_url, obj.scriptcode, obj.issuer_id, obj.vchContractSig); }
+    SERIALIZE_METHODS(CContract, obj) { READWRITE(obj.contract_url, obj.asset_symbol, obj.asset_name, obj.sIssuingaddress, obj.description, obj.website_url, obj.scriptcode, obj.vchContractSig); }
 
     void SetEmpty() override
     {
@@ -141,12 +101,11 @@ public:
         description="";
         website_url="";
         scriptcode= CScript();
-        issuer_id = CChainID();
         vchContractSig.clear();
     }
 
     bool IsEmpty() const override {
-        return issuer_id.IsEmpty() || sIssuingaddress=="" || asset_name=="";
+        return sIssuingaddress=="" || asset_name=="";
     }
 
     uint256 GetHashWithoutSign() const;

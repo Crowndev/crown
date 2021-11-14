@@ -4,7 +4,6 @@
 
 #include <interfaces/chain.h>
 #include <chain.h>
-#include <chainiddb.h>
 #include <contractdb.h>
 
 #include <chainparams.h>
@@ -216,21 +215,6 @@ public:
         return ::GetAllAssets();
     }
 
-    bool existsID(const std::string& alias, const CPubKey& pubkey) override
-    {
-        return (pIdCache->Exists(alias) || ExistsID(alias, pubkey));
-    }
-
-    CChainID getID(std::string alias) override
-    {
-        return ::GetID(alias);
-    }
-
-    CLRUCache<std::string, CIDData> *getIDCache() override
-    {
-        CLRUCache<std::string, CIDData> *cache = pIdCache;
-        return cache;
-    }
 
     CContract getContract(std::string name) override
     {

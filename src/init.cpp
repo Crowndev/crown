@@ -16,7 +16,6 @@
 #include <blockfilter.h>
 #include <crown/cache.h>
 #include <chain.h>
-#include <chainiddb.h>
 #include <chainparams.h>
 #include <compat/sanity.h>
 #include <contractdb.h>
@@ -231,7 +230,6 @@ void Shutdown(NodeContext& node)
     StopTorControl();
 
     DumpAssets();
-    DumpIDs();
     DumpContracts();
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue, scheduler and load block thread.
@@ -303,9 +301,6 @@ void Shutdown(NodeContext& node)
         passetsdb.reset();
         delete passetsCache;
         passetsCache = nullptr;
-        piddb.reset();
-        delete pIdCache;
-        pIdCache = nullptr;
         pcontractdb.reset();
         delete pcontractCache;
         pcontractCache = nullptr;
@@ -1681,17 +1676,6 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
                 LogPrintf("Loaded Assets from database without error\nCache of assets size: %d\n", passetsCache->Size());
 
-                piddb.reset();
-                piddb.reset(new CIdDB(nBlockTreeDBCache, false, fReset));
-                delete pIdCache;
-                pIdCache = new CLRUCache<std::string, CIDData>(MAX_CACHE_ASSETS_SIZE);
-                if (!piddb->LoadIDs()) {
-                    strLoadError = _("Failed to load ID Database");
-                    break;
-                }
-
-                LogPrintf("Loaded IDs from database without error\nCache of ids count: %d\n", pIdCache->Size());
-
                 pcontractdb.reset();
                 pcontractdb.reset(new CContractDB(nBlockTreeDBCache, false, fReset));
                 delete pcontractCache;
@@ -2166,7 +2150,6 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
         banman->DumpBanlist();
         DumpAssets();
         DumpContracts();
-        DumpIDs();
     }, DUMP_BANS_INTERVAL);
 
     node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::milliseconds{1000});

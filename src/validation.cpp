@@ -8,7 +8,6 @@
 #include <arith_uint256.h>
 #include <assetdb.h>
 #include <chain.h>
-#include <chainiddb.h>
 #include <contractdb.h>
 
 #include <chainparams.h>
@@ -639,29 +638,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
                 CContract *contract = (CContract*)tx.vdata[i].get();
                 if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
-                }
-                if(!fHasFee)
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
-                break;
-            }
-            case OUTPUT_ID:{
-                CChainID *chainid = (CChainID*)tx.vdata[i].get();
-                //check email validity here
-                {
-                    const std::regex pattern ("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
-                    // try to match the string with the regular expression
-                    bool match = std::regex_match(chainid->sEmail, pattern);
-                    if(!match)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID email is of unkown pattern.\n", __func__));
-                }
-                {
-                    const std::regex pattern ("^[A-Za-z0-9]+$");
-                    bool match = std::regex_match(chainid->sAlias, pattern);
-                    if(!match)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID alias contains illegal characters.\n", __func__));
-                }
-                if(pIdCache->Exists(chainid->sAlias) || ExistsID(chainid->sAlias, chainid->pubKey)){
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: ID DB already contains public key or Alias 1.\n", __func__));
                 }
                 if(!fHasFee)
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
@@ -2783,15 +2759,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                         if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name)){
                             if(!fJustCheck)
                                 pcontractCache->Put(contract->asset_name, CContractData(*contract, tx->GetHash(), block.nTime));
-                        }
-                        break;
-                    }
-                    case OUTPUT_ID:{
-                        CChainID *chainid = (CChainID*)tx->vdata[i].get();
-                        LogPrintf("NOTIFICATION: %s: FOUND ID %s\n", __func__, chainid->ToString());
-                        if (!pIdCache->Exists(chainid->sAlias) && !ExistsID(chainid->sAlias, chainid->pubKey)){
-                            if(!fJustCheck)
-                                pIdCache->Put(chainid->sAlias, CIDData(*chainid, tx->GetHash(), block.nTime));
                         }
                         break;
                     }

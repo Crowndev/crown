@@ -120,7 +120,6 @@ CROWN_CORE_H = \
   blockfilter.h \
   bloom.h \
   chain.h \
-  chainiddb.h \
   chainparams.h \
   chainparamsbase.h \
   chainparamsseeds.h \
@@ -342,7 +341,6 @@ libcrown_server_a_SOURCES = \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
-  chainiddb.cpp \
   consensus/tx_verify.cpp \
   crown/cache.cpp \
   crown/init.cpp \

@@ -23,29 +23,9 @@ static bool CheckData(TxValidationState &state, const CTxData *p)
     return true;
 }
 
-static bool CheckID(TxValidationState &state, const CChainID *p)
-{
-
-    const CPubKey pubKey = p->pubKey;
-    const std::string alias = p->getAlias();
-
-    if (!pubKey.IsValid() || pubKey == CPubKey()) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-chain-id-invalid-pubkey %s \n", HexStr(pubKey)));
-    }
-
-    if(alias == "" || alias.length() < 4)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-chain-id alias is %s \n", alias));
-
-    if(alias.length() > 16)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-chain-id length is %s \n", alias.size()));
-
-    return true;
-}
 
 static bool CheckContract(TxValidationState &state, const CContract *p)
 {
-
-
     return true;
 }
 
@@ -161,12 +141,6 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
                         return false;
                     }
                     nContractOutputs++;
-                    break;
-                case OUTPUT_ID:
-                    if (!CheckID(state, (CChainID*) tx.vdata[i].get())) {
-                        return false;
-                    }
-                    nIDOutputs++;
                     break;
                 case OUTPUT_DATA:
                     if (!CheckData(state, (CTxData*) tx.vdata[i].get())) {
