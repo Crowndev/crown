@@ -259,9 +259,9 @@ static const CRPCCommand commands[] =
 { //  category              actor (function)
   //  --------------------- ------------------------
     { "contracts",  "hashmessage",         &hashmessage,            {}    },
+    { "contracts",  "getcontract",         &getcontract,            {}    },
     { "contracts",  "createcontract",      &createcontract,         {}    },
     { "contracts",  "createasset",         &createasset,            {}    },
-    { "contracts",  "getcontract",         &getcontract,            {}    },
     { "contracts",  "getasset",            &getasset,               {}    },
 
 };

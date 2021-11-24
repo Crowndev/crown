@@ -188,7 +188,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "unloadwallet", 1, "load_on_startup"},
     { "getnodeaddresses", 0, "count"},
     { "addpeeraddress", 1, "port"},
-    { "stop", 0, "wait" },
+    { "stop", 0, "wait" }
 };
 // clang-format on
 
