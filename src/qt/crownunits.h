@@ -6,6 +6,7 @@
 #define CROWN_QT_CROWNUNITS_H
 
 #include <amount.h>
+#include <primitives/asset.h>
 
 #include <QAbstractListModel>
 #include <QString>
@@ -73,6 +74,8 @@ public:
     static int decimals(int unit);
     //! Format as string
     static QString format(int unit, const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD, bool justify = false);
+    static QString simpleFormat(int unit, const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD);
+    static QString simplestFormat(int unit, const CAmount& amount, int digits = 2, bool plussign = false, SeparatorStyle separators =SeparatorStyle::STANDARD);
     //! Format as string (with unit)
     static QString formatWithUnit(int unit, const CAmount& amount, bool plussign=false, SeparatorStyle separators=SeparatorStyle::STANDARD);
     //! Format as HTML string (with unit)
@@ -110,5 +113,14 @@ private:
     QList<CrownUnits::Unit> unitlist;
 };
 typedef CrownUnits::Unit CrownUnit;
+
+/* Format an amount of assets in a user-friendly style */
+QString formatAssetAmount(const CAsset&, const CAmount&, int crown_unit, CrownUnits::SeparatorStyle, bool include_asset_name = true);
+
+/* Format one or more asset+amounts in a user-friendly style */
+QString formatMultiAssetAmount(const CAmountMap&, int crown_unit, CrownUnits::SeparatorStyle, QString line_separator, bool include_asset_name = true);
+
+/* Parse an amount of a given asset from text */
+bool parseAssetAmount(const CAsset&, const QString& text, int crown_unit, CAmount *val_out);
 
 #endif // CROWN_QT_CROWNUNITS_H

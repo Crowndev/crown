@@ -53,6 +53,14 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
         result.txout_address_is_mine.emplace_back(ExtractDestination(txout.scriptPubKey, result.txout_address.back()) ?
                                                       wallet.IsMine(result.txout_address.back()) :
                                                       ISMINE_NO);
+        result.txout_is_change.push_back(wallet.IsChange(txout));
+    }
+    // ELEMENTS: Retrieve unblinded information about outputs
+    for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
+        CTxOutAsset txOut = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+
+            result.txout_amounts.emplace_back(txOut.nValue);
+            result.txout_assets.emplace_back(txOut.nAsset);
     }
     result.credit = wtx.GetCredit(ISMINE_ALL);
     result.debit = wtx.GetDebit(ISMINE_ALL);

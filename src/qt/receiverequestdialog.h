@@ -24,7 +24,7 @@ public:
     ~ReceiveRequestDialog();
 
     void setModel(WalletModel *model);
-    void setInfo(const SendCoinsRecipient &info);
+    void setInfo(const SendAssetsRecipient &info);
 
 private Q_SLOTS:
     void on_btnCopyURI_clicked();
@@ -34,7 +34,7 @@ private Q_SLOTS:
 private:
     Ui::ReceiveRequestDialog *ui;
     WalletModel *model;
-    SendCoinsRecipient info;
+    SendAssetsRecipient info;
 };
 
 #endif // CROWN_QT_RECEIVEREQUESTDIALOG_H

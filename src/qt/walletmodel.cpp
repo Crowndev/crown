@@ -145,9 +145,9 @@ bool WalletModel::validateAddress(const QString &address)
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl)
 {
-    CAmount total = 0;
+    CAmountMap total;
     bool fSubtractFeeFromAmount = false;
-    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    QList<SendAssetsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
 
     if(recipients.empty())
@@ -159,7 +159,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     int nAddresses = 0;
 
     // Pre-check input data for validity
-    for (const SendCoinsRecipient &rcp : recipients)
+    for (const SendAssetsRecipient &rcp : recipients)
     {
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
@@ -176,7 +176,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
             ++nAddresses;
 
             CScript scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+            CRecipient recipient = {scriptPubKey, rcp.amount, 0, rcp.asset, CAsset(), rcp.fSubtractFeeFromAmount, false};
             vecSend.push_back(recipient);
 
             total += rcp.amount;
@@ -187,7 +187,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return DuplicateAddress;
     }
 
-    CAmount nBalance = m_wallet->getAvailableBalance(coinControl);
+    CAmountMap nBalance = m_wallet->getAvailableBalance(coinControl);
 
     if(total > nBalance)
     {
@@ -233,7 +233,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
 
     {
         std::vector<std::pair<std::string, std::string>> vOrderForm;
-        for (const SendCoinsRecipient &rcp : transaction.getRecipients())
+        for (const SendAssetsRecipient &rcp : transaction.getRecipients())
         {
             if (!rcp.message.isEmpty()) // Message from normal crown:URI (crown:123...?message=example)
                 vOrderForm.emplace_back("Message", rcp.message.toStdString());
@@ -249,7 +249,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
 
     // Add addresses / update labels that we've sent to the address book,
     // and emit coinsSent signal for each recipient
-    for (const SendCoinsRecipient &rcp : transaction.getRecipients())
+    for (const SendAssetsRecipient &rcp : transaction.getRecipients())
     {
         {
             std::string strAddress = rcp.address.toStdString();

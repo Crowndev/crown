@@ -43,7 +43,7 @@ void ReceiveRequestDialog::setModel(WalletModel *_model)
     update();
 }
 
-void ReceiveRequestDialog::setInfo(const SendCoinsRecipient &_info)
+void ReceiveRequestDialog::setInfo(const SendAssetsRecipient &_info)
 {
     this->info = _info;
     setWindowTitle(tr("Request payment to %1").arg(info.label.isEmpty() ? info.address : info.label));

@@ -111,13 +111,13 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
     widget->setCheckValidator(new CrownAddressCheckValidator(parent));
 }
 
-bool parseCrownURI(const QUrl &uri, SendCoinsRecipient *out)
+bool parseCrownURI(const QUrl &uri, SendAssetsRecipient *out)
 {
     // return if URI is not valid or is no crown: URI
     if(!uri.isValid() || uri.scheme() != QString("crown"))
         return false;
 
-    SendCoinsRecipient rv;
+    SendAssetsRecipient rv;
     rv.address = uri.path();
     // Trim any following forward slash which may have been added by the OS
     if (rv.address.endsWith("/")) {
@@ -168,13 +168,13 @@ bool parseCrownURI(const QUrl &uri, SendCoinsRecipient *out)
     return true;
 }
 
-bool parseCrownURI(QString uri, SendCoinsRecipient *out)
+bool parseCrownURI(QString uri, SendAssetsRecipient *out)
 {
     QUrl uriInstance(uri);
     return parseCrownURI(uriInstance, out);
 }
 
-QString formatCrownURI(const SendCoinsRecipient &info)
+QString formatCrownURI(const SendAssetsRecipient &info)
 {
     bool bech_32 = info.address.startsWith(QString::fromStdString(Params().Bech32HRP() + "1"));
 

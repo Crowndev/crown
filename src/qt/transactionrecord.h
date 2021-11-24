@@ -6,6 +6,7 @@
 #define CROWN_QT_TRANSACTIONRECORD_H
 
 #include <amount.h>
+#include <primitives/asset.h>
 #include <uint256.h>
 
 #include <QList>
@@ -121,6 +122,7 @@ public:
     std::string address;
     CAmount debit;
     CAmount credit;
+    CAsset asset;
     /**@}*/
 
     /** Subtransaction index, for sort key */

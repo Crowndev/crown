@@ -259,7 +259,7 @@ void WalletView::gotoLoadPSBT(bool from_clipboard)
     dlg->exec();
 }
 
-bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
+bool WalletView::handlePaymentRequest(const SendAssetsRecipient& recipient)
 {
     return sendCoinsPage->handlePaymentRequest(recipient);
 }

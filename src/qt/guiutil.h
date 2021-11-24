@@ -20,7 +20,7 @@
 #include <QLabel>
 
 class QValidatedLineEdit;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 
 namespace interfaces
 {
@@ -55,9 +55,9 @@ namespace GUIUtil
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
 
     // Parse "crown:" URI into recipient object, return true on successful parsing
-    bool parseCrownURI(const QUrl &uri, SendCoinsRecipient *out);
-    bool parseCrownURI(QString uri, SendCoinsRecipient *out);
-    QString formatCrownURI(const SendCoinsRecipient &info);
+    bool parseCrownURI(const QUrl &uri, SendAssetsRecipient *out);
+    bool parseCrownURI(QString uri, SendAssetsRecipient *out);
+    QString formatCrownURI(const SendAssetsRecipient &info);
 
     // Returns true if given address+amount meets "dust" definition
     bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount);

@@ -228,7 +228,7 @@ SendCoinsDialog::~SendCoinsDialog()
     delete ui;
 }
 
-void SendCoinsDialog::checkAndSend(const QList<SendCoinsRecipient> &recipients, QStringList formatted)
+void SendCoinsDialog::checkAndSend(const QList<SendAssetsRecipient> &recipients, QStringList formatted)
 {
     fNewRecipientAllowed = false;
     WalletModel::EncryptionStatus encStatus = model->getEncryptionStatus();
@@ -244,13 +244,13 @@ void SendCoinsDialog::checkAndSend(const QList<SendCoinsRecipient> &recipients, 
     send(recipients, formatted);
 }
 
-QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendCoinsRecipient>& recipients)
+QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendAssetsRecipient>& recipients)
 {
     QString strFunds = "";
     QString strFee = "";
     strFunds = tr("using") + " <b>" + tr("any available funds (not recommended)") + "</b> " + "and InstantX";
     QStringList formatted;
-    for (const SendCoinsRecipient& rcp : recipients) {
+    for (const SendAssetsRecipient& rcp : recipients) {
         QString amount = "<b>" + CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
         amount.append("</b> ").append(strFunds);
         QString address = "<span style='font-family: monospace;'>" + rcp.address;
@@ -275,7 +275,7 @@ QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendCoinsRecipie
 
 bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informative_text, QString& detailed_text)
 {
-    QList<SendCoinsRecipient> recipients;
+    QList<SendAssetsRecipient> recipients;
     bool valid = true;
 
     for(int i = 0; i < ui->entries->count(); ++i)
@@ -328,7 +328,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 
     CAmount txFee = m_current_transaction->getTransactionFee();
     QStringList formatted;
-    for (const SendCoinsRecipient &rcp : m_current_transaction->getRecipients())
+    for (const SendAssetsRecipient &rcp : m_current_transaction->getRecipients())
     {
         // generate amount string with wallet name in case of multiwallet
         QString amount = CrownUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -419,7 +419,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     return true;
 }
 
-void SendCoinsDialog::send(const QList<SendCoinsRecipient> &recipients, QStringList formatted)
+void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QStringList formatted)
 {
     QString strFee = "";
     // prepare transaction for getting txFee earlier
@@ -556,7 +556,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             QString selectedFilter;
             QString fileNameSuggestion = "";
             bool first = true;
-            for (const SendCoinsRecipient &rcp : m_current_transaction->getRecipients()) {
+            for (const SendAssetsRecipient &rcp : m_current_transaction->getRecipients()) {
                 if (!first) {
                     fileNameSuggestion.append(" - ");
                 }
@@ -712,7 +712,7 @@ void SendCoinsDialog::setAddress(const QString &address)
     entry->setAddress(address);
 }
 
-void SendCoinsDialog::pasteEntry(const SendCoinsRecipient &rv)
+void SendCoinsDialog::pasteEntry(const SendAssetsRecipient &rv)
 {
     if(!fNewRecipientAllowed)
         return;
@@ -736,7 +736,7 @@ void SendCoinsDialog::pasteEntry(const SendCoinsRecipient &rv)
     updateTabsAndLabels();
 }
 
-bool SendCoinsDialog::handlePaymentRequest(const SendCoinsRecipient &rv)
+bool SendCoinsDialog::handlePaymentRequest(const SendAssetsRecipient &rv)
 {
     // Just paste the entry, all pre-checks
     // are done in paymentserver.cpp.
@@ -748,12 +748,12 @@ void SendCoinsDialog::setBalance(const interfaces::WalletBalances& balances)
 {
     if(model && model->getOptionsModel())
     {
-        CAmount balance = balances.balance;
+        CAmountMap balance = balances.balance;
         if (model->wallet().privateKeysDisabled()) {
             balance = balances.watch_only_balance;
             ui->labelBalanceName->setText(tr("Watch-only balance:"));
         }
-        ui->labelBalance->setText(CrownUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance));
+        ui->labelBalance->setText(formatMultiAssetAmount(balance, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, ""));
     }
 }
 
@@ -836,19 +836,19 @@ void SendCoinsDialog::useAvailableBalance(SendCoinsEntry* entry)
     m_coin_control->fAllowWatchOnly = model->wallet().privateKeysDisabled();
 
     // Calculate available amount to send.
-    CAmount amount = model->wallet().getAvailableBalance(*m_coin_control);
-    for (int i = 0; i < ui->entries->count(); ++i) {
+    CAmountMap amount = model->wallet().getAvailableBalance(*m_coin_control);
+/*    for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry* e = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if (e && !e->isHidden() && e != entry) {
             amount -= e->getValue().amount;
         }
     }
-
-    if (amount > 0) {
-      entry->checkSubtractFeeFromAmount();
-      entry->setAmount(amount);
+*/
+    if (amount > CAmountMap()) {
+     // entry->checkSubtractFeeFromAmount();
+     // entry->setAmount(amount);
     } else {
-      entry->setAmount(0);
+     // entry->setAmount(0);
     }
 }
 
@@ -1075,7 +1075,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry && !entry->isHidden())
         {
-            SendCoinsRecipient rcp = entry->getValue();
+            SendAssetsRecipient rcp = entry->getValue();
             CoinControlDialog::payAmounts.append(rcp.amount);
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;

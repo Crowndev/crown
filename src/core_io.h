@@ -19,7 +19,6 @@ class CTransaction;
 struct CMutableTransaction;
 class uint256;
 class UniValue;
-class CChainID;
 class CContract;
 
 // core_read.cpp

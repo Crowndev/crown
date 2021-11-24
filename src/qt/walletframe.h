@@ -11,7 +11,7 @@
 class CrownGUI;
 class ClientModel;
 class PlatformStyle;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 class WalletModel;
 class WalletView;
 
@@ -41,7 +41,7 @@ public:
     void removeWallet(WalletModel* wallet_model);
     void removeAllWallets();
 
-    bool handlePaymentRequest(const SendCoinsRecipient& recipient);
+    bool handlePaymentRequest(const SendAssetsRecipient& recipient);
 
     void showOutOfSyncWarning(bool fShow);
 

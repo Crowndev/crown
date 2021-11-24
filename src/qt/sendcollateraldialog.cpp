@@ -16,7 +16,7 @@ SendCollateralDialog::SendCollateralDialog(Node node, QWidget *parent) :
 {
 }
 
-void SendCollateralDialog::send(QList<SendCoinsRecipient> &recipients)
+void SendCollateralDialog::send(QList<SendAssetsRecipient> &recipients)
 {
     QStringList formatted = constructConfirmationMessage(recipients);
     fAutoCreate = true;

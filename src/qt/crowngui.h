@@ -31,7 +31,7 @@ class Notificator;
 class OptionsModel;
 class PlatformStyle;
 class RPCConsole;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 class UnitDisplayStatusBarControl;
 class WalletController;
 class WalletFrame;
@@ -262,7 +262,7 @@ private:
     void setHDStatus(bool privkeyDisabled, int hdEnabled);
 
 public Q_SLOTS:
-    bool handlePaymentRequest(const SendCoinsRecipient& recipient);
+    bool handlePaymentRequest(const SendAssetsRecipient& recipient);
 
     /** Show incoming transaction notification for new transactions. */
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label, const QString& walletName);

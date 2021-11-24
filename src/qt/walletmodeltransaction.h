@@ -12,7 +12,7 @@
 
 #include <QObject>
 
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 
 namespace interfaces {
 class Node;
@@ -22,9 +22,9 @@ class Node;
 class WalletModelTransaction
 {
 public:
-    explicit WalletModelTransaction(const QList<SendCoinsRecipient> &recipients);
+    explicit WalletModelTransaction(const QList<SendAssetsRecipient> &recipients);
 
-    QList<SendCoinsRecipient> getRecipients() const;
+    QList<SendAssetsRecipient> getRecipients() const;
 
     CTransactionRef& getWtx();
     unsigned int getTransactionSize();
@@ -37,7 +37,7 @@ public:
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
 private:
-    QList<SendCoinsRecipient> recipients;
+    QList<SendAssetsRecipient> recipients;
     CTransactionRef wtx;
     CAmount fee;
 };

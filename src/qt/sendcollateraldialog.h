@@ -13,7 +13,7 @@ public:
         MASTERNODE
     };
     explicit SendCollateralDialog(Node node, QWidget *parent = 0);
-    void send(QList<SendCoinsRecipient> &recipients);
+    void send(QList<SendAssetsRecipient> &recipients);
     bool fAutoCreate;
 private:
     bool instantXChecked();

@@ -24,13 +24,17 @@
 enum class OutputType;
 
 class AddressTableModel;
+class IDTableModel;
 class ClientModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 class TransactionTableModel;
+class AssetTableModel;
+class CoinControlModel;
 class WalletModelTransaction;
+class ContractTableModel;
 
 class CCoinControl;
 class CKeyID;
@@ -79,10 +83,14 @@ public:
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
     TransactionTableModel *getTransactionTableModel();
+    AssetTableModel* getAssetTableModel();
+    CoinControlModel* getCoinControlModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
+    std::set<CAsset> getAssetTypes() const;
     EncryptionStatus getEncryptionStatus() const;
-
+    bool isWalletUnlocked() const;
+    bool isWalletLocked(bool fFullUnlocked = true) const;
     // Check address for validity
     bool validateAddress(const QString &address);
 
@@ -97,6 +105,10 @@ public:
         StatusCode status;
         QString reasonCommitFailed;
     };
+
+    bool CreateID(QString &strAddress, QString &alias, QString &email, std::string& strFailReason);
+    bool CreateContract(QString &strchainID, QString &strcontract_url, QString &strwebsite_url, QString &strdescription, QString &strscript, QString &strname, QString &strshortname, std::string& strFailReason);
+    bool CreateAsset(QString inputamount, QString outputamount, QString assettype,  QString assetcontract,  bool transferable, bool convertable, bool restricted, bool limited, QDateTime expiryDate , std::string& strFailReason);
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl);
@@ -153,6 +165,10 @@ public:
     bool isMultiwallet();
 
     AddressTableModel* getAddressTableModel() const { return addressTableModel; }
+    
+    ContractTableModel* getContractTableModel() const { return contractTableModel; }
+    
+    IDTableModel* getIDTableModel() const { return idTableModel; }
 
     void refresh(bool pk_hash_only = false);
 
@@ -179,6 +195,10 @@ private:
 
     AddressTableModel *addressTableModel;
     TransactionTableModel *transactionTableModel;
+    AssetTableModel *assetTableModel;
+    ContractTableModel *contractTableModel;
+    IDTableModel * idTableModel;
+    CoinControlModel *coinControlModel;
     RecentRequestsTableModel *recentRequestsTableModel;
 
     // Cache some values to be able to detect changes
@@ -209,7 +229,7 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
 
     // Coins sent: from wallet, to recipient, in (serialized) transaction:
-    void coinsSent(WalletModel* wallet, SendCoinsRecipient recipient, QByteArray transaction);
+    void coinsSent(WalletModel* wallet, SendAssetsRecipient recipient, QByteArray transaction);
 
     // Show progress dialog e.g. for rescan
     void showProgress(const QString &title, int nProgress);

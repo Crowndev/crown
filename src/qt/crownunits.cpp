@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2019 The Crown Core developers
+// Copyright (c) 2011-2020 The Crown Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,6 +7,8 @@
 #include <QStringList>
 
 #include <cassert>
+
+static constexpr auto MAX_DIGITS_BTC = 16;
 
 CrownUnits::CrownUnits(QObject *parent):
         QAbstractListModel(parent),
@@ -108,7 +110,9 @@ QString CrownUnits::format(int unit, const CAmount& nIn, bool fPlus, SeparatorSt
     qint64 n_abs = (n > 0 ? n : -n);
     qint64 quotient = n_abs / coin;
     QString quotient_str = QString::number(quotient);
-    if (justify) quotient_str = quotient_str.rightJustified(16 - num_decimals, ' ');
+    if (justify) {
+        quotient_str = quotient_str.rightJustified(MAX_DIGITS_BTC - num_decimals, ' ');
+    }
 
     // Use SI-style thin space separators as these are locale independent and can't be
     // confused with the decimal marker.
@@ -140,6 +144,24 @@ QString CrownUnits::format(int unit, const CAmount& nIn, bool fPlus, SeparatorSt
 //
 // Please take care to use formatHtmlWithUnit instead, when
 // appropriate.
+
+QString CrownUnits::simplestFormat(int unit, const CAmount& amount, int digits, bool plussign, SeparatorStyle separators)
+{
+    QString result = format(unit, amount, plussign, separators);
+    if(decimals(unit) > digits) {
+		int lenght = result.mid(result.indexOf("."), result.length() - 1).length() - 1;
+		if (lenght > digits) {
+			result.chop(lenght - digits);
+		}      
+    }
+
+    return result;
+}
+
+QString CrownUnits::simpleFormat(int unit, const CAmount& amount, bool plussign, SeparatorStyle separators)
+{
+    return format(unit, amount, plussign, separators);
+}
 
 QString CrownUnits::formatWithUnit(int unit, const CAmount& amount, bool plussign, SeparatorStyle separators)
 {
@@ -243,4 +265,35 @@ QVariant CrownUnits::data(const QModelIndex &index, int role) const
 CAmount CrownUnits::maxMoney()
 {
     return MAX_MONEY;
+}
+
+
+QString formatAssetAmount(const CAsset& asset, const CAmount& amount, const int crown_unit, CrownUnits::SeparatorStyle separators, bool include_asset_name)
+{
+    QString str = "";
+
+    str = CrownUnits::simplestFormat(crown_unit, amount, 4, false, separators);
+
+    if (include_asset_name) {
+        str += QString(" ") + QString::fromStdString(asset.getShortName());
+    }
+    return str;
+}
+
+QString formatMultiAssetAmount(const CAmountMap& amountmap, const int crown_unit, CrownUnits::SeparatorStyle separators, QString line_separator,  bool include_asset_name)
+{
+    QStringList ret;
+
+    QString rmp = ret.join(line_separator);
+    for (const auto& assetamount : amountmap) {
+        ret << formatAssetAmount(assetamount.first, assetamount.second, crown_unit, separators, include_asset_name);
+    }
+    QString tmp = ret.join(line_separator);
+
+    return ret.join(line_separator);
+}
+
+bool parseAssetAmount(const CAsset& asset, const QString& text, const int crown_unit, CAmount *val_out)
+{
+    return CrownUnits::parse(crown_unit, text, val_out);
 }
