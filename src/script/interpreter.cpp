@@ -1366,10 +1366,12 @@ public:
         for (unsigned int nOutput = 0; nOutput < nOutputs; nOutput++)
              SerializeOutput(s, nOutput);
         // Serialize vdata
-        unsigned int nDatas = txTo.vdata.size();
-        ::WriteCompactSize(s, nDatas);
-        for (unsigned int nData = 0; nData < nDatas; nData++)
-            SerializeData(s, nData);
+        if(txTo.nVersion >= TX_ELE_VERSION) {
+            unsigned int nDatas = txTo.vdata.size();
+            ::WriteCompactSize(s, nDatas);
+            for (unsigned int nData = 0; nData < nDatas; nData++)
+                SerializeData(s, nData);
+        }
         // Serialize nLockTime
         ::Serialize(s, txTo.nLockTime);
         if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
