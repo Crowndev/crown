@@ -408,6 +408,7 @@ static RPCHelpMan createrawtransaction()
                     {"locktime", RPCArg::Type::NUM, /* default */ "0", "Raw locktime. Non-0 value also locktime-activates inputs"},
                     {"replaceable", RPCArg::Type::BOOL, /* default */ "false", "Marks this transaction as BIP125-replaceable.\n"
             "                             Allows this transaction to be replaced by a transaction with higher fees. If provided, it is an error if explicit sequence numbers are incompatible."},
+                    {"asset", RPCArg::Type::STR, RPCArg::Optional::OMITTED, " The asset to send"},
                 },
                 RPCResult{
                     RPCResult::Type::STR_HEX, "transaction", "hex string of the transaction"
@@ -424,7 +425,8 @@ static RPCHelpMan createrawtransaction()
         UniValue::VARR,
         UniValueType(), // ARR or OBJ, checked later
         UniValue::VNUM,
-        UniValue::VBOOL
+        UniValue::VBOOL,
+        UniValue::VOBJ
         }, true
     );
 
@@ -432,7 +434,54 @@ static RPCHelpMan createrawtransaction()
     if (!request.params[3].isNull()) {
         rbf = request.params[3].isTrue();
     }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+
+    CAsset asset;
+
+    UniValue inputs;
+    if (request.params[0].isNull()) {
+        inputs = UniValue::VARR;
+    } else {
+        inputs = request.params[0].get_array();
+    }
+
+    if (!request.params[4].isNull()) {
+		asset = GetAsset(request.params[4].get_str());
+	}
+	else
+    {    
+		for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+			const UniValue& input = inputs[idx];
+			const UniValue& o = input.get_obj();
+
+			uint256 txid = ParseHashO(o, "txid");
+
+			const UniValue& vout_v = find_value(o, "vout");
+			if (!vout_v.isNum())
+				throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+			int nOutput = vout_v.get_int();
+			if (nOutput < 0)
+				throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout cannot be negative");
+
+			uint32_t nSequence;
+
+			// set the sequence number if passed in the parameters object
+			const UniValue& sequenceObj = find_value(o, "sequence");
+			if (sequenceObj.isNum()) {
+				int64_t seqNr64 = sequenceObj.get_int64();
+				if (seqNr64 < 0 || seqNr64 > CTxIn::SEQUENCE_FINAL) {
+					throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
+				} else {
+					nSequence = (uint32_t)seqNr64;
+				}
+			}
+
+			//CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
+			CCoinsViewCache view(&::ChainstateActive().CoinsTip());
+			asset = view.AccessCoin(COutPoint(txid, nOutput)).out2.nAsset;
+		}
+    }
+
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, asset);
 
     return EncodeHexTx(CTransaction(rawTx));
 },
@@ -1467,7 +1516,48 @@ static RPCHelpMan createpsbt()
     if (!request.params[3].isNull()) {
         rbf = request.params[3].isTrue();
     }
-    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf);
+
+    CAsset asset;
+
+    UniValue inputs;
+    if (request.params[0].isNull()) {
+        inputs = UniValue::VARR;
+    } else {
+        inputs = request.params[0].get_array();
+    }
+
+    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+        const UniValue& input = inputs[idx];
+        const UniValue& o = input.get_obj();
+
+        uint256 txid = ParseHashO(o, "txid");
+
+        const UniValue& vout_v = find_value(o, "vout");
+        if (!vout_v.isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+        int nOutput = vout_v.get_int();
+        if (nOutput < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout cannot be negative");
+
+        uint32_t nSequence;
+
+        // set the sequence number if passed in the parameters object
+        const UniValue& sequenceObj = find_value(o, "sequence");
+        if (sequenceObj.isNum()) {
+            int64_t seqNr64 = sequenceObj.get_int64();
+            if (seqNr64 < 0 || seqNr64 > CTxIn::SEQUENCE_FINAL) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
+            } else {
+                nSequence = (uint32_t)seqNr64;
+            }
+        }
+
+        CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
+        CCoinsViewCache view(&::ChainstateActive().CoinsTip());
+        asset = view.AccessCoin(COutPoint(txid, nOutput)).out2.nAsset;
+    }    
+    
+    CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, asset);
 
     // Make a blank psbt
     PartiallySignedTransaction psbtx;
