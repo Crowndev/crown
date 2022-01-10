@@ -6,6 +6,7 @@
 #ifndef CROWN_CONSENSUS_PARAMS_H
 #define CROWN_CONSENSUS_PARAMS_H
 
+#include <primitives/asset.h>
 #include <uint256.h>
 #include <limits>
 
@@ -93,7 +94,8 @@ struct Params {
     uint256 nMinimumChainWork;
     /** By default assume that the signatures in ancestors of this block are valid */
     uint256 defaultAssumeValid;
-
+    CScript mandatory_coinbase_destination;
+    CAsset subsidy_asset;
     /**
      * If true, witness commitments contain a payload equal to a Crown Script solution
      * to the signet challenge. See BIP325.

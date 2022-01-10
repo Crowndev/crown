@@ -109,6 +109,7 @@ endif
 # crown core #
 CROWN_CORE_H = \
   addrdb.h \
+  assetdb.h \
   addrman.h \
   attributes.h \
   auxpow.h \
@@ -135,6 +136,7 @@ CROWN_CORE_H = \
   consensus/consensus.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
+  contractdb.h \
   core_io.h \
   core_memusage.h \
   crown/cache.h \
@@ -179,10 +181,6 @@ CROWN_CORE_H = \
   netaddress.h \
   netbase.h \
   netmessagemaker.h \
-  nft/nftdb.h \
-  nft/specialtx.h \
-  nft/token.h \
-  nft/util.h \
   nodeconfig.h \
   node/coin.h \
   node/coinstats.h \
@@ -194,6 +192,27 @@ CROWN_CORE_H = \
   noui.h \
   optional.h \
   outputtype.h \
+  platform/specialtx-common.h \
+  platform/specialtx.h \
+  platform/platform-db.h \
+  platform/platform-utils.h \
+  platform/rpc/rpcagents.h \
+  platform/rpc/rpc-nf-token.h \
+  platform/rpc/rpc-nft-proto.h \
+  platform/rpc/specialtx-rpc-utils.h \
+  platform/nf-token/nf-token-index.h \
+  platform/nf-token/nf-token-multiindex-utils.h \
+  platform/nf-token/nf-token-protocol-index.h \
+  platform/nf-token/nf-token-protocol-reg-tx.h \
+  platform/nf-token/nf-token-protocol-tx-mem-pool-handler.h \
+  platform/nf-token/nf-token-protocol.h \
+  platform/nf-token/nf-token-reg-tx-builder.h \
+  platform/nf-token/nf-token-reg-tx.h \
+  platform/nf-token/nf-token-tx-mem-pool-handler.h \
+  platform/nf-token/nf-token.h \
+  platform/nf-token/nf-tokens-manager.h \
+  platform/nf-token/nft-protocol-reg-tx-builder.h \
+  platform/nf-token/nft-protocols-manager.h \
   policy/feerate.h \
   policy/fees.h \
   policy/policy.h \
@@ -296,8 +315,11 @@ CROWN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zmq/zmqrpc.h \
-  zmq/zmqutil.h
-
+  zmq/zmqutil.h \
+  insight/addressindex.h \
+  insight/spentindex.h \
+  insight/timestampindex.h \
+  insight/insight.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -314,6 +336,7 @@ libcrown_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libcrown_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  assetdb.cpp \
   banman.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
@@ -327,6 +350,7 @@ libcrown_server_a_SOURCES = \
   crown/nodesync.cpp \
   crown/nodewallet.cpp \
   crown/spork.cpp \
+  contractdb.cpp \
   dbwrapper.cpp \
   flatfile.cpp \
   dbdetails.cpp \
@@ -364,10 +388,6 @@ libcrown_server_a_SOURCES = \
   netfulfilledman.cpp \
   net_processing.cpp \
   nodeconfig.cpp \
-  nft/nftdb.cpp \
-  nft/specialtx.cpp \
-  nft/token.cpp \
-  nft/util.cpp \
   node/coin.cpp \
   node/coinstats.cpp \
   node/context.cpp \
@@ -375,12 +395,35 @@ libcrown_server_a_SOURCES = \
   node/transaction.cpp \
   node/ui_interface.cpp \
   noui.cpp \
+  platform/agent.cpp \
+  platform/agent.h \
+  platform/governance.cpp \
+  platform/governance.h \
+  platform/governance-approval-voting.h \
+  platform/governance-approval-voting.cpp \
+  platform/governance-vote.cpp \
+  platform/governance-vote.h \
+  platform/specialtx.cpp \
+  platform/platform-db.cpp \
+  platform/rpc/specialtx-rpc-utils.cpp \
+  platform/rpc/rpcagents.cpp \
+  platform/rpc/rpc-nf-token.cpp \
+  platform/rpc/rpc-nft-proto.cpp \
+  platform/nf-token/nf-token-multiindex-utils.cpp \
+  platform/nf-token/nf-token-protocol-reg-tx.cpp \
+  platform/nf-token/nf-token-protocol-tx-mem-pool-handler.cpp \
+  platform/nf-token/nf-token-protocol.cpp \
+  platform/nf-token/nf-token-reg-tx.cpp \
+  platform/nf-token/nf-token-tx-mem-pool-handler.cpp \
+  platform/nf-token/nf-tokens-manager.cpp \
+  platform/nf-token/nft-protocols-manager.cpp \
   policy/fees.cpp \
   policy/rbf.cpp \
   policy/settings.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/contracts.cpp \
   rpc/budget.cpp \
   rpc/masternode.cpp \
   rpc/systemnode.cpp \
@@ -413,6 +456,8 @@ libcrown_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
+  insight/insight.cpp \
+  insight/rpc.cpp \
   $(CROWN_CORE_H)
 
 if ENABLE_WALLET
@@ -537,6 +582,8 @@ libcrown_consensus_a_SOURCES = \
   hash.cpp \
   hash.h \
   prevector.h \
+  primitives/asset.h \
+  primitives/asset.cpp \
   primitives/block.cpp \
   primitives/block.h \
   primitives/pureheader.cpp \

@@ -145,7 +145,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
-    m_balances.balance = -1;
+    m_balances.balance = CAmountMap();
 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = platformStyle->SingleColorIcon(":/icons/warning");
@@ -181,7 +181,7 @@ void OverviewPage::handleOutOfSyncWarningClicks()
 void OverviewPage::setPrivacy(bool privacy)
 {
     m_privacy = privacy;
-    if (m_balances.balance != -1) {
+    if (m_balances.balance != CAmountMap()) {
         setBalance(m_balances);
     }
 
@@ -204,30 +204,32 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
     m_balances = balances;
     if (walletModel->wallet().isLegacy()) {
         if (walletModel->wallet().privateKeysDisabled()) {
-            ui->labelBalance->setText(CrownUnits::formatWithPrivacy(unit, balances.watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelUnconfirmed->setText(CrownUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelImmature->setText(CrownUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(CrownUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
+            ui->labelBalance->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+
         } else {
-            ui->labelBalance->setText(CrownUnits::formatWithPrivacy(unit, balances.balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelUnconfirmed->setText(CrownUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelImmature->setText(CrownUnits::formatWithPrivacy(unit, balances.immature_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelTotal->setText(CrownUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchAvailable->setText(CrownUnits::formatWithPrivacy(unit, balances.watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchPending->setText(CrownUnits::formatWithPrivacy(unit, balances.unconfirmed_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchImmature->setText(CrownUnits::formatWithPrivacy(unit, balances.immature_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-            ui->labelWatchTotal->setText(CrownUnits::formatWithPrivacy(unit, balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
+            ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelTotal->setText(formatMultiAssetAmount(balances.balance + balances.unconfirmed_balance + balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelWatchAvailable->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelWatchPending->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelWatchImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelWatchTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+
         }
     } else {
-        ui->labelBalance->setText(CrownUnits::formatWithPrivacy(unit, balances.balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-        ui->labelUnconfirmed->setText(CrownUnits::formatWithPrivacy(unit, balances.unconfirmed_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-        ui->labelImmature->setText(CrownUnits::formatWithPrivacy(unit, balances.immature_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
-        ui->labelTotal->setText(CrownUnits::formatWithPrivacy(unit, balances.balance + balances.unconfirmed_balance + balances.immature_balance, CrownUnits::SeparatorStyle::ALWAYS, m_privacy));
+        ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelTotal->setText(formatMultiAssetAmount(balances.balance + balances.unconfirmed_balance + balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
     }
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
-    bool showImmature = balances.immature_balance != 0;
-    bool showWatchOnlyImmature = balances.immature_watch_only_balance != 0;
+    bool showImmature = balances.immature_balance != CAmountMap();
+    bool showWatchOnlyImmature = balances.immature_watch_only_balance != CAmountMap();
 
     // for symmetry reasons also show immature label when the watch-only one is shown
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
@@ -298,7 +300,7 @@ void OverviewPage::updateDisplayUnit()
 {
     if(walletModel && walletModel->getOptionsModel())
     {
-        if (m_balances.balance != -1) {
+        if (m_balances.balance != CAmountMap()) {
             setBalance(m_balances);
         }
 

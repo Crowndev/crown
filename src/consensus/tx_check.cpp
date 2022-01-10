@@ -9,6 +9,96 @@
 #include <consensus/validation.h>
 #include <chainparams.h>
 
+static bool CheckData(TxValidationState &state, const CTxData *p)
+{
+    if (p->vData.size() < 1) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-output-data-size-small");
+    }
+
+    const size_t MAX_DATA_OUTPUT_SIZE = 1024; // (max 1024 bytes) 1kb
+    if (p->vData.size() > MAX_DATA_OUTPUT_SIZE) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-output-data-size-large %d vs %d\n", p->vData.size(), MAX_DATA_OUTPUT_SIZE));
+    }
+
+    return true;
+}
+
+
+static bool CheckContract(TxValidationState &state, const CContract *p)
+{
+    return true;
+}
+
+static bool CheckAsset(TxValidationState &state, CAsset& asset){
+
+    //check version
+
+    if (asset.nVersion > 1)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset version %d \n", asset.nVersion));
+
+    if(asset.getAssetName() == "" || asset.getAssetName().length() < 4)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset name %s \n", asset.sAssetName));
+
+    if(asset.getShortName() == "" || asset.getShortName().length() < 3)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset symbol %s \n", asset.sAssetShortName));
+
+    //check type and it's rules
+
+    if (asset.nType < 1 || asset.nType > 5)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset type %d \n", asset.nVersion));
+
+    //check properties
+    //token
+    if (asset.nType == 1){
+        if(!asset.isTransferable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked Transferable \n", AssetTypeToString(asset.nType)));
+    }
+
+    //unique
+    if (asset.nType == 2){
+
+        if(asset.isInflatable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
+
+        if(asset.isStakeable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Stakeable \n", AssetTypeToString(asset.nType)));
+
+        if(asset.isConvertable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked convertible \n", AssetTypeToString(asset.nType)));
+
+        if(!asset.isLimited())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked limited \n", AssetTypeToString(asset.nType)));
+
+        if(!asset.isRestricted())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked restricted \n", AssetTypeToString(asset.nType)));
+
+        //check expiry
+        //if (asset.nExpiry != 0 && asset.nExpiry < GetTime())
+
+    }
+
+    //equity
+    if (asset.nType == 3){
+        if(asset.contract_hash == uint256())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has no contract \n", AssetTypeToString(asset.nType)));
+
+    }
+
+    //points
+    if (asset.nType == 4){
+        if(asset.isInflatable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
+
+    }
+
+    //credits
+    if (asset.nType == 5){
+        if(asset.isInflatable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
+
+    }
+}
+
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 {
     // Basic checks that don't depend on any context
@@ -24,15 +114,48 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 
     // Check for negative or overflow output values (see CVE-2010-5139)
     CAmount nValueOut = 0;
-    for (const auto& txout : tx.vout)
-    {
+    for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); k++) {
+        CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+
         if (txout.nValue < 0)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
         if (txout.nValue > MAX_MONEY)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge");
+
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
+
+        if(tx.nVersion >=3 && txout.nAsset.IsEmpty())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset",
+                         strprintf("%s: %s", __func__, txout.ToString()));
+    }
+
+    if(tx.nVersion >=3){
+        size_t nContractOutputs = 0, nDataOutputs = 0, nIDOutputs = 0;
+        for (unsigned int i = 0; i < tx.vdata.size(); i++){
+            uint8_t vers = tx.vdata[i].get()->GetVersion();
+            switch (vers) {
+                case OUTPUT_CONTRACT:
+                    if (!CheckContract(state, (CContract*) tx.vdata[i].get())) {
+                        return false;
+                    }
+                    nContractOutputs++;
+                    break;
+                case OUTPUT_DATA:
+                    if (!CheckData(state, (CTxData*) tx.vdata[i].get())) {
+                        return false;
+                    }
+                    nDataOutputs++;
+                    break;
+                default:
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
+            }
+        }
+
+        if (nDataOutputs > 1 || nContractOutputs > 1 || nIDOutputs > 1) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "too-many-data-outputs");
+        }
     }
 
     // Check for duplicate inputs (see CVE-2018-17144)

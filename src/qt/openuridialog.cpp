@@ -31,7 +31,7 @@ QString OpenURIDialog::getURI()
 
 void OpenURIDialog::accept()
 {
-    SendCoinsRecipient rcp;
+    SendAssetsRecipient rcp;
     if(GUIUtil::parseCrownURI(getURI(), &rcp))
     {
         /* Only accept value URIs */

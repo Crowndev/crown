@@ -48,6 +48,9 @@ static int secp256k1_scalar_set_b32_seckey(secp256k1_scalar *r, const unsigned c
 static void secp256k1_scalar_set_int(secp256k1_scalar *r, unsigned int v);
 
 /** Convert a scalar to a byte array. */
+static void secp256k1_scalar_set_u64(secp256k1_scalar *r, uint64_t v);
+
+/** Convert a scalar to a byte array. */
 static void secp256k1_scalar_get_b32(unsigned char *bin, const secp256k1_scalar* a);
 
 /** Add two scalars together (modulo the group order). Returns whether it overflowed. */

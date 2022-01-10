@@ -91,7 +91,7 @@ void PaymentServer::ipcParseCommandLine(int argc, char* argv[])
             if (savedPaymentRequests.contains(arg)) continue;
             savedPaymentRequests.insert(arg);
 
-            SendCoinsRecipient r;
+            SendAssetsRecipient r;
             if (GUIUtil::parseCrownURI(arg, &r) && !r.address.isEmpty())
             {
                 auto tempChainParams = CreateChainParams(gArgs, CBaseChainParams::MAIN);
@@ -230,7 +230,7 @@ void PaymentServer::handleURIOrFile(const QString& s)
         QUrlQuery uri((QUrl(s)));
         // normal URI
         {
-            SendCoinsRecipient recipient;
+            SendAssetsRecipient recipient;
             if (GUIUtil::parseCrownURI(s, &recipient))
             {
                 if (!IsValidDestinationString(recipient.address.toStdString())) {
@@ -244,8 +244,8 @@ void PaymentServer::handleURIOrFile(const QString& s)
                     Q_EMIT message(tr("URI handling"), tr("Invalid payment address"),
                         CClientUIInterface::MSG_ERROR);
                 }
-                else
-                    Q_EMIT receivedPaymentRequest(recipient);
+               // else
+                   // Q_EMIT receivedPaymentRequest(recipient);
             }
             else
                 Q_EMIT message(tr("URI handling"),

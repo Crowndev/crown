@@ -67,7 +67,7 @@ void CActiveMasternode::ManageStatus()
             return;
         }
 
-        if(pwallet->GetBalance().m_mine_trusted == 0){
+        if(pwallet->GetBalance().m_mine_trusted == CAmountMap()){
             notCapableReason = "Masternode configured correctly and ready, please use your local wallet to start it -Start alias-.";
             LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;

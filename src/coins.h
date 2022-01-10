@@ -19,6 +19,8 @@
 
 #include <functional>
 #include <unordered_map>
+#include <insight/addressindex.h>
+#include <insight/spentindex.h>
 
 /**
  * A UTXO entry.
@@ -32,7 +34,9 @@ class Coin
 public:
     //! unspent transaction output
     CTxOut out;
-
+    //! newer unspent transaction output
+    CTxOutAsset out2;
+    
     //! whether containing transaction was a coinbase
     unsigned int fCoinBase : 1;
     unsigned int fCoinStake : 1;
@@ -45,9 +49,15 @@ public:
         out(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
     Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
         out(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
-
+    //! construct a Coin from a CTxOutAsset and height/coinbase information.
+    Coin(CTxOutAsset&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out2(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+    Coin(const CTxOutAsset& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) :
+        out2(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+        
     void Clear() {
         out.SetNull();
+        out2.SetNull();
         fCoinBase = false;
         fCoinStake = false;
         nHeight = 0;
@@ -121,6 +131,27 @@ public:
         return SipHashUint256Extra(k0, k1, id.hash, id.n);
     }
 };
+
+class SpentCoin
+{
+public:
+    SpentCoin(const Coin &coin_, int spent_at) : coin(coin_), spent_height(spent_at) {}
+    SpentCoin() {}
+    Coin coin;
+    uint32_t spent_height = 0;
+
+    template<typename Stream>
+    void Serialize(Stream &s) const {
+        ::Serialize(s, coin);
+        ::Serialize(s, VARINT(spent_height));
+    }
+    template<typename Stream>
+    void Unserialize(Stream &s) {
+        ::Unserialize(s, coin);
+        ::Unserialize(s, VARINT(spent_height));
+    }
+};
+
 
 /**
  * A Coin in one level of the coins database caching hierarchy.
@@ -248,7 +279,9 @@ public:
 /** CCoinsView that adds a memory cache for transactions to another CCoinsView */
 class CCoinsViewCache : public CCoinsViewBacked
 {
-protected:
+public:
+//protected:
+
     /**
      * Make mutable so that we can "fill the cache" even from Get-methods
      * declared as "const".
@@ -258,6 +291,12 @@ protected:
 
     /* Cached dynamic memory usage for the inner Coin objects. */
     mutable size_t cachedCoinsUsage;
+
+    mutable std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    mutable std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    mutable std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
+    mutable std::vector<std::pair<COutPoint, SpentCoin> > spent_cache;
 
 public:
     CCoinsViewCache(CCoinsView *baseIn);
@@ -337,6 +376,7 @@ public:
      * @return	Sum of value of all inputs (scriptSigs)
      */
     CAmount GetValueIn(const CTransaction& tx) const;
+    CAmountMap GetValueInMap(const CTransaction& tx) const;
 
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;

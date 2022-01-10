@@ -29,13 +29,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
 {
     QList<TransactionRecord> parts;
     int64_t nTime = wtx.time;
-    CAmount nCredit = wtx.credit;
-    CAmount nDebit = wtx.debit;
-    CAmount nNet = nCredit - nDebit;
+    CAmountMap nCredit = wtx.credit;
+    CAmountMap nDebit = wtx.debit;
+    CAmountMap nNet = nCredit - nDebit;
     uint256 hash = wtx.tx->GetHash();
     std::map<std::string, std::string> mapValue = wtx.value_map;
 
-    if (nNet > 0 || wtx.is_coinbase)
+    if (nNet > CAmountMap() || wtx.is_coinbase)
     {
         //
         // Credit
@@ -43,6 +43,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
+            const CAsset& asset = wtx.txout_assets[i];
+            if (txout.IsFee()) {
+                // explicit fee; ignore
+                continue;
+            }
+
             isminetype mine = wtx.txout_is_mine[i];
             if(mine)
             {
@@ -98,8 +104,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 address += EncodeDestination(*it);
             }
 
-            CAmount nChange = wtx.change;
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, address, -(nDebit - nChange), nCredit - nChange));
+            CAmountMap nChange = wtx.change;
+            //parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, address, (nDebit - nChange) * -1, nCredit - nChange));
             parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
         }
         else if (fAllFromMe)
@@ -107,7 +113,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             //
             // Debit
             //
-            CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
+            CAmountMap nTxFee = nDebit - wtx.tx->GetValueOutMap();
 
             for (unsigned int nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
             {
@@ -123,7 +129,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                     continue;
                 }
 
-                if (!boost::get<CNoDestination>(&wtx.txout_address[nOut]))
+                if (!std::get_if<CNoDestination>(&wtx.txout_address[nOut]))
                 {
                     // Sent to Crown Address
                     sub.type = TransactionRecord::SendToAddress;
@@ -138,10 +144,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
 
                 CAmount nValue = txout.nValue;
                 /* Add fee to first output */
-                if (nTxFee > 0)
+                if (nTxFee > CAmountMap())
                 {
-                    nValue += nTxFee;
-                    nTxFee = 0;
+                    //nValue += nTxFee;
+                    nTxFee = CAmountMap();
                 }
                 sub.debit = -nValue;
 
@@ -153,7 +159,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             //
             // Mixed debit transaction, can't break down payees
             //
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet, 0));
+            //parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet, 0));
             parts.last().involvesWatchAddress = involvesWatchAddress;
         }
     }

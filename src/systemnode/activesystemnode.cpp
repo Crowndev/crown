@@ -67,7 +67,7 @@ void CActiveSystemnode::ManageStatus()
             return;
         }
 
-        if(pwallet->GetBalance().m_mine_trusted == 0){
+        if(pwallet->GetBalance().m_mine_trusted == CAmountMap()){
             notCapableReason = "Systemnode configured correctly and ready, please use your local wallet to start it -Start alias-.";
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;

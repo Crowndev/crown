@@ -3,8 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <interfaces/chain.h>
-
 #include <chain.h>
+#include <contractdb.h>
+
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
@@ -204,6 +205,44 @@ public:
         }
         return std::nullopt;
     }
+
+    CAsset getAsset(std::string sAssetName) override
+    {
+        return ::GetAsset(sAssetName);
+    }
+    std::vector<CAsset> getAllAssets() override
+    {
+        return ::GetAllAssets();
+    }
+
+
+    CContract getContract(std::string name) override
+    {
+        return ::GetContract(name);
+    }
+
+    bool existsContract(std::string name) override
+    {
+        return (pcontractCache->Exists(name) || ExistsContract(name));
+    }
+
+    int getTxVersion() override
+    {
+        int height = ::ChainActive().Height();
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && height > 20000)
+            return TX_ELE_VERSION;
+        /*if (height > 3700000) {
+            return TX_ELE_VERSION;
+        }*/
+        return TX_NFT_VERSION;
+    }
+
+    bool isequals(const std::string& str1, const std::string& str2) override
+    {
+        return iequals(str1,str2);
+    }
+
+
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {
         WAIT_LOCK(cs_main, lock);

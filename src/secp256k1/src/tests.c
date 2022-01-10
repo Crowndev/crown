@@ -5699,6 +5699,10 @@ int main(int argc, char **argv) {
     run_ecdh_tests();
 #endif
 
+#ifdef ENABLE_MODULE_MUSIG
+    run_musig_tests();
+#endif
+
     /* ecdsa tests */
     run_random_pubkeys();
     run_ecdsa_der_parse();
@@ -5712,6 +5716,23 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_MODULE_RECOVERY
     /* ECDSA pubkey recovery tests */
     run_recovery_tests();
+#endif
+
+#ifdef ENABLE_MODULE_GENERATOR
+    run_generator_tests();
+#endif
+
+#ifdef ENABLE_MODULE_RANGEPROOF
+    run_rangeproof_tests();
+#endif
+
+#ifdef ENABLE_MODULE_WHITELIST
+    /* Key whitelisting tests */
+    run_whitelist_tests();
+#endif
+
+#ifdef ENABLE_MODULE_SURJECTIONPROOF
+    run_surjection_tests();
 #endif
 
 #ifdef ENABLE_MODULE_EXTRAKEYS

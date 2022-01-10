@@ -91,9 +91,9 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 
     int64_t nTime = wtx.time;
-    CAmount nCredit = wtx.credit;
-    CAmount nDebit = wtx.debit;
-    CAmount nNet = nCredit - nDebit;
+    CAmountMap mapCredit = wtx.credit;
+    CAmountMap mapDebit = wtx.debit;
+    CAmountMap mapNet = mapCredit - mapDebit;
 
     strHTML += "<b>" + tr("Status") + ":</b> " + FormatTxStatus(wtx, status, inMempool, numBlocks);
     strHTML += "<br>";
@@ -115,7 +115,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     else
     {
         // Offline transaction
-        if (nNet > 0)
+        if (mapNet > CAmountMap())
         {
             // Credit
             CTxDestination address = DecodeDestination(rec->address);
@@ -157,27 +157,27 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
     //
     // Amount
     //
-    if (wtx.is_coinbase && nCredit == 0)
+    if (wtx.is_coinbase && mapCredit == CAmountMap())
     {
         //
         // Coinbase
         //
-        CAmount nUnmatured = 0;
+        CAmountMap mapUnmatured;
         for (const CTxOut& txout : wtx.tx->vout)
-            nUnmatured += wallet.getCredit(txout, ISMINE_ALL);
+            mapUnmatured += wallet.getCredit(txout, ISMINE_ALL);
         strHTML += "<b>" + tr("Credit") + ":</b> ";
         if (status.is_in_main_chain)
-            strHTML += CrownUnits::formatHtmlWithUnit(unit, nUnmatured)+ " (" + tr("matures in %n more block(s)", "", status.blocks_to_maturity) + ")";
+            strHTML += formatMultiAssetAmount(mapUnmatured,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + " (" + tr("matures in %n more block(s)", "", status.blocks_to_maturity) + ")";
         else
             strHTML += "(" + tr("not accepted") + ")";
         strHTML += "<br>";
     }
-    else if (nNet > 0)
+    else if (mapNet > CAmountMap())
     {
         //
         // Credit
         //
-        strHTML += "<b>" + tr("Credit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, nNet) + "<br>";
+        strHTML += "<b>" + tr("Credit") + ":</b> " + formatMultiAssetAmount(mapNet,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
     }
     else
     {
@@ -237,15 +237,15 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
             if (fAllToMe)
             {
                 // Payment to self
-                CAmount nChange = wtx.change;
-                CAmount nValue = nCredit - nChange;
-                strHTML += "<b>" + tr("Total debit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, -nValue) + "<br>";
-                strHTML += "<b>" + tr("Total credit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, nValue) + "<br>";
+                CAmountMap mapChange = wtx.change;
+                CAmountMap mapValue = mapCredit - mapChange;
+                strHTML += "<b>" + tr("Total debit") + ":</b> " + formatMultiAssetAmount(mapValue*-1,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
+                strHTML += "<b>" + tr("Total credit") + ":</b> " + formatMultiAssetAmount(mapValue,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
             }
 
-            CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
-            if (nTxFee > 0)
-                strHTML += "<b>" + tr("Transaction fee") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, -nTxFee) + "<br>";
+            CAmountMap mapTxFee = mapDebit - wtx.tx->GetValueOutMap();
+            if (mapTxFee > CAmountMap())
+                strHTML += "<b>" + tr("Transaction fee") + ":</b> " +  formatMultiAssetAmount(mapTxFee*-1,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
         }
         else
         {
@@ -255,19 +255,19 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
             auto mine = wtx.txin_is_mine.begin();
             for (const CTxIn& txin : wtx.tx->vin) {
                 if (*(mine++)) {
-                    strHTML += "<b>" + tr("Debit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, -wallet.getDebit(txin, ISMINE_ALL)) + "<br>";
+                    strHTML += "<b>" + tr("Debit") + ":</b> " + formatMultiAssetAmount(wallet.getDebit(txin, ISMINE_ALL)*-1,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
                 }
             }
             mine = wtx.txout_is_mine.begin();
             for (const CTxOut& txout : wtx.tx->vout) {
                 if (*(mine++)) {
-                    strHTML += "<b>" + tr("Credit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, wallet.getCredit(txout, ISMINE_ALL)) + "<br>";
+                    strHTML += "<b>" + tr("Credit") + ":</b> " + formatMultiAssetAmount(wallet.getCredit(txout, ISMINE_ALL),unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
                 }
             }
         }
     }
 
-    strHTML += "<b>" + tr("Net amount") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, nNet, true) + "<br>";
+    strHTML += "<b>" + tr("Net amount") + ":</b> " + formatMultiAssetAmount(mapNet,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
 
     //
     // Message
@@ -318,10 +318,10 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         strHTML += "<hr><br>" + tr("Debug information") + "<br><br>";
         for (const CTxIn& txin : wtx.tx->vin)
             if(wallet.txinIsMine(txin))
-                strHTML += "<b>" + tr("Debit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, -wallet.getDebit(txin, ISMINE_ALL)) + "<br>";
+                strHTML += "<b>" + tr("Debit") + ":</b> " + formatMultiAssetAmount(wallet.getDebit(txin, ISMINE_ALL)*-1,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
         for (const CTxOut& txout : wtx.tx->vout)
             if(wallet.txoutIsMine(txout))
-                strHTML += "<b>" + tr("Credit") + ":</b> " + CrownUnits::formatHtmlWithUnit(unit, wallet.getCredit(txout, ISMINE_ALL)) + "<br>";
+                strHTML += "<b>" + tr("Credit") + ":</b> " + formatMultiAssetAmount(wallet.getCredit(txout, ISMINE_ALL),unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
 
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.tx->ToString(), true);

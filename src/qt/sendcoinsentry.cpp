@@ -164,7 +164,7 @@ bool SendCoinsEntry::validate(interfaces::Node& node)
     return retval;
 }
 
-SendCoinsRecipient SendCoinsEntry::getValue()
+SendAssetsRecipient SendCoinsEntry::getValue()
 {
     recipient.address = ui->payTo->text();
     recipient.label = ui->addAsLabel->text();
@@ -187,7 +187,7 @@ QWidget *SendCoinsEntry::setupTabChain(QWidget *prev)
     return ui->deleteButton;
 }
 
-void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
+void SendCoinsEntry::setValue(const SendAssetsRecipient &value)
 {
     recipient = value;
     {

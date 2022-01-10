@@ -11,7 +11,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
-
+#include <core_io.h>
 #include <tuple>
 
 #include <boost/algorithm/string/classification.hpp>
@@ -209,7 +209,7 @@ CTxDestination AddAndGetMultisigDestination(const int required, const std::vecto
     return dest;
 }
 
-class DescribeAddressVisitor : public boost::static_visitor<UniValue>
+class DescribeAddressVisitor
 {
 public:
     explicit DescribeAddressVisitor() {}
@@ -255,6 +255,16 @@ public:
         return obj;
     }
 
+    UniValue operator()(const WitnessV1Taproot& tap) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("isscript", true);
+        obj.pushKV("iswitness", true);
+        obj.pushKV("witness_version", 1);
+        obj.pushKV("witness_program", HexStr(tap));
+        return obj;
+    }
+
     UniValue operator()(const WitnessUnknown& id) const
     {
         UniValue obj(UniValue::VOBJ);
@@ -267,7 +277,7 @@ public:
 
 UniValue DescribeAddress(const CTxDestination& dest)
 {
-    return boost::apply_visitor(DescribeAddressVisitor(), dest);
+    return std::visit(DescribeAddressVisitor(), dest);
 }
 
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target)
@@ -808,6 +818,24 @@ static std::pair<int64_t, int64_t> ParseRange(const UniValue& value)
         return {low, high};
     }
     throw JSONRPCError(RPC_INVALID_PARAMETER, "Range must be specified as end or as [begin,end]");
+}
+
+UniValue AmountMapToUniv(const CAmountMap& balanceOrig)
+{
+    // Make sure the policyAsset is always present in the balance map.
+    CAmountMap balance = balanceOrig;
+
+    UniValue obj(UniValue::VOBJ);
+    for(auto it = balance.begin(); it != balance.end(); ++it) {
+        // Unknown assets
+        if (it->first.IsNull())
+            continue;
+        UniValue pair(UniValue::VOBJ);
+        std::string label = it->first.getAssetName();
+
+        obj.pushKV(label, ValueFromAmount(it->second));
+    }
+    return obj;
 }
 
 std::pair<int64_t, int64_t> ParseDescriptorRange(const UniValue& value)

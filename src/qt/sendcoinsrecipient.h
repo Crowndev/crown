@@ -11,17 +11,17 @@
 
 #include <amount.h>
 #include <serialize.h>
-
+#include <primitives/asset.h>
 #include <string>
 
 #include <QString>
 
-class SendCoinsRecipient
+class SendAssetsRecipient
 {
 public:
-    explicit SendCoinsRecipient() : amount(0), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) { }
-    explicit SendCoinsRecipient(const QString &addr, const QString &_label, const CAmount& _amount, const QString &_message):
-        address(addr), label(_label), amount(_amount), message(_message), fSubtractFeeFromAmount(false), nVersion(SendCoinsRecipient::CURRENT_VERSION) {}
+    explicit SendAssetsRecipient() : amount(0), fSubtractFeeFromAmount(false), nVersion(SendAssetsRecipient::CURRENT_VERSION) { }
+    explicit SendAssetsRecipient(const QString &addr, const QString &_label, const CAmount& _amount, const QString &_message):
+        address(addr), label(_label), amount(_amount), message(_message), fSubtractFeeFromAmount(false), nVersion(SendAssetsRecipient::CURRENT_VERSION) {}
 
     // If from an unauthenticated payment request, this is used for storing
     // the addresses, e.g. address-A<br />address-B<br />address-C.
@@ -44,7 +44,10 @@ public:
     static const int CURRENT_VERSION = 1;
     int nVersion;
 
-    SERIALIZE_METHODS(SendCoinsRecipient, obj)
+    QString ownerAddress;
+    CAsset asset;
+
+    SERIALIZE_METHODS(SendAssetsRecipient, obj)
     {
         std::string address_str, label_str, message_str, auth_merchant_str;
 
@@ -53,7 +56,7 @@ public:
         SER_WRITE(obj, message_str = obj.message.toStdString());
         SER_WRITE(obj, auth_merchant_str = obj.authenticatedMerchant.toStdString());
 
-        READWRITE(obj.nVersion, address_str, label_str, obj.amount, message_str, obj.sPaymentRequest, auth_merchant_str);
+        READWRITE(obj.nVersion, address_str, label_str, obj.amount, obj.asset, message_str, obj.sPaymentRequest, auth_merchant_str);
 
         SER_READ(obj, obj.address = QString::fromStdString(address_str));
         SER_READ(obj, obj.label = QString::fromStdString(label_str));

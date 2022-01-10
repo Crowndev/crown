@@ -65,6 +65,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listtransactions", 2, "skip" },
     { "listtransactions", 3, "include_watchonly" },
     { "walletpassphrase", 1, "timeout" },
+    { "walletpassphrase", 2, "staking" },
     { "getblocktemplate", 0, "template_request" },
     { "listsinceblock", 1, "target_confirmations" },
     { "listsinceblock", 2, "include_watchonly" },
@@ -187,7 +188,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "unloadwallet", 1, "load_on_startup"},
     { "getnodeaddresses", 0, "count"},
     { "addpeeraddress", 1, "port"},
-    { "stop", 0, "wait" },
+    { "stop", 0, "wait" }
 };
 // clang-format on
 

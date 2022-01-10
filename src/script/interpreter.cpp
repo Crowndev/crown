@@ -1338,9 +1338,15 @@ public:
     void SerializeOutput(S &s, unsigned int nOutput) const {
         if (fHashSingle && nOutput != nIn)
             // Do not lock-in the txout payee at other indices as txin
-            ::Serialize(s, CTxOut());
+            ::Serialize(s, (txTo.nVersion >= TX_ELE_VERSION ? CTxOutAsset() : CTxOut()));
         else
-            ::Serialize(s, txTo.vout[nOutput]);
+            ::Serialize(s, (txTo.nVersion >= TX_ELE_VERSION ? txTo.vpout[nOutput] : txTo.vout[nOutput]));
+    }
+
+    /** Serialize data of txTo */
+    template<typename S>
+    void SerializeData(S &s, unsigned int nData) const {
+        ::Serialize(s, *(txTo.vdata[nData].get()));
     }
 
     /** Serialize txTo */
@@ -1359,6 +1365,13 @@ public:
         ::WriteCompactSize(s, nOutputs);
         for (unsigned int nOutput = 0; nOutput < nOutputs; nOutput++)
              SerializeOutput(s, nOutput);
+        // Serialize vdata
+        if(txTo.nVersion >= TX_ELE_VERSION) {
+            unsigned int nDatas = txTo.vdata.size();
+            ::WriteCompactSize(s, nDatas);
+            for (unsigned int nData = 0; nData < nDatas; nData++)
+                SerializeData(s, nData);
+        }
         // Serialize nLockTime
         ::Serialize(s, txTo.nLockTime);
         if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
@@ -1393,14 +1406,22 @@ template <class T>
 uint256 GetOutputsSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
-    for (const auto& txout : txTo.vout) {
-        ss << txout;
+
+    if (txTo.nVersion >= TX_ELE_VERSION) {
+        for (const auto& txout : txTo.vpout) {
+            ss << txout;
+        }
+    } else {
+        for (const auto& txout : txTo.vout) {
+            ss << txout;
+        }
     }
+
     return ss.GetSHA256();
 }
 
 /** Compute the (single) SHA256 of the concatenation of all amounts spent by a tx. */
-uint256 GetSpentAmountsSHA256(const std::vector<CTxOut>& outputs_spent)
+uint256 GetSpentAmountsSHA256(const std::vector<CTxOutAsset>& outputs_spent)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : outputs_spent) {
@@ -1410,7 +1431,7 @@ uint256 GetSpentAmountsSHA256(const std::vector<CTxOut>& outputs_spent)
 }
 
 /** Compute the (single) SHA256 of the concatenation of all scriptPubKeys spent by a tx. */
-uint256 GetSpentScriptsSHA256(const std::vector<CTxOut>& outputs_spent)
+uint256 GetSpentScriptsSHA256(const std::vector<CTxOutAsset>& outputs_spent)
 {
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : outputs_spent) {
@@ -1418,20 +1439,24 @@ uint256 GetSpentScriptsSHA256(const std::vector<CTxOut>& outputs_spent)
     }
     return ss.GetSHA256();
 }
-
 /** Compute the (single) SHA256 of the concatenation of all data in tx. */
 template <class T>
 uint256 GetDataSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
-    ss << txTo.extraPayload;
+    if (txTo.nVersion >= TX_ELE_VERSION) {
+        for (unsigned int nData = 0; nData < txTo.vdata.size(); nData++)
+            ss << *(txTo.vdata[nData].get());
+    }
+    else
+        ss << txTo.extraPayload;
 
     return ss.GetSHA256();
 }
 } // namespace
 
 template <class T>
-void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent_outputs)
+void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOutAsset>&& spent_outputs)
 {
     assert(!m_spent_outputs_ready);
 
@@ -1491,18 +1516,29 @@ PrecomputedTransactionData::PrecomputedTransactionData(const T& txTo)
 }
 
 // explicit instantiation
-template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
-template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
+template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOutAsset>&& spent_outputs);
+template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOutAsset>&& spent_outputs);
 template PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo);
 template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTransaction& txTo);
 
 static const CHashWriter HASHER_TAPSIGHASH = TaggedHash("TapSighash");
-static const CHashWriter HASHER_TAPLEAF = TaggedHash("TapLeaf");
-static const CHashWriter HASHER_TAPBRANCH = TaggedHash("TapBranch");
-static const CHashWriter HASHER_TAPTWEAK = TaggedHash("TapTweak");
+const CHashWriter HASHER_TAPLEAF = TaggedHash("TapLeaf");
+const CHashWriter HASHER_TAPBRANCH = TaggedHash("TapBranch");
+
+static bool HandleMissingData(MissingDataBehavior mdb)
+{
+    switch (mdb) {
+    case MissingDataBehavior::ASSERT_FAIL:
+        assert(!"Missing data");
+        break;
+    case MissingDataBehavior::FAIL:
+        return false;
+    }
+    assert(!"Unknown MissingDataBehavior value");
+}
 
 template<typename T>
-bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache)
+bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache, MissingDataBehavior mdb)
 {
     uint8_t ext_flag, key_version;
     switch (sigversion) {
@@ -1522,7 +1558,9 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
         assert(false);
     }
     assert(in_pos < tx_to.vin.size());
-    assert(cache.m_bip341_taproot_ready && cache.m_spent_outputs_ready);
+    if (!(cache.m_bip341_taproot_ready && cache.m_spent_outputs_ready)) {
+        return HandleMissingData(mdb);
+    }
 
     CHashWriter ss = HASHER_TAPSIGHASH;
 
@@ -1539,7 +1577,9 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
     // Transaction level data
     ss << tx_to.nVersion;
     ss << tx_to.nLockTime;
-    if (tx_to.nVersion >= 3 && tx_to.nType != TRANSACTION_NORMAL)
+    if (tx_to.nVersion >= TX_ELE_VERSION)
+        ss << cache.m_data_single_hash;
+    else if (tx_to.nVersion >= 3 && tx_to.nType != TRANSACTION_NORMAL)
         ss << cache.m_data_single_hash;
     if (input_type != SIGHASH_ANYONECANPAY) {
         ss << cache.m_prevouts_single_hash;
@@ -1608,12 +1648,16 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
             hashSequence = cacheready ? cache->hashSequence : SHA256Uint256(GetSequencesSHA256(txTo));
         }
 
-
         if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
             hashOutputs = cacheready ? cache->hashOutputs : SHA256Uint256(GetOutputsSHA256(txTo));
-        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.GetNumVOuts()) {
             CHashWriter ss(SER_GETHASH, 0);
-            ss << txTo.vout[nIn];
+
+            if (txTo.nVersion >= TX_ELE_VERSION) {
+                ss << txTo.vpout[nIn];
+            } else {
+                ss << txTo.vout[nIn];
+            }
             hashOutputs = ss.GetHash();
         }
         
@@ -1636,7 +1680,9 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
         ss << hashOutputs;
         // Locktime
         ss << txTo.nLockTime;
-        if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
+        if (txTo.nVersion >= TX_ELE_VERSION)
+            ss << hashData;
+        else if (txTo.nVersion >= 3 && txTo.nType != TRANSACTION_NORMAL)
             ss << hashData;
         // Sighash type
         ss << nHashType;
@@ -1646,7 +1692,7 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 
     // Check for invalid use of SIGHASH_SINGLE
     if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
-        if (nIn >= txTo.vout.size()) {
+        if (nIn >= txTo.GetNumVOuts()) {
             //  nOut out of range
             return uint256::ONE;
         }
@@ -1659,6 +1705,13 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
     CHashWriter ss(SER_GETHASH, 0);
     ss << txTmp << nHashType;
     return ss.GetHash();
+}
+
+bool BaseSignatureChecker::VerifySignature(const std::vector<uint8_t> &vchSig,
+                                           const CPubKey &pubkey,
+                                           const uint256 &sighash) const {
+    return pubkey.Verify(sighash, vchSig);
+
 }
 
 template <class T>
@@ -1686,6 +1739,9 @@ bool GenericTransactionSignatureChecker<T>::CheckECDSASignature(const std::vecto
         return false;
     int nHashType = vchSig.back();
     vchSig.pop_back();
+
+    // Witness sighashes need the amount.
+    if (sigversion == SigVersion::WITNESS_V0 && amount < 0) return HandleMissingData(m_mdb);
 
     uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
 
@@ -1715,8 +1771,8 @@ bool GenericTransactionSignatureChecker<T>::CheckSchnorrSignature(Span<const uns
         if (hashtype == SIGHASH_DEFAULT) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_HASHTYPE);
     }
     uint256 sighash;
-    assert(this->txdata);
-    if (!SignatureHashSchnorr(sighash, execdata, *txTo, nIn, hashtype, sigversion, *this->txdata)) {
+    if (!this->txdata) return HandleMissingData(m_mdb);
+    if (!SignatureHashSchnorr(sighash, execdata, *txTo, nIn, hashtype, sigversion, *this->txdata, m_mdb)) {
         return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_HASHTYPE);
     }
     if (!VerifySchnorrSignature(sig, pubkey, sighash)) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG);
@@ -1851,12 +1907,14 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
     return true;
 }
 
-static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script, uint256& tapleaf_hash)
+uint256 ComputeTapleafHash(uint8_t leaf_version, const CScript& script)
+{
+    return (CHashWriter(HASHER_TAPLEAF) << leaf_version << script).GetSHA256();
+}
+
+uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint256& tapleaf_hash)
 {
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
-    const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
-    const XOnlyPubKey q{uint256(program)};
-    tapleaf_hash = (CHashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
         CHashWriter ss_branch{HASHER_TAPBRANCH};
@@ -1868,8 +1926,21 @@ static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, c
         }
         k = ss_branch.GetSHA256();
     }
-    k = (CHashWriter(HASHER_TAPTWEAK) << MakeSpan(p) << k).GetSHA256();
-    return q.CheckPayToContract(p, k, control[0] & 1);
+    return k;
+}
+
+static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const uint256& tapleaf_hash)
+{
+    assert(control.size() >= TAPROOT_CONTROL_BASE_SIZE);
+    assert(program.size() >= uint256::size());
+    //! The internal pubkey (x-only, so no Y coordinate parity).
+    const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
+    //! The output pubkey (taken from the scriptPubKey).
+    const XOnlyPubKey q{uint256(program)};
+    // Compute the Merkle root from the leaf and the provided path.
+    const uint256 merkle_root = ComputeTaprootMerkleRoot(control, tapleaf_hash);
+    // Verify that the output pubkey matches the tweaked internal pubkey, after correcting for parity.
+    return q.CheckTapTweak(p, merkle_root, control[0] & 1);
 }
 
 static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror, bool is_p2sh)
@@ -1929,7 +2000,8 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             if (control.size() < TAPROOT_CONTROL_BASE_SIZE || control.size() > TAPROOT_CONTROL_MAX_SIZE || ((control.size() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE) != 0) {
                 return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
             }
-            if (!VerifyTaprootCommitment(control, program, exec_script, execdata.m_tapleaf_hash)) {
+            execdata.m_tapleaf_hash = ComputeTapleafHash(control[0] & TAPROOT_LEAF_MASK, exec_script);
+            if (!VerifyTaprootCommitment(control, program, execdata.m_tapleaf_hash)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
             execdata.m_tapleaf_hash_init = true;

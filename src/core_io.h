@@ -6,6 +6,7 @@
 #define CROWN_CORE_IO_H
 
 #include <amount.h>
+#include <primitives/asset.h>
 #include <attributes.h>
 
 #include <string>
@@ -18,6 +19,7 @@ class CTransaction;
 struct CMutableTransaction;
 class uint256;
 class UniValue;
+class CContract;
 
 // core_read.cpp
 CScript ParseScript(const std::string& s);
@@ -40,11 +42,14 @@ int ParseSighashString(const UniValue& sighash);
 
 // core_write.cpp
 UniValue ValueFromAmount(const CAmount& amount);
+UniValue ValueFromAmountMap(const CAmountMap& amount);
 std::string FormatScript(const CScript& script);
 std::string EncodeHexTx(const CTransaction& tx, const int serializeFlags = 0);
 std::string SighashToStr(unsigned char sighash_type);
 void ScriptPubKeyToUniv(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 void ScriptToUniv(const CScript& script, UniValue& out, bool include_address);
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex = true, int serialize_flags = 0);
+void ContractToUniv(CContract *s , UniValue &entry);
+void AssetToUniv(CAsset& asset, UniValue &entry);
 
 #endif // CROWN_CORE_IO_H

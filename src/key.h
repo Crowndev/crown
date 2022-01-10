@@ -84,6 +84,19 @@ public:
         }
     }
 
+    void Set(const unsigned char *p, bool fCompressedIn)
+    {
+        if (Check(p))
+        {
+            memcpy(keydata.data(), p, keydata.size());
+            fValid = true;
+            fCompressed = fCompressedIn;
+        } else
+        {
+            fValid = false;
+        };
+    };
+
     //! Simple read-only vector-like interface.
     unsigned int size() const { return (fValid ? keydata.size() : 0); }
     const unsigned char* begin() const { return keydata.data(); }
@@ -114,6 +127,11 @@ public:
     CPubKey GetPubKey() const;
 
     /**
+     * Compute the ECDH exchange result using this private key and another public key.
+     */
+    uint256 ECDH(const CPubKey& pubkey) const;
+
+    /**
      * Create a DER-serialized signature.
      * The test_case parameter tweaks the deterministic nonce.
      */
@@ -128,6 +146,18 @@ public:
      */
     bool SignCompact(const uint256& hash, std::vector<unsigned char>& vchSig) const;
 
+    /**
+     * Create a BIP-340 Schnorr signature, for the xonly-pubkey corresponding to *this,
+     * optionally tweaked by *merkle_root. Additional nonce entropy can be provided through
+     * aux.
+     *
+     * When merkle_root is not nullptr, this results in a signature with a modified key as
+     * specified in BIP341:
+     * - If merkle_root->IsNull(): key + H_TapTweak(pubkey)*G
+     * - Otherwise:                key + H_TapTweak(pubkey || *merkle_root)
+     */
+    bool SignSchnorr(const uint256& hash, Span<unsigned char> sig, const uint256* merkle_root = nullptr, const uint256* aux = nullptr) const;
+
     //! Derive BIP32 child key.
     bool Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 
@@ -139,6 +169,17 @@ public:
 
     //! Load private key and check that public key matches.
     bool Load(const CPrivKey& privkey, const CPubKey& vchPubKey, bool fSkipCheck);
+
+    SERIALIZE_METHODS(CKey, obj)
+    {
+        if (!ser_action.ForRead()) {
+            s.write((char*)&obj.keydata[0], 32);
+        } else {
+            s.read((char*)&obj.keydata[0], 32);
+        }
+        READWRITE(obj.fValid);
+        READWRITE(obj.fCompressed);
+    };
 };
 
 struct CExtKey {

@@ -3,7 +3,6 @@
         <file alias="af">locale/crown_af.qm</file>
         <file alias="am">locale/crown_am.qm</file>
         <file alias="ar">locale/crown_ar.qm</file>
-        <file alias="az">locale/crown_az.qm</file>
         <file alias="be">locale/crown_be.qm</file>
         <file alias="bg">locale/crown_bg.qm</file>
         <file alias="bn">locale/crown_bn.qm</file>
@@ -29,10 +28,7 @@
         <file alias="fi">locale/crown_fi.qm</file>
         <file alias="fil">locale/crown_fil.qm</file>
         <file alias="fr">locale/crown_fr.qm</file>
-        <file alias="ga">locale/crown_ga.qm</file>
-        <file alias="gl">locale/crown_gl.qm</file>
         <file alias="gl_ES">locale/crown_gl_ES.qm</file>
-        <file alias="gu">locale/crown_gu.qm</file>
         <file alias="he">locale/crown_he.qm</file>
         <file alias="hi">locale/crown_hi.qm</file>
         <file alias="hr">locale/crown_hr.qm</file>
@@ -43,7 +39,6 @@
         <file alias="ja">locale/crown_ja.qm</file>
         <file alias="ka">locale/crown_ka.qm</file>
         <file alias="kk">locale/crown_kk.qm</file>
-        <file alias="kl">locale/crown_kl.qm</file>
         <file alias="km">locale/crown_km.qm</file>
         <file alias="ko">locale/crown_ko.qm</file>
         <file alias="ku_IQ">locale/crown_ku_IQ.qm</file>
@@ -60,7 +55,6 @@
         <file alias="nb">locale/crown_nb.qm</file>
         <file alias="ne">locale/crown_ne.qm</file>
         <file alias="nl">locale/crown_nl.qm</file>
-        <file alias="no">locale/crown_no.qm</file>
         <file alias="pam">locale/crown_pam.qm</file>
         <file alias="pl">locale/crown_pl.qm</file>
         <file alias="pt">locale/crown_pt.qm</file>
@@ -80,7 +74,6 @@
         <file alias="te">locale/crown_te.qm</file>
         <file alias="th">locale/crown_th.qm</file>
         <file alias="tr">locale/crown_tr.qm</file>
-        <file alias="ug">locale/crown_ug.qm</file>
         <file alias="uk">locale/crown_uk.qm</file>
         <file alias="ur">locale/crown_ur.qm</file>
         <file alias="uz@Cyrl">locale/crown_uz@Cyrl.qm</file>

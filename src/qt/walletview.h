@@ -16,7 +16,7 @@ class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
@@ -51,7 +51,7 @@ public:
     */
     void setWalletModel(WalletModel *walletModel);
 
-    bool handlePaymentRequest(const SendCoinsRecipient& recipient);
+    bool handlePaymentRequest(const SendAssetsRecipient& recipient);
 
     void showOutOfSyncWarning(bool fShow);
 

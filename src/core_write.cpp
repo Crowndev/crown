@@ -177,6 +177,74 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
+void ContractToUniv(CContract *s , UniValue &entry){
+    if(!s->IsEmpty()){
+		entry.pushKV("url", s->contract_url);
+		entry.pushKV("name", s->asset_name);
+		entry.pushKV("symbol", s->asset_symbol);
+		entry.pushKV("issuing address", s->sIssuingaddress);
+		entry.pushKV("description", s->description);
+		entry.pushKV("website", s->website_url);
+		entry.pushKV("script", HexStr(s->scriptcode));
+		entry.pushKV("signature", HexStr(s->vchContractSig));
+    }
+}
+
+void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
+{
+    switch (baseOut->GetVersion()) {
+        case OUTPUT_DATA:{
+            CTxData *s = (CTxData*) baseOut;
+            entry.pushKV("type", "data");
+            entry.pushKV("data_hex", HexStr(s->vData));
+            CAmount nValue;
+            if (s->GetSmsgFeeRate(nValue)) {
+                entry.pushKV("smsgfeerate", ValueFromAmount(nValue));
+            }
+            uint32_t difficulty;
+            if (s->GetSmsgDifficulty(difficulty)) {
+                entry.pushKV("smsgdifficulty", strprintf("%08x", difficulty));
+            }
+            break;
+        }
+        case OUTPUT_CONTRACT:{
+            entry.pushKV("type", "contract");
+            CContract *s = (CContract*) baseOut;
+            ContractToUniv(s, entry);
+            break;
+        }
+        default:
+            entry.pushKV("type", "unknown");
+            break;
+    }
+};
+
+void AssetToUniv(CAsset& asset, UniValue &entry){
+    if(!asset.IsEmpty()){
+		entry.pushKV("version", (int)asset.nVersion);
+		uint32_t type = asset.GetType();
+		
+		entry.pushKV("type", AssetTypeToString(type));
+		entry.pushKV("name", asset.getAssetName());
+		entry.pushKV("symbol", asset.getShortName());
+		entry.pushKV("id", asset.GetHex());
+		//if (asset.contract_hash != uint256()){
+		//	CContract contract = GetContract(asset.getAssetName());
+		//	UniValue a(UniValue::VOBJ);
+		//	ContractToUniv(&contract, a);
+		//    entry.pushKV("contract", a);
+		//}
+		entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+		entry.pushKV("expiry", (int64_t)asset.GetExpiry());
+		entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
+		entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
+		entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
+		entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
+		entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
+		entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");	
+	}
+}
+
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags)
 {
     entry.pushKV("txid", tx.GetHash().GetHex());
@@ -215,14 +283,24 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     }
     entry.pushKV("vin", vin);
 
+    UniValue vdata(UniValue::VARR);
+    for (unsigned int i = 0; i < tx.vdata.size(); i++)
+    {
+        UniValue out(UniValue::VOBJ);
+        out.pushKV("n", (int64_t)i);
+        DataToJSON(tx.vdata[i].get(), out);
+        vdata.push_back(out);
+    }
+    entry.pushKV("data", vdata);
+
     UniValue vout(UniValue::VARR);
-    for (unsigned int i = 0; i < tx.vout.size(); i++) {
-        const CTxOut& txout = tx.vout[i];
+	for(unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+		CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
         UniValue out(UniValue::VOBJ);
-
         out.pushKV("value", ValueFromAmount(txout.nValue));
-        out.pushKV("n", (int64_t)i);
+		out.pushKV("asset", txout.nAsset.getName());
+        out.pushKV("n", (int64_t)k);
 
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
@@ -230,6 +308,11 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         vout.push_back(out);
     }
     entry.pushKV("vout", vout);
+
+    if (!tx.extraPayload.empty()) {
+        entry.pushKV("extraPayloadSize", (int)tx.extraPayload.size());
+        entry.pushKV("extraPayload", HexStr(tx.extraPayload));
+    }
 
     if (!hashBlock.IsNull())
         entry.pushKV("blockhash", hashBlock.GetHex());

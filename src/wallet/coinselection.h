@@ -6,6 +6,7 @@
 #define CROWN_WALLET_COINSELECTION_H
 
 #include <amount.h>
+#include <chainparams.h>
 #include <primitives/transaction.h>
 #include <random.h>
 
@@ -26,8 +27,18 @@ public:
             throw std::out_of_range("The output index is out of range");
 
         outpoint = COutPoint(tx->GetHash(), i);
-        txout = tx->vout[i];
+
+        if(tx->nVersion >= TX_ELE_VERSION)
+            txout = tx->vpout[i];
+        else
+            txout = tx->vout[i];
         effective_value = txout.nValue;
+        value = txout.nValue;
+
+        if(tx->nVersion >= TX_ELE_VERSION)
+            asset = txout.nAsset;
+        else
+            asset = Params().GetConsensus().subsidy_asset;
     }
 
     CInputCoin(const CTransactionRef& tx, unsigned int i, int input_bytes) : CInputCoin(tx, i)
@@ -36,10 +47,14 @@ public:
     }
 
     COutPoint outpoint;
-    CTxOut txout;
+    CTxOutAsset txout;
     CAmount effective_value;
     CAmount m_fee{0};
     CAmount m_long_term_fee{0};
+
+    // ELEMENTS:
+    CAmount value;
+    CAsset asset;
 
     /** Pre-computed estimated size of this output as a fully-signed input in a transaction. Can be -1 if it could not be calculated */
     int m_input_bytes{-1};
@@ -105,5 +120,9 @@ bool SelectCoinsBnB(std::vector<OutputGroup>& utxo_pool, const CAmount& target_v
 
 // Original coin selection algorithm as a fallback
 bool KnapsackSolver(const CAmount& nTargetValue, std::vector<OutputGroup>& groups, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet);
+
+
+// Knapsack that delegates for every asset individually.
+bool KnapsackSolver(const CAmountMap& mapTargetValue, std::vector<OutputGroup>& groups, std::set<CInputCoin>& setCoinsRet, CAmountMap& mapValueRet);
 
 #endif // CROWN_WALLET_COINSELECTION_H

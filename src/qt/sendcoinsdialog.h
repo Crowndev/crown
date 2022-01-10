@@ -16,7 +16,7 @@ class CCoinControl;
 class ClientModel;
 class PlatformStyle;
 class SendCoinsEntry;
-class SendCoinsRecipient;
+class SendAssetsRecipient;
 enum class SynchronizationState;
 
 namespace Ui {
@@ -45,13 +45,13 @@ public:
     QWidget *setupTabChain(QWidget *prev);
 
     void setAddress(const QString &address);
-    void pasteEntry(const SendCoinsRecipient &rv);
-    bool handlePaymentRequest(const SendCoinsRecipient &recipient);
+    void pasteEntry(const SendAssetsRecipient &rv);
+    bool handlePaymentRequest(const SendAssetsRecipient &recipient);
 
     //! crw legacy routines TODO
-    QStringList constructConfirmationMessage(QList<SendCoinsRecipient> &recipients);
-    void checkAndSend(const QList<SendCoinsRecipient> &recipients, QStringList formatted);
-    void send(const QList<SendCoinsRecipient> &recipients, QStringList formatted);
+    QStringList constructConfirmationMessage(QList<SendAssetsRecipient> &recipients);
+    void checkAndSend(const QList<SendAssetsRecipient> &recipients, QStringList formatted);
+    void send(const QList<SendAssetsRecipient> &recipients, QStringList formatted);
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().

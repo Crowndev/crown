@@ -144,7 +144,7 @@ void WalletFrame::removeAllWallets()
     mapWalletViews.clear();
 }
 
-bool WalletFrame::handlePaymentRequest(const SendCoinsRecipient &recipient)
+bool WalletFrame::handlePaymentRequest(const SendAssetsRecipient &recipient)
 {
     WalletView *walletView = currentWalletView();
     if (!walletView)

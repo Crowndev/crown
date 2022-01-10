@@ -46,7 +46,6 @@ case $host_os in
          if test x$openssl_prefix != x; then
            PKG_CONFIG_PATH="$openssl_prefix/lib/pkgconfig:$PKG_CONFIG_PATH"
            export PKG_CONFIG_PATH
-           CRYPTO_CPPFLAGS="-I$openssl_prefix/include"
          fi
          if test x$gmp_prefix != x; then
            GMP_CPPFLAGS="-I$gmp_prefix/include"
@@ -126,6 +125,16 @@ AC_ARG_ENABLE(module_ecdh,
     [enable_module_ecdh=$enableval],
     [enable_module_ecdh=no])
 
+AC_ARG_ENABLE(module_schnorrsig,
+    AS_HELP_STRING([--enable-module-schnorrsig],[enable schnorrsig module (experimental)]),
+    [enable_module_schnorrsig=$enableval],
+    [enable_module_schnorrsig=no])
+
+AC_ARG_ENABLE(module_musig,
+    AS_HELP_STRING([--enable-module-musig],[enable MuSig module (experimental)]),
+    [enable_module_musig=$enableval],
+    [enable_module_musig=no])
+
 AC_ARG_ENABLE(module_recovery,
     AS_HELP_STRING([--enable-module-recovery],[enable ECDSA pubkey recovery module [default=no]]),
     [enable_module_recovery=$enableval],
@@ -136,15 +145,35 @@ AC_ARG_ENABLE(module_extrakeys,
     [enable_module_extrakeys=$enableval],
     [enable_module_extrakeys=no])
 
-AC_ARG_ENABLE(module_schnorrsig,
-    AS_HELP_STRING([--enable-module-schnorrsig],[enable schnorrsig module (experimental)]),
-    [enable_module_schnorrsig=$enableval],
-    [enable_module_schnorrsig=no])
+AC_ARG_ENABLE(module_generator,
+    AS_HELP_STRING([--enable-module-generator],[enable NUMS generator module [default=no]]),
+    [enable_module_generator=$enableval],
+    [enable_module_generator=no])
+
+AC_ARG_ENABLE(module_rangeproof,
+    AS_HELP_STRING([--enable-module-rangeproof],[enable Pedersen / zero-knowledge range proofs module [default=no]]),
+    [enable_module_rangeproof=$enableval],
+    [enable_module_rangeproof=no])
+
+AC_ARG_ENABLE(module_whitelist,
+    AS_HELP_STRING([--enable-module-whitelist],[enable key whitelisting module [default=no]]),
+    [enable_module_whitelist=$enableval],
+    [enable_module_whitelist=no])
 
 AC_ARG_ENABLE(external_default_callbacks,
     AS_HELP_STRING([--enable-external-default-callbacks],[enable external default callback functions [default=no]]),
     [use_external_default_callbacks=$enableval],
     [use_external_default_callbacks=no])
+
+AC_ARG_ENABLE(module_surjectionproof,
+    AS_HELP_STRING([--enable-module-surjectionproof],[enable surjection proof module [default=no]]),
+    [enable_module_surjectionproof=$enableval],
+    [enable_module_surjectionproof=no])
+
+AC_ARG_ENABLE(reduced_surjection_proof_size,
+    AS_HELP_STRING([--enable-reduced-surjection-proof-size],[use reduced surjection proof size (disabling parsing and verification) [default=no]]),
+    [use_reduced_surjection_proof_size=$enableval],
+    [use_reduced_surjection_proof_size=no])
 
 dnl Test-only override of the (autodetected by the C code) "widemul" setting.
 dnl Legal values are int64 (for [u]int64_t), int128 (for [unsigned] __int128), and auto (the default).
@@ -432,13 +461,33 @@ if test x"$enable_module_ecdh" = x"yes"; then
   AC_DEFINE(ENABLE_MODULE_ECDH, 1, [Define this symbol to enable the ECDH module])
 fi
 
+if test x"$enable_module_schnorrsig" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_SCHNORRSIG, 1, [Define this symbol to enable the schnorrsig module])
+  enable_module_extrakeys=yes
+fi
+
+if test x"$enable_module_musig" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_MUSIG, 1, [Define this symbol to enable the MuSig module])
+fi
+
 if test x"$enable_module_recovery" = x"yes"; then
   AC_DEFINE(ENABLE_MODULE_RECOVERY, 1, [Define this symbol to enable the ECDSA pubkey recovery module])
 fi
 
-if test x"$enable_module_schnorrsig" = x"yes"; then
-  AC_DEFINE(ENABLE_MODULE_SCHNORRSIG, 1, [Define this symbol to enable the schnorrsig module])
-  enable_module_extrakeys=yes
+if test x"$enable_module_generator" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_GENERATOR, 1, [Define this symbol to enable the NUMS generator module])
+fi
+
+if test x"$enable_module_rangeproof" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_RANGEPROOF, 1, [Define this symbol to enable the Pedersen / zero knowledge range proof module])
+fi
+
+if test x"$enable_module_whitelist" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_WHITELIST, 1, [Define this symbol to enable the key whitelisting module])
+fi
+
+if test x"$enable_module_surjectionproof" = x"yes"; then
+  AC_DEFINE(ENABLE_MODULE_SURJECTIONPROOF, 1, [Define this symbol to enable the surjection proof module])
 fi
 
 # Test if extrakeys is set after the schnorrsig module to allow the schnorrsig
@@ -455,22 +504,72 @@ if test x"$use_external_default_callbacks" = x"yes"; then
   AC_DEFINE(USE_EXTERNAL_DEFAULT_CALLBACKS, 1, [Define this symbol if an external implementation of the default callbacks is used])
 fi
 
+if test x"$use_reduced_surjection_proof_size" = x"yes"; then
+  AC_DEFINE(USE_REDUCED_SURJECTION_PROOF_SIZE, 1, [Define this symbol to reduce SECP256K1_SURJECTIONPROOF_MAX_N_INPUTS to 16, disabling parsing and verification])
+fi
+
 if test x"$enable_experimental" = x"yes"; then
   AC_MSG_NOTICE([******])
   AC_MSG_NOTICE([WARNING: experimental build])
   AC_MSG_NOTICE([Experimental features do not have stable APIs or properties, and may not be safe for production use.])
   AC_MSG_NOTICE([Building extrakeys module: $enable_module_extrakeys])
+  AC_MSG_NOTICE([Building ECDH module: $enable_module_ecdh])
+  AC_MSG_NOTICE([Building NUMS generator module: $enable_module_generator])
+  AC_MSG_NOTICE([Building range proof module: $enable_module_rangeproof])
+  AC_MSG_NOTICE([Building key whitelisting module: $enable_module_whitelist])
+  AC_MSG_NOTICE([Building surjection proof module: $enable_module_surjectionproof])
   AC_MSG_NOTICE([Building schnorrsig module: $enable_module_schnorrsig])
+  AC_MSG_NOTICE([Building MuSig module: $enable_module_musig])
   AC_MSG_NOTICE([******])
+
+
+  if test x"$enable_module_schnorrsig" != x"yes"; then
+    if test x"$enable_module_musig" = x"yes"; then
+      AC_MSG_ERROR([MuSig module requires the schnorrsig module. Use --enable-module-schnorrsig to allow.])
+    fi
+  fi
+
+  if test x"$enable_module_generator" != x"yes"; then
+    if test x"$enable_module_rangeproof" = x"yes"; then
+      AC_MSG_ERROR([Rangeproof module requires the generator module. Use --enable-module-generator to allow.])
+    fi
+  fi
+
+  if test x"$enable_module_rangeproof" != x"yes"; then
+    if test x"$enable_module_whitelist" = x"yes"; then
+      AC_MSG_ERROR([Whitelist module requires the rangeproof module. Use --enable-module-rangeproof to allow.])
+    fi
+    if test x"$enable_module_surjectionproof" = x"yes"; then
+      AC_MSG_ERROR([Surjection proof module requires the rangeproof module. Use --enable-module-rangeproof to allow.])
+    fi
+  fi
 else
   if test x"$enable_module_extrakeys" = x"yes"; then
     AC_MSG_ERROR([extrakeys module is experimental. Use --enable-experimental to allow.])
   fi
+  if test x"$enable_module_ecdh" = x"yes"; then
+    AC_MSG_ERROR([ECDH module is experimental. Use --enable-experimental to allow.])
+  fi
   if test x"$enable_module_schnorrsig" = x"yes"; then
     AC_MSG_ERROR([schnorrsig module is experimental. Use --enable-experimental to allow.])
   fi
+  if test x"$enable_module_musig" = x"yes"; then
+    AC_MSG_ERROR([MuSig module is experimental. Use --enable-experimental to allow.])
+  fi
   if test x"$set_asm" = x"arm"; then
     AC_MSG_ERROR([ARM assembly optimization is experimental. Use --enable-experimental to allow.])
+  fi
+  if test x"$enable_module_generator" = x"yes"; then
+    AC_MSG_ERROR([NUMS generator module is experimental. Use --enable-experimental to allow.])
+  fi
+  if test x"$enable_module_rangeproof" = x"yes"; then
+    AC_MSG_ERROR([Range proof module is experimental. Use --enable-experimental to allow.])
+  fi
+  if test x"$enable_module_whitelist" = x"yes"; then
+    AC_MSG_ERROR([Key whitelisting module is experimental. Use --enable-experimental to allow.])
+  fi
+  if test x"$enable_module_surjectionproof" = x"yes"; then
+    AC_MSG_ERROR([Surjection proof module is experimental. Use --enable-experimental to allow.])
   fi
 fi
 
@@ -486,11 +585,17 @@ AM_CONDITIONAL([USE_EXHAUSTIVE_TESTS], [test x"$use_exhaustive_tests" != x"no"])
 AM_CONDITIONAL([USE_BENCHMARK], [test x"$use_benchmark" = x"yes"])
 AM_CONDITIONAL([USE_ECMULT_STATIC_PRECOMPUTATION], [test x"$set_precomp" = x"yes"])
 AM_CONDITIONAL([ENABLE_MODULE_ECDH], [test x"$enable_module_ecdh" = x"yes"])
+AM_CONDITIONAL([ENABLE_MODULE_SCHNORRSIG], [test x"$enable_module_schnorrsig" = x"yes"])
+AM_CONDITIONAL([ENABLE_MODULE_MUSIG], [test x"$enable_module_musig" = x"yes"])
 AM_CONDITIONAL([ENABLE_MODULE_RECOVERY], [test x"$enable_module_recovery" = x"yes"])
 AM_CONDITIONAL([ENABLE_MODULE_EXTRAKEYS], [test x"$enable_module_extrakeys" = x"yes"])
-AM_CONDITIONAL([ENABLE_MODULE_SCHNORRSIG], [test x"$enable_module_schnorrsig" = x"yes"])
+AM_CONDITIONAL([ENABLE_MODULE_GENERATOR], [test x"$enable_module_generator" = x"yes"])
+AM_CONDITIONAL([ENABLE_MODULE_RANGEPROOF], [test x"$enable_module_rangeproof" = x"yes"])
+AM_CONDITIONAL([ENABLE_MODULE_WHITELIST], [test x"$enable_module_whitelist" = x"yes"])
 AM_CONDITIONAL([USE_EXTERNAL_ASM], [test x"$use_external_asm" = x"yes"])
 AM_CONDITIONAL([USE_ASM_ARM], [test x"$set_asm" = x"arm"])
+AM_CONDITIONAL([ENABLE_MODULE_SURJECTIONPROOF], [test x"$enable_module_surjectionproof" = x"yes"])
+AM_CONDITIONAL([USE_REDUCED_SURJECTION_PROOF_SIZE], [test x"$use_reduced_surjection_proof_size" = x"yes"])
 
 dnl make sure nothing new is exported so that we don't break the cache
 PKGCONFIG_PATH_TEMP="$PKG_CONFIG_PATH"

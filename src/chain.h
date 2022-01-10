@@ -191,6 +191,8 @@ public:
     //! (memory only) Maximum nTime in the chain up to and including this block.
     unsigned int nTimeMax{0};
 
+    CAmountMap nMoneySupply;
+
     void SetNull()
     {
         phashBlock = nullptr;
@@ -305,8 +307,8 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(pprev=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
-            pprev, nHeight,
+        return strprintf("CBlockIndex(pprev=%p, nHeight=%d, moneysupply=%s, merkle=%s, hashBlock=%s)",
+            pprev, nHeight, nMoneySupply,
             hashMerkleRoot.ToString(),
             GetBlockHash().ToString());
     }
@@ -375,6 +377,7 @@ public:
         if (obj.nStatus & BLOCK_HAVE_DATA) READWRITE(VARINT(obj.nDataPos));
         if (obj.nStatus & BLOCK_HAVE_UNDO) READWRITE(VARINT(obj.nUndoPos));
 
+        READWRITE(obj.nMoneySupply);
         // block header
         READWRITE(obj.nVersion);
         READWRITE(obj.hashPrev);

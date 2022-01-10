@@ -394,7 +394,7 @@ void CrownApplication::initializeResult(bool success, interfaces::BlockAndHeader
         // Now that initialization/startup is done, process any command-line
         // crown: URIs or payment requests:
         if (paymentServer) {
-            connect(paymentServer, &PaymentServer::receivedPaymentRequest, window, &CrownGUI::handlePaymentRequest);
+            //connect(paymentServer, &PaymentServer::receivedPaymentRequest, window, &CrownGUI::handlePaymentRequest);
             connect(window, &CrownGUI::receivedURI, paymentServer, &PaymentServer::handleURIOrFile);
             connect(paymentServer, &PaymentServer::message, [this](const QString& title, const QString& message, unsigned int style) {
                 window->message(title, message, style);

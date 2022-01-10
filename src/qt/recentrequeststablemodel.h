@@ -22,7 +22,7 @@ public:
     int nVersion;
     int64_t id;
     QDateTime date;
-    SendCoinsRecipient recipient;
+    SendAssetsRecipient recipient;
 
     SERIALIZE_METHODS(RecentRequestEntry, obj) {
         unsigned int date_timet;
@@ -77,7 +77,7 @@ public:
     /*@}*/
 
     const RecentRequestEntry &entry(int row) const { return list[row]; }
-    void addNewRequest(const SendCoinsRecipient &recipient);
+    void addNewRequest(const SendAssetsRecipient &recipient);
     void addNewRequest(const std::string &recipient);
     void addNewRequest(RecentRequestEntry &recipient);
 

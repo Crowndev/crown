@@ -7,20 +7,18 @@
 #define CROWN_PRIMITIVES_TRANSACTION_H
 
 #include <stdint.h>
-#include <amount.h>
-#include <script/script.h>
-#include <serialize.h>
-#include <uint256.h>
-
+#include <primitives/txdata.h>
+#include <primitives/asset.h>
 #include <tuple>
 
 #define TX_NFT_VERSION 3
+#define TX_ELE_VERSION 4
 
 enum TxVersion : int16_t {
     LEGACY = 1,
     SEGWIT = 2,
     NFT = 3,
-    EVO = 4
+    ELE = 4
 };
 
 enum TxType : int16_t {
@@ -160,17 +158,37 @@ public:
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
-    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey); }
+    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);    }
 
     void SetNull()
     {
-        nValue = -1;
+        nValue=0;
         scriptPubKey.clear();
     }
 
     bool IsNull() const
     {
-        return (nValue == -1);
+        return nValue==0 && scriptPubKey.empty();
+    }
+
+    void SetEmpty()
+    {
+        nValue = 0;
+        scriptPubKey.clear();
+    }
+
+    bool IsFee() const {
+        return scriptPubKey == CScript() && !nValue==0;
+    }
+
+    bool IsEmpty() const
+    {
+        return (nValue == 0 && scriptPubKey.empty());
+    }
+
+    CAmount GetValue() const
+    {
+        return nValue;
     }
 
     uint256 GetHash() const;
@@ -188,6 +206,90 @@ public:
 
     std::string ToString() const;
 };
+
+class CTxOutAsset : public CTxOut
+{
+public:
+    CTxOutAsset()
+    {
+        SetNull();      
+    }
+    CTxOutAsset(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOutAsset(const CTxOut &out)
+    {
+        SetNull();
+        *(static_cast<CTxOut*>(this)) = out;
+    }
+    int16_t nVersion;
+    CAsset nAsset;
+
+    SERIALIZE_METHODS(CTxOutAsset, obj) { 
+        READWRITEAS(CTxOut, obj);
+        READWRITE(obj.nVersion);
+        READWRITE(obj.nAsset);
+    }
+
+    void SetNull()
+    {
+        CTxOut::SetNull();
+        nAsset.SetNull();
+        nVersion=0;
+    }
+
+    bool IsNull() const
+    {
+        return nAsset.IsNull() && CTxOut::IsNull();
+    }
+
+    void SetEmpty()
+    {
+        CTxOut::SetEmpty();
+        nAsset.SetNull();
+        nVersion=0;
+    }
+
+    bool IsFee() const {
+        return scriptPubKey == CScript() && !nValue==0 && !nAsset.IsNull();
+    }
+
+    bool IsEmpty() const
+    {
+        return (nValue == 0 && scriptPubKey.empty());
+    }
+
+    friend bool operator==(const CTxOutAsset& a, const CTxOutAsset& b)
+    {
+        return (a.nAsset == b.nAsset &&
+                a.nValue == b.nValue &&
+                a.scriptPubKey == b.scriptPubKey);
+    }
+
+    friend bool operator!=(const CTxOutAsset& a, const CTxOutAsset& b)
+    {
+        return !(a == b);
+    }
+
+    uint256 GetHash() const;
+
+    std::string ToString() const;
+
+    CAmount GetValue() const
+    {
+        return nValue;
+    }
+
+    bool GetScriptPubKey(CScript &scriptPubKey_) const
+    {
+        scriptPubKey_ = scriptPubKey;
+        return true;
+    }
+
+    const CScript *GetPScriptPubKey() const
+    {
+        return &scriptPubKey;
+    }
+};
+
 
 struct CMutableTransaction;
 
@@ -221,6 +323,8 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     unsigned char flags = 0;
     tx.vin.clear();
     tx.vout.clear();
+    tx.vpout.clear();
+    tx.vdata.clear();
     /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
     s >> tx.vin;
     if (tx.vin.size() == 0 && fAllowWitness) {
@@ -228,12 +332,20 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         s >> flags;
         if (flags != 0) {
             s >> tx.vin;
-            s >> tx.vout;
+
+            if (tx.nVersion >= TX_ELE_VERSION)
+                s >> tx.vpout;
+            else
+                s >> tx.vout;
         }
     } else {
         /* We read a non-empty vin. Assume a normal vout follows. */
-        s >> tx.vout;
+        if (tx.nVersion >= TX_ELE_VERSION)
+            s >> tx.vpout;
+        else
+            s >> tx.vout;
     }
+
     if ((flags & 1) && fAllowWitness) {
         /* The witness flag is present, and we support witnesses. */
         flags ^= 1;
@@ -250,7 +362,26 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         throw std::ios_base::failure("Unknown transaction optional data");
     }
     s >> tx.nLockTime;
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+    if (tx.nVersion >= TX_ELE_VERSION) {
+        size_t nOutputs = ReadCompactSize(s);
+        tx.vdata.reserve(nOutputs);
+        for (size_t k = 0; k < nOutputs; ++k) {
+            uint8_t bv;
+            s >> bv;
+            switch (bv) {
+                case OUTPUT_DATA:
+                    tx.vdata.push_back(MAKE_OUTPUT<CTxData>());
+                    break;
+                case OUTPUT_CONTRACT:
+                    tx.vdata.push_back(MAKE_OUTPUT<CContract>());
+                    break;
+                default:
+                    throw std::ios_base::failure("Unknown transaction output type");
+            }
+            tx.vdata[k]->nVersion = bv;
+            s >> *tx.vdata[k];
+        }
+    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
         s >> tx.extraPayload;
     }
 }
@@ -277,14 +408,26 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         s << flags;
     }
     s << tx.vin;
-    s << tx.vout;
+
+    if (tx.nVersion >= TX_ELE_VERSION)
+        s << tx.vpout;
+    else
+        s << tx.vout;
+
     if (flags & 1) {
         for (size_t i = 0; i < tx.vin.size(); i++) {
             s << tx.vin[i].scriptWitness.stack;
         }
     }
     s << tx.nLockTime;
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+
+    if (tx.nVersion >= TX_ELE_VERSION) {
+        WriteCompactSize(s, tx.vdata.size());
+        for (size_t k = 0; k < tx.vdata.size(); ++k) {
+            s << tx.vdata[k]->nVersion;
+            s << *tx.vdata[k];
+        }
+    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
         s << tx.extraPayload;
     }
 }
@@ -307,6 +450,8 @@ public:
     // structure, including the hash.
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
+    const std::vector<CTxOutAsset> vpout;
+    const std::vector<CTxDataBaseRef> vdata;
     const int16_t nVersion;
     const int16_t nType;
     const uint32_t nLockTime;
@@ -339,7 +484,12 @@ public:
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {ComputeHash();}
 
     bool IsNull() const {
-        return vin.empty() && vout.empty();
+        return vin.empty() && vout.empty() && vpout.empty();
+    }
+
+    size_t GetNumVOuts() const
+    {
+        return nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size();
     }
 
     const uint256& GetHash() const { return hash; }
@@ -347,6 +497,7 @@ public:
 
     // Return sum of txouts.
     CAmount GetValueOut() const;
+    CAmountMap GetValueOutMap() const;
 
     /**
      * Get the total transaction size in bytes, including witness data.
@@ -386,6 +537,8 @@ struct CMutableTransaction
 {
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
+    std::vector<CTxOutAsset> vpout;
+    std::vector<CTxDataBaseRef> vdata;
     int16_t nVersion;
     int16_t nType;
     uint32_t nLockTime;
@@ -399,7 +552,6 @@ struct CMutableTransaction
         SerializeTransaction(*this, s);
     }
 
-
     template <typename Stream>
     inline void Unserialize(Stream& s) {
         UnserializeTransaction(*this, s);
@@ -410,10 +562,17 @@ struct CMutableTransaction
         Unserialize(s);
     }
 
+    size_t GetNumVOuts() const
+    {
+        return nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size();
+    }
+
     /** Compute the hash of this CMutableTransaction. This is computed on the
      * fly, as opposed to GetHash() in CTransaction, which uses a cached result.
      */
     uint256 GetHash() const;
+
+    std::string ToString() const;
 
     bool HasWitness() const
     {
@@ -445,5 +604,10 @@ public:
     friend bool operator==(const GenTxid& a, const GenTxid& b) { return a.m_is_wtxid == b.m_is_wtxid && a.m_hash == b.m_hash; }
     friend bool operator<(const GenTxid& a, const GenTxid& b) { return std::tie(a.m_is_wtxid, a.m_hash) < std::tie(b.m_is_wtxid, b.m_hash); }
 };
+
+CAmountMap GetFeeMap(const CTransaction& tx);
+// Check if explicit TX fees overflow or are negative
+bool HasValidFee(const CTransaction& tx);
+
 
 #endif // CROWN_PRIMITIVES_TRANSACTION_H

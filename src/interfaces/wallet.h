@@ -209,10 +209,10 @@ public:
     virtual bool tryGetBalances(WalletBalances& balances, uint256& block_hash) = 0;
 
     //! Get balance.
-    virtual CAmount getBalance() = 0;
+    virtual CAmountMap getBalance() = 0;
 
     //! Get available balance.
-    virtual CAmount getAvailableBalance(const CCoinControl& coin_control) = 0;
+    virtual CAmountMap getAvailableBalance(const CCoinControl& coin_control) = 0;
 
     //! Return whether transaction input belongs to wallet.
     virtual isminetype txinIsMine(const CTxIn& txin) = 0;
@@ -221,10 +221,10 @@ public:
     virtual isminetype txoutIsMine(const CTxOut& txout) = 0;
 
     //! Return debit amount if transaction input belongs to wallet.
-    virtual CAmount getDebit(const CTxIn& txin, isminefilter filter) = 0;
+    virtual CAmountMap getDebit(const CTxIn& txin, isminefilter filter) = 0;
 
     //! Return credit amount if transaction input belongs to wallet.
-    virtual CAmount getCredit(const CTxOut& txout, isminefilter filter) = 0;
+    virtual CAmountMap getCredit(const CTxOut& txout, isminefilter filter) = 0;
 
     //! Return AvailableCoins + LockedCoins grouped by wallet address.
     //! (put change in one group with wallet address)
@@ -348,20 +348,21 @@ struct WalletAddress
 //! Collection of wallet balances.
 struct WalletBalances
 {
-    CAmount balance = 0;
-    CAmount unconfirmed_balance = 0;
-    CAmount immature_balance = 0;
+    CAmountMap balance = CAmountMap();
+    CAmountMap unconfirmed_balance = CAmountMap();
+    CAmountMap immature_balance = CAmountMap();
     bool have_watch_only = false;
-    CAmount watch_only_balance = 0;
-    CAmount unconfirmed_watch_only_balance = 0;
-    CAmount immature_watch_only_balance = 0;
-
+    CAmountMap watch_only_balance = CAmountMap();
+    CAmountMap unconfirmed_watch_only_balance = CAmountMap();
+    CAmountMap immature_watch_only_balance = CAmountMap();
+    CAmountMap locked = CAmountMap();
+    CAmountMap unlocked =CAmountMap();
     bool balanceChanged(const WalletBalances& prev) const
     {
         return balance != prev.balance || unconfirmed_balance != prev.unconfirmed_balance ||
                immature_balance != prev.immature_balance || watch_only_balance != prev.watch_only_balance ||
                unconfirmed_watch_only_balance != prev.unconfirmed_watch_only_balance ||
-               immature_watch_only_balance != prev.immature_watch_only_balance;
+               immature_watch_only_balance != prev.immature_watch_only_balance || locked != prev.locked || unlocked != prev.unlocked;
     }
 };
 
@@ -371,11 +372,14 @@ struct WalletTx
     CTransactionRef tx;
     std::vector<isminetype> txin_is_mine;
     std::vector<isminetype> txout_is_mine;
+    std::vector<bool> txout_is_change;
     std::vector<CTxDestination> txout_address;
     std::vector<isminetype> txout_address_is_mine;
-    CAmount credit;
-    CAmount debit;
-    CAmount change;
+    std::vector<CAmount> txout_amounts;
+    std::vector<CAsset> txout_assets;
+    CAmountMap credit;
+    CAmountMap debit;
+    CAmountMap change;
     int64_t time;
     std::map<std::string, std::string> value_map;
     bool is_coinbase;

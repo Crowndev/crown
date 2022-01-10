@@ -6,7 +6,10 @@
 #include <validation.h>
 
 #include <arith_uint256.h>
+#include <assetdb.h>
 #include <chain.h>
+#include <contractdb.h>
+
 #include <chainparams.h>
 #include <checkqueue.h>
 #include <consensus/consensus.h>
@@ -22,7 +25,7 @@
 #include <crown/instantx.h>
 #include <logging.h>
 #include <logging/timer.h>
-#include <nft/specialtx.h>
+
 #include <node/ui_interface.h>
 #include <optional>
 #include <policy/fees.h>
@@ -51,12 +54,15 @@
 #include <util/translation.h>
 #include <validationinterface.h>
 #include <warnings.h>
-
+#include <insight/insight.h>
+#include <platform/specialtx.h>
+#include <platform/platform-db.h>
 #include <masternode/masternode-payments.h>
 #include <masternode/masternode-budget.h>
 #include <systemnode/systemnode-payments.h>
 
 #include <string>
+#include <regex>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -68,6 +74,8 @@
 #define MICRO 0.000001
 #define MILLI 0.001
 
+Platform::NfTokenTxMemPoolHandler g_nfTokenTxMemPoolHandler;
+Platform::NftProtoTxMemPoolHandler g_nftProtoTxMemPoolHandler;
 /**
  * An extra transaction can be added to a package, as long as it only has one
  * ancestor and is no larger than this. Not really any reason to make this
@@ -155,6 +163,7 @@ bool fHavePruned = false;
 bool fPruneMode = false;
 bool fRequireStandard = true;
 bool fCheckBlockIndex = false;
+bool fPlatformReindex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
@@ -614,6 +623,36 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return false; // state filled in by CheckTransaction
     }
 
+    { //data checking is done here
+        bool fHasFee = false;
+        for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+			CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+            if(txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination && txout.nAsset == Params().GetConsensus().subsidy_asset && txout.nValue == 10.0001 * COIN)
+                fHasFee = true;
+        }
+
+        for (unsigned int i = 0; i < tx.vdata.size(); i++){
+        uint8_t vers = tx.vdata[i].get()->GetVersion();
+        switch(vers){
+            case OUTPUT_CONTRACT:{
+                CContract *contract = (CContract*)tx.vdata[i].get();
+                if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
+                }
+                if(!fHasFee)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
+                break;
+            }
+            case OUTPUT_DATA:{
+                CTxData *data = (CTxData*)tx.vdata[i].get();
+                break;
+            }
+            default:
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
+            }
+        }
+    }
+
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "coinbase");
@@ -1068,6 +1107,14 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
+    // Update mempool indices
+    if (fAddressIndex) {
+        m_pool.addAddressIndex(*entry, m_view);
+    }
+    if (fSpentIndex) {
+        m_pool.addSpentIndex(*entry, m_view);
+    }
+
     return true;
 }
 
@@ -1299,7 +1346,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000) 
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1562,9 +1609,9 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 bool CScriptCheck::operator()() {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
     const CScriptWitness *witness = &ptxTo->vin[nIn].scriptWitness;
-    if (!VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore, *txdata), &error)) {
+    if (!VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore, *txdata), &error))
         return ::error("CScriptCheck(): %s:%d VerifySignature failed: %s", ptxTo->GetHash().ToString(), nIn, ScriptErrorString(error));
-    }
+
     return true;
 }
 
@@ -1636,14 +1683,17 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
     }
 
     if (!txdata.m_spent_outputs_ready) {
-        std::vector<CTxOut> spent_outputs;
+        std::vector<CTxOutAsset> spent_outputs;
         spent_outputs.reserve(tx.vin.size());
 
         for (const auto& txin : tx.vin) {
             const COutPoint& prevout = txin.prevout;
             const Coin& coin = inputs.AccessCoin(prevout);
             assert(!coin.IsSpent());
-            spent_outputs.emplace_back(coin.out);
+            if(tx.nVersion >= TX_ELE_VERSION)
+                spent_outputs.emplace_back(coin.out2);
+            else
+                spent_outputs.emplace_back(coin.out);
         }
         txdata.Init(tx, std::move(spent_outputs));
     }
@@ -1829,6 +1879,10 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
     if (!UndoNftTxsInBlock(block, pindex)) {
         return DISCONNECT_FAILED;
     }
@@ -1839,6 +1893,30 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
         bool is_coinstake = tx.IsCoinStake();
+
+        if (g_txindex) {
+
+            //CAmount assetAmount;
+            uint160 hashBytes;
+            for (unsigned int k = tx.vout.size(); k-- > 0;) {
+                const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+                std::string sAssetName = out.nAsset.getName();
+
+                const CScript *pScript;
+                std::vector<unsigned char> hashBytes;
+                int scriptType = 0;
+                CAmount nValue;
+                CAsset nAsset;
+                if (!ExtractIndexInfo(&out, scriptType, hashBytes, nValue, nAsset, pScript)
+                    || scriptType == 0) {
+                    continue;
+                }
+                // undo receiving activity
+                addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, Hash160(hashBytes), sAssetName, pindex->nHeight, i, hash, k, false), out.nValue));
+                // undo unspent index
+                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, Hash160(hashBytes), sAssetName, hash, k), CAddressUnspentValue()));
+            }
+        }
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
@@ -1868,8 +1946,54 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
+
+                const CTxIn input = tx.vin[j];
+
+                if (g_txindex) {
+                    // undo and delete the spent index
+                    spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
+                }
+
+                    if (fAddressIndex) {
+                        const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
+                        const CTxOutAsset &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+
+                        std::string sAssetName = prevout.nAsset.getName();
+
+                        const CScript *pScript = &coin.out.scriptPubKey;
+
+                        std::vector<uint8_t> hashBytes;
+                        int scriptType = 0;
+                        if (!ExtractIndexInfo(pScript, scriptType, hashBytes)
+                            || scriptType == 0) {
+                            continue;
+                        }
+
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, hash, j, false), prevout.nValue));
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, hash, j), CAddressUnspentValue()));
+                    }
+
             }
             // At this point, all of txundo.vprevout should have been moved out.
+        }
+    }
+
+
+    if (g_txindex) {
+        if (!pblocktree->UpdateSpentIndex(spentIndex)) {
+            AbortNode("Failed to delete spent index");
+            return DISCONNECT_FAILED;
+        }
+    }
+
+    if (g_txindex) {
+        if (!pblocktree->EraseAddressIndex(addressIndex)) {
+            AbortNode("Failed to delete address index");
+            return DISCONNECT_FAILED;
+        }
+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
+            AbortNode("Failed to write address unspent index");
+            return DISCONNECT_FAILED;
         }
     }
 
@@ -2133,12 +2257,12 @@ bool CheckBlockProofPointer(const CBlockIndex* pindex, const CBlock& block, CPub
             CTxDestination addressReward(dest);
             CTxDestination addressCollateralCheck(PKHash(stakePointer.pubKeyCollateral));
 
-            if (addressCollateralCheck != addressReward)
+            if (std::get<PKHash>(addressCollateralCheck) != std::get<PKHash>(addressReward))
                 return error("%s: Wrong pubkeys: Pubkey Collateral in proof pointer = %s, pubkey in reward payment = %s", __func__, EncodeDestination(addressCollateralCheck), EncodeDestination(addressReward));
 
             pubkeyMasternode = stakePointer.pubKeyCollateral;
 
-            if (addressProof != addressReward) {
+            if (std::get<PKHash>(addressProof) != std::get<PKHash>(addressReward)) {
                 //Check if the key was signed over to another privkey
                 if (!stakePointer.VerifyCollateralSignOver())
                     return error("%s: Collateral signover is not validated!", __func__);
@@ -2172,7 +2296,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
     if (block.vtx[0]->vout[0].nValue > 0){
         errormsg = "Coinbase output 0 must have 0 value";
         return false;
-	}
+    }
 
     CPubKey pubkeyMasternode;
     COutPoint outpointStakePointer;
@@ -2180,19 +2304,19 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
     if (!CheckBlockProofPointer(pindex, block, pubkeyMasternode, outpointStakePointer, txPayment)){
         errormsg = "Invalid block proof pointer";
         return false;
-	}
+    }
 
     // Check the transaction the stakepointer is from
     if (!IsMasternodeOrSystemnodeReward(txPayment, outpointStakePointer)){
         errormsg = "block's stake pointer points to an invalid payment";
         return false;
-	}
+    }
 
     // Validate the block's signature to prevent malleation
     if (!CheckBlockSignature(block, pubkeyMasternode)){
         errormsg = "Invalid signature";
         return false;
-	}
+    }
 
     //cs_main is locked and mapblockindex checks for hashblock in CheckBlockProofPointer. Fine to access directly.
     CBlockIndex* pindexFrom = g_chainman.m_blockman.m_block_index.at(block.stakePointer.hashBlock);
@@ -2421,15 +2545,25 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
+    std::vector<PrecomputedTransactionData> txdata;
+    txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    CAmountMap nValueOutMap;
+    CAmountMap nValueInMap;
+
+    CAmount block_balances[3] = {0};
+    bool reset_balances = false;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
+        const uint256 txhash = tx.GetHash();
 
         nInputs += tx.vin.size();
-
-        // Contextual checks for evo/nft txes
-        //if (!IsValidTypeAndVersion(tx.nVersion, tx.nType))
-        //        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "IsValidTypeAndVersion");
 
         if (!tx.IsCoinBase() && !tx.IsCoinStake())
         {
@@ -2459,6 +2593,37 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 LogPrintf("ERROR: %s: contains a non-BIP68-final transaction\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal");
             }
+
+            if (g_txindex)
+            {
+                for (size_t j = 0; j < tx.vin.size(); j++) {
+                    const CTxIn input = tx.vin[j];
+                    const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
+                    const CTxOutAsset &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+                    std::string sAssetName = prevout.nAsset.getName();
+
+                    const CScript *pScript = &prevout.scriptPubKey;
+                    std::vector<uint8_t> hashBytes;
+                    int scriptType = 0;
+
+                    if (!ExtractIndexInfo(pScript, scriptType, hashBytes)
+                        || scriptType == 0) {
+                        continue;
+                    }
+
+                    if (g_txindex && scriptType > 0) {
+                        // record spending activity
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
+                        // remove address from unspent index
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+                    }
+                    if (fSpentIndex) {
+                        // add the spent index to determine the txid and input that spent an output
+                        // and to find the amount and address from an input
+                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, scriptType, uint160(hashBytes))));
+                    }
+                }
+            }
         }
 
         // GetTransactionSigOpCost counts 3 types of sigops:
@@ -2484,6 +2649,28 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     tx.GetHash().ToString(), state.ToString());
             }
             control.Add(vChecks);
+        }
+
+        if (g_txindex) {
+            for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
+                const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+
+                std::string sAssetName = out.nAsset.getName();
+
+                const CScript *pScript;
+                std::vector<unsigned char> hashBytes;
+                int scriptType = 0;
+                CAmount nValue;
+                CAsset nAsset;
+                if (!ExtractIndexInfo(&out, scriptType, hashBytes, nValue, nAsset, pScript) || scriptType == 0) {
+                    continue;
+                }
+
+                // Record receiving activity
+                view.addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, k, false), out.nValue));
+                // Record unspent output
+                view.addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+            }
         }
 
         CTxUndo undoDummy;
@@ -2520,7 +2707,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     TxValidationState txState;
 
     int64_t nTime8_1 = GetTimeMicros();
-    if (!ProcessNftTxsInBlock(block, pindex, txState, fJustCheck)) {
+    if (!ProcessNftTxsInBlock(block, pindex, txState)) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("ProcessNftTxsInBlock for block %s failed with %s", pindex->GetBlockHash().ToString(), txState.ToString()));
     }
     int64_t nTime8_2 = GetTimeMicros(); nTimeProcessNftValid += nTime8_2 - nTime8_1;
@@ -2528,11 +2715,71 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // CROWN : FINISH //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    //Money Supply
+    {
+        CAmountMap results = nValueOutMap - nValueInMap;
+        //LogPrintf(" In %s \n Out %s \n Result %s\n", nValueInMap, nValueOutMap, results);
+        //LogPrintf(" Current %s \n Result %s\n", pindex->pprev->nMoneySupply, results);
+
+        if (pindex->pprev)
+            pindex->nMoneySupply =  pindex->pprev->nMoneySupply + results;
+        else
+            pindex->nMoneySupply = results;
+    }
+
+    //Asset DB
+    {
+        for(unsigned int i = 0; i < block.vtx.size(); i++){
+            const CTransactionRef &tx = block.vtx[i];
+            for(unsigned int j = 0; j < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; j++){
+			    const CTxOutAsset &out = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[j] : tx->vout[j]);
+
+                CAsset asset = out.nAsset;
+                bool exists = false;
+
+                for(auto const& x : passetsCache->GetItemsMap()){
+                    CAsset checkasset = x.second->second.asset;
+                    if(iequals(asset.getName(), checkasset.getName()) || iequals(asset.getName(), checkasset.getSymbol()))
+                        if(!fJustCheck)
+                            exists = true;
+                }
+
+                if (!exists && !passetsCache->Exists(asset.getName()))
+                    if(!fJustCheck)
+                        passetsCache->Put(asset.getName(), CAssetData(asset, tx, j, view, block.nTime));
+
+            }
+
+            for (unsigned int i = 0; i < tx->vdata.size(); i++){
+                uint8_t vers = tx->vdata[i].get()->GetVersion();
+                switch (vers) {
+                    case OUTPUT_CONTRACT:{
+                        CContract *contract = (CContract*)tx->vdata[i].get();
+                        LogPrintf("NOTIFICATION: %s: FOUND CONTRACT %s\n", __func__, contract->ToString());
+                        if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name)){
+                            if(!fJustCheck)
+                                pcontractCache->Put(contract->asset_name, CContractData(*contract, tx->GetHash(), block.nTime));
+                        }
+                        break;
+                    }
+                    case OUTPUT_DATA:{
+                        CTxData *data = (CTxData*)tx->vdata[i].get();
+                        break;
+                    }
+                    default:
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
+                }
+
+                //LogPrintf("TXDATA CONNECT: %s\n", tx->vdata[i]->ToString());
+            }
+        }
+    }
+
+
     if (!control.Wait()) {
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
     }
-
     int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
     LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
 
@@ -2550,6 +2797,35 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     if (block.IsProofOfStake()) {
         COutPoint stakeSource(block.stakePointer.txid, block.stakePointer.nPos);
         mapUsedStakePointers.emplace(stakeSource.GetHash(), block.GetHash());
+    }
+
+    if (g_txindex) {
+
+        if (!pblocktree->WriteAddressIndex(addressIndex)) {
+            return AbortNode(state, "Failed to write address index");
+        }
+
+        if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
+            return AbortNode(state, "Failed to write address unspent index");
+        }
+
+        if (!pblocktree->UpdateSpentIndex(spentIndex))
+            return AbortNode(state, "Failed to write transaction index");
+
+        unsigned int logicalTS = pindex->nTime;
+        if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(logicalTS, pindex->GetBlockHash()))) {
+            return AbortNode(state, "Failed to write timestamp index");
+        }
+
+        if (!pblocktree->WriteTimestampBlockIndex(CTimestampBlockIndexKey(pindex->GetBlockHash()), CTimestampBlockIndexValue(logicalTS))) {
+            return AbortNode(state, "Failed to write blockhash index");
+        }
+
+        BlockBalances values(block_balances);
+
+        if (!pblocktree->WriteBlockBalancesIndex(block.GetHash(), values)) {
+            return AbortNode(state, "Failed to write balances index");
+        }
     }
 
     assert(pindex->phashBlock);
@@ -4595,6 +4871,20 @@ bool static LoadBlockIndexDB(ChainstateManager& chainman, const CChainParams& ch
     pblocktree->ReadReindexing(fReindexing);
     if(fReindexing) fReindex = true;
 
+    // Check whether we have an address index
+    pblocktree->ReadFlag("addressindex", fAddressIndex);
+    LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+
+    // Check whether we have a timestamp index
+    pblocktree->ReadFlag("timestampindex", fTimestampIndex);
+    LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
+
+    // Check whether we have a spent index
+    pblocktree->ReadFlag("spentindex", fSpentIndex);
+    LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+    pblocktree->ReadFlag("balancesindex", fBalancesIndex);
+    LogPrintf("%s: balances index %s\n", __func__, fBalancesIndex ? "enabled" : "disabled");
+
     return true;
 }
 
@@ -4762,7 +5052,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
     }
 
     TxValidationState state;
-    if (!ProcessNftTxsInBlock(block, pindex, state, false)) {
+    if (!ProcessNftTxsInBlock(block, pindex, state)) {
         return error("RollforwardBlock(CROWN): ProcessNftTxsInBlock for block %s failed with %s", pindex->GetBlockHash().ToString(), state.ToString());
     }
 
@@ -5020,6 +5310,24 @@ bool ChainstateManager::LoadBlockIndex(const CChainParams& chainparams)
         // needs_init.
 
         LogPrintf("Initializing databases...\n");
+
+        // Use the provided setting for -addressindex in the new database
+        fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+        pblocktree->WriteFlag("addressindex", fAddressIndex);
+        LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+
+        // Use the provided setting for -timestampindex in the new database
+        fTimestampIndex = gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+        pblocktree->WriteFlag("timestampindex", fTimestampIndex);
+        LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
+
+        // Use the provided setting for -spentindex in the new database
+        fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+        pblocktree->WriteFlag("spentindex", fSpentIndex);
+        LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+        fBalancesIndex = gArgs.GetBoolArg("-balancesindex", DEFAULT_BALANCESINDEX);
+        pblocktree->WriteFlag("balancesindex", fBalancesIndex);
+        LogPrintf("%s: balances index %s\n", __func__, fBalancesIndex ? "enabled" : "disabled");
     }
     return true;
 }
@@ -5059,6 +5367,11 @@ void LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, FlatFi
     // Map of disk positions for blocks with unknown parent (only used for reindex)
     static std::multimap<uint256, FlatFilePos> mapBlocksUnknownParent;
     int64_t nStart = GetTimeMillis();
+
+    fAddressIndex = gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX);
+    fTimestampIndex = gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+    fSpentIndex = gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX);
+    fBalancesIndex = gArgs.GetBoolArg("-balancesindex", DEFAULT_BALANCESINDEX);
 
     int nLoaded = 0;
     try {
@@ -5601,12 +5914,32 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     return std::min<double>(pindex->nChainTx / fTxTotal, 1.0);
 }
 
+CAsset GetAsset(std::string asset){
+    CAsset tmp;
+
+    for(auto const& x : passetsCache->GetItemsMap()){
+        if(x.second->second.asset.getName() == asset)
+            tmp = x.second->second.asset;
+    }
+
+    return tmp;
+}
+
+std::vector<CAsset> GetAllAssets(){
+    std::vector<CAsset> tmp;
+
+    for(auto const& x : passetsCache->GetItemsMap())
+       tmp.push_back(x.second->second.asset);
+
+    return tmp;
+}
+
 std::optional<uint256> ChainstateManager::SnapshotBlockhash() const {
     if (m_active_chainstate != nullptr) {
         // If a snapshot chainstate exists, it will always be our active.
         return m_active_chainstate->m_from_snapshot_blockhash;
     }
-    return {};
+    return std::nullopt;
 }
 
 std::vector<CChainState*> ChainstateManager::GetAll()

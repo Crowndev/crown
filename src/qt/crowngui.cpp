@@ -1338,7 +1338,7 @@ bool CrownGUI::eventFilter(QObject *object, QEvent *event)
 }
 
 #ifdef ENABLE_WALLET
-bool CrownGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
+bool CrownGUI::handlePaymentRequest(const SendAssetsRecipient& recipient)
 {
     // URI has to be valid
     if (walletFrame && walletFrame->handlePaymentRequest(recipient))

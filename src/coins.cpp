@@ -5,6 +5,7 @@
 #include <coins.h>
 
 #include <consensus/consensus.h>
+#include <chainparams.h>
 #include <logging.h>
 #include <random.h>
 #include <version.h>
@@ -242,6 +243,30 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
     CAmount nResult = 0;
     for (unsigned int i = 0; i < tx.vin.size(); i++)
         nResult += AccessCoin(tx.vin[i].prevout).out.nValue;
+
+    return nResult;
+}
+
+CAmountMap CCoinsViewCache::GetValueInMap(const CTransaction& tx) const
+{
+    if (tx.IsCoinBase())
+        return CAmountMap();
+
+    CAmountMap nResult;
+    for (unsigned int i = 0; i < tx.vin.size(); i++){
+		COutPoint prevout = tx.vin[i].prevout;
+		CAsset asset;
+		CAmount amount;
+        if(tx.nVersion >= TX_ELE_VERSION){
+    	    asset = AccessCoin(prevout).out2.nAsset;
+    	    amount = AccessCoin(prevout).out2.nValue;
+    	}else{
+    	    asset = Params().GetConsensus().subsidy_asset;
+		    amount = AccessCoin(prevout).out.nValue;
+		}	
+		
+        nResult[asset] += amount;
+	}
 
     return nResult;
 }

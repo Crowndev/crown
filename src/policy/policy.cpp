@@ -11,7 +11,7 @@
 #include <coins.h>
 #include <span.h>
 
-CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
+CAmount GetDustThreshold(const CTxOutAsset& txout, const CFeeRate& dustRelayFeeIn)
 {
     // "Dust" is defined in terms of dustRelayFee,
     // which has units satoshis-per-kilobyte.

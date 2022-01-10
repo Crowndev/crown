@@ -87,4 +87,11 @@ NODISCARD inline bool HasPrefix(const T1& obj,
            std::equal(std::begin(prefix), std::end(prefix), std::begin(obj));
 }
 
+/**
+ * Case insensitive comparison.
+ */
+
+bool iequals(const std::string& str1, const std::string& str2);
+
+
 #endif // CROWN_UTIL_STRENCODINGS_H

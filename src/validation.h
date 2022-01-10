@@ -23,7 +23,8 @@
 #include <txdb.h>
 #include <versionbits.h>
 #include <serialize.h>
-
+#include <platform/nf-token/nf-token-tx-mem-pool-handler.h>
+#include <platform/nf-token/nf-token-protocol-tx-mem-pool-handler.h>
 #include <atomic>
 #include <map>
 #include <memory>
@@ -52,7 +53,8 @@ struct ChainTxData;
 struct DisconnectedBlockTransactions;
 struct PrecomputedTransactionData;
 struct LockPoints;
-
+extern Platform::NftProtoTxMemPoolHandler g_nftProtoTxMemPoolHandler;
+extern Platform::NfTokenTxMemPoolHandler g_nfTokenTxMemPoolHandler;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
@@ -70,6 +72,7 @@ static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 /** Maximum number of dedicated script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 15;
 /** -par default (number of script-checking threads, 0 = auto) */
+extern bool fPlatformReindex;
 static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 static const int64_t DEFAULT_MAX_TIP_AGE = 30 * 24 * 60 * 60;
 static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
@@ -95,6 +98,11 @@ static const unsigned int DEFAULT_CHECKLEVEL = 3;
 // one 128MB block file + added 15% undo data = 147MB greater for a total of 545MB
 // Setting the target to >= 550 MiB will make it likely we can respect the target.
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
+
+static const bool DEFAULT_ADDRESSINDEX = true;
+static const bool DEFAULT_TIMESTAMPINDEX = true;
+static const bool DEFAULT_SPENTINDEX = true;
+static const bool DEFAULT_BALANCESINDEX = true;
 
 struct BlockHasher
 {
@@ -141,6 +149,8 @@ extern uint256 hashAssumeValid;
 
 /** Minimum work we will assume exists on some valid chain. */
 extern arith_uint256 nMinimumChainWork;
+
+extern ProofTracker* g_proofTracker;
 
 /** Best header we've seen so far (used for getheaders queries' starting points). */
 extern CBlockIndex *pindexBestHeader;
@@ -264,7 +274,7 @@ bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction& tx, int flag
 class CScriptCheck
 {
 private:
-    CTxOut m_tx_out;
+    CTxOutAsset m_tx_out;
     const CTransaction *ptxTo;
     unsigned int nIn;
     unsigned int nFlags;
@@ -274,7 +284,7 @@ private:
 
 public:
     CScriptCheck(): ptxTo(nullptr), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
+    CScriptCheck(const CTxOutAsset& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
         m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), error(SCRIPT_ERR_UNKNOWN_ERROR), txdata(txdataIn) { }
 
     bool operator()();
@@ -1008,5 +1018,6 @@ inline bool IsBlockPruned(const CBlockIndex* pblockindex)
 bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin);
 int GetUTXOHeight(const COutPoint& outpoint);
 int GetUTXOConfirmations(const COutPoint& outpoint);
-
+CAsset GetAsset(std::string asset);
+std::vector<CAsset> GetAllAssets();
 #endif // CROWN_VALIDATION_H

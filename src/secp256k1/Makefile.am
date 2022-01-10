@@ -151,6 +151,14 @@ if ENABLE_MODULE_ECDH
 include src/modules/ecdh/Makefile.am.include
 endif
 
+if ENABLE_MODULE_SCHNORRSIG
+include src/modules/schnorrsig/Makefile.am.include
+endif
+
+if ENABLE_MODULE_MUSIG
+include src/modules/musig/Makefile.am.include
+endif
+
 if ENABLE_MODULE_RECOVERY
 include src/modules/recovery/Makefile.am.include
 endif
@@ -159,6 +167,18 @@ if ENABLE_MODULE_EXTRAKEYS
 include src/modules/extrakeys/Makefile.am.include
 endif
 
-if ENABLE_MODULE_SCHNORRSIG
-include src/modules/schnorrsig/Makefile.am.include
+if ENABLE_MODULE_GENERATOR
+include src/modules/generator/Makefile.am.include
+endif
+
+if ENABLE_MODULE_RANGEPROOF
+include src/modules/rangeproof/Makefile.am.include
+endif
+
+if ENABLE_MODULE_WHITELIST
+include src/modules/whitelist/Makefile.am.include
+endif
+
+if ENABLE_MODULE_SURJECTIONPROOF
+include src/modules/surjection/Makefile.am.include
 endif
