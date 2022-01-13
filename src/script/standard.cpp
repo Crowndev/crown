@@ -182,8 +182,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     std::vector<valtype> vSolutions;
     TxoutType whichType = Solver(scriptPubKey, vSolutions);
 
-    switch (whichType) {
-    case TxoutType::PUBKEY: {
+    if (whichType == TxoutType::PUBKEY) {
         CPubKey pubKey(vSolutions[0]);
         if (!pubKey.IsValid())
             return false;
@@ -191,33 +190,31 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         addressRet = PKHash(pubKey);
         return true;
     }
-    case TxoutType::PUBKEYHASH: {
+    else if (whichType == TxoutType::PUBKEYHASH)
+    {
         addressRet = PKHash(uint160(vSolutions[0]));
         return true;
     }
-    case TxoutType::SCRIPTHASH: {
+    else if (whichType == TxoutType::SCRIPTHASH)
+    {
         addressRet = ScriptHash(uint160(vSolutions[0]));
         return true;
-    }
-    case TxoutType::WITNESS_V0_KEYHASH: {
+    } else if (whichType == TxoutType::WITNESS_V0_KEYHASH) {
         WitnessV0KeyHash hash;
         std::copy(vSolutions[0].begin(), vSolutions[0].end(), hash.begin());
         addressRet = hash;
         return true;
-    }
-    case TxoutType::WITNESS_V0_SCRIPTHASH: {
+    } else if (whichType == TxoutType::WITNESS_V0_SCRIPTHASH) {
         WitnessV0ScriptHash hash;
         std::copy(vSolutions[0].begin(), vSolutions[0].end(), hash.begin());
         addressRet = hash;
         return true;
-    }
-    case TxoutType::WITNESS_V1_TAPROOT: {
+    } else if (whichType == TxoutType::WITNESS_V1_TAPROOT) {
         WitnessV1Taproot tap;
         std::copy(vSolutions[0].begin(), vSolutions[0].end(), tap.begin());
         addressRet = tap;
         return true;
-    }
-    case TxoutType::WITNESS_UNKNOWN: {
+    } else if (whichType == TxoutType::WITNESS_UNKNOWN) {
         WitnessUnknown unk;
         unk.version = vSolutions[0][0];
         std::copy(vSolutions[1].begin(), vSolutions[1].end(), unk.program);
@@ -225,11 +222,8 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         addressRet = unk;
         return true;
     }
-    case TxoutType::MULTISIG:
-    case TxoutType::NONSTANDARD:
-        return false;
-    } // no default case, so the compiler can warn about missing cases
-    assert(false);
+    // Multisig txns have more than one address...
+    return false;
 }
 
 bool ExtractDestinations(const CScript& scriptPubKey, TxoutType& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet)
