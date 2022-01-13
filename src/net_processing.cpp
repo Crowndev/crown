@@ -2536,7 +2536,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
                       pfrom.GetId(), (fLogIPs ? strprintf(", peeraddr=%s", pfrom.addr.ToString()) : ""),
                       pfrom.m_tx_relay == nullptr ? "block-relay" : "full-relay");
         }
-        //Disable headers only 
+        //Disable headers only
         /*if (pfrom.GetCommonVersion() >= SENDHEADERS_VERSION) {
             // Tell our peer we prefer to receive headers rather than inv's
             // We send this to non-NODE NETWORK peers as well, because even
@@ -2758,10 +2758,10 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
 
             if (inv.IsMsgBlk()) {
                 const bool fAlreadyHave = AlreadyHaveBlock(inv.hash);
-                LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
+                //LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
 
                 UpdateBlockAvailability(pfrom.GetId(), inv.hash);
-                if (::ChainstateActive().IsInitialBlockDownload() && pfrom.fSyncingWith && inv.hash == pairHighBlock.second) {
+                if (!fAlreadyHave && ::ChainstateActive().IsInitialBlockDownload() && pfrom.fSyncingWith && inv.hash == pairHighBlock.second) {
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETBLOCKS, ::ChainActive().GetLocator(), inv.hash));
                     LogPrint(BCLog::NET, "getblocks (%d)  to peer=%d\n", pindexBestHeader->nHeight, best_block->ToString(), pfrom.GetId());
                 } else {
@@ -3229,18 +3229,18 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
         bool received_new_header = false;
 
         {
-			LOCK(cs_main);
+            LOCK(cs_main);
 
-			if (!LookupBlockIndex(cmpctblock.header.hashPrevBlock)) {
-				// Doesn't connect (or is genesis), instead of DoSing in AcceptBlockHeader, request deeper headers
-				//if (!::ChainstateActive().IsInitialBlockDownload())
-				//    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETHEADERS, ::ChainActive().GetLocator(pindexBestHeader), uint256()));
-				return;
-			}
+            if (!LookupBlockIndex(cmpctblock.header.hashPrevBlock)) {
+                // Doesn't connect (or is genesis), instead of DoSing in AcceptBlockHeader, request deeper headers
+                //if (!::ChainstateActive().IsInitialBlockDownload())
+                //    m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETHEADERS, ::ChainActive().GetLocator(pindexBestHeader), uint256()));
+                return;
+            }
 
-			if (!LookupBlockIndex(cmpctblock.header.GetHash())) {
-				received_new_header = true;
-			}
+            if (!LookupBlockIndex(cmpctblock.header.GetHash())) {
+                received_new_header = true;
+            }
         }
 
         const CBlockIndex *pindex = nullptr;
@@ -3269,24 +3269,24 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
         bool fBlockReconstructed = false;
 
         {
-			LOCK2(cs_main, g_cs_orphans);
-			// If AcceptBlockHeader returned true, it set pindex
-			assert(pindex);
-			UpdateBlockAvailability(pfrom.GetId(), pindex->GetBlockHash());
+            LOCK2(cs_main, g_cs_orphans);
+            // If AcceptBlockHeader returned true, it set pindex
+            assert(pindex);
+            UpdateBlockAvailability(pfrom.GetId(), pindex->GetBlockHash());
 
-			CNodeState *nodestate = State(pfrom.GetId());
+            CNodeState *nodestate = State(pfrom.GetId());
 
-			// If this was a new header with more work than our tip, update the
-			// peer's last block announcement time
-			if (received_new_header && pindex->nChainWork > ::ChainActive().Tip()->nChainWork) {
-				nodestate->m_last_block_announcement = GetTime();
-			}
+            // If this was a new header with more work than our tip, update the
+            // peer's last block announcement time
+            if (received_new_header && pindex->nChainWork > ::ChainActive().Tip()->nChainWork) {
+                nodestate->m_last_block_announcement = GetTime();
+            }
 
-			std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator> >::iterator blockInFlightIt = mapBlocksInFlight.find(pindex->GetBlockHash());
-			bool fAlreadyInFlight = blockInFlightIt != mapBlocksInFlight.end();
+            std::map<uint256, std::pair<NodeId, std::list<QueuedBlock>::iterator> >::iterator blockInFlightIt = mapBlocksInFlight.find(pindex->GetBlockHash());
+            bool fAlreadyInFlight = blockInFlightIt != mapBlocksInFlight.end();
 
-			if (pindex->nStatus & BLOCK_HAVE_DATA) // Nothing to do here
-				return;
+            if (pindex->nStatus & BLOCK_HAVE_DATA) // Nothing to do here
+                return;
 
             if (pindex->nChainWork <= ::ChainActive().Tip()->nChainWork || // We know something better
                     pindex->nTx != 0) { // We had this block at some point, but pruned it
