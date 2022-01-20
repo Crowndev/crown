@@ -827,9 +827,6 @@ UniValue AmountMapToUniv(const CAmountMap& balanceOrig)
 
     UniValue obj(UniValue::VOBJ);
     for(auto it = balance.begin(); it != balance.end(); ++it) {
-        // Unknown assets
-        if (it->first.IsNull())
-            continue;
         UniValue pair(UniValue::VOBJ);
         std::string label = it->first.getAssetName();
 

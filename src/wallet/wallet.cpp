@@ -2060,6 +2060,79 @@ CAmountMap CWalletTx::GetImmatureWatchOnlyCredit(const bool fUseCache) const
     return CAmountMap();
 }
 
+// Return sum of unlocked coins
+CAmountMap CWalletTx::GetUnlockedCredit(const isminefilter& filter) const
+{
+    if (pwallet == nullptr)
+        return CAmountMap();
+
+    bool allow_cache = (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
+
+    // Must wait until coinbase is safely deep enough in the chain before valuing it
+    if (IsImmatureCoinBase())
+        return CAmountMap();
+
+    CAmountMap nCredit;
+    uint256 hashTx = GetHash();
+    for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
+        if ((!pwallet->IsSpent(hashTx, i) || pwallet->IsLockedCoin(hashTx, i))) {
+            if (pwallet->IsMine(tx->vout[i]) & filter) {
+                CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
+                if (!MoneyRange(credit))
+                    throw std::runtime_error(std::string(__func__) + ": value out of range");
+                    
+            if(tx->nVersion >= TX_ELE_VERSION)
+                nCredit[tx->vpout[i].nAsset] += credit;
+            else             
+                nCredit[Params().GetConsensus().subsidy_asset] += credit;
+            }
+        }
+    }
+
+    if (allow_cache) {
+        m_amounts[UNLOCKED].Set(filter, nCredit);
+    }
+
+    return nCredit;
+}
+
+// Return sum of unlocked coins
+CAmountMap CWalletTx::GetLockedCredit(const isminefilter& filter) const
+{
+    if (pwallet == nullptr)
+        return CAmountMap();
+
+    bool allow_cache = (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
+
+    // Must wait until coinbase is safely deep enough in the chain before valuing it
+    if (IsImmatureCoinBase())
+        return CAmountMap();
+
+    CAmountMap nCredit;
+    uint256 hashTx = GetHash();
+    for (unsigned int i = 0; i < tx->vout.size(); i++)
+    {
+        if ((!pwallet->IsSpent(hashTx, i) && pwallet->IsLockedCoin(hashTx, i))) {
+            if (pwallet->IsMine(tx->vout[i]) & filter) {
+                CAmount credit = tx->vout[i].nValue;
+                if (!MoneyRange(credit))
+                    throw std::runtime_error(std::string(__func__) + ": value out of range");
+
+            if(tx->nVersion >= TX_ELE_VERSION)
+                nCredit[tx->vpout[i].nAsset] += credit;
+            else             
+                nCredit[Params().GetConsensus().subsidy_asset] += credit;
+            }
+        }
+    }
+
+    if (allow_cache) {
+        m_amounts[LOCKED].Set(filter, nCredit);
+    }
+
+    return nCredit;
+}
+
 CAmountMap CWalletTx::GetChange() const
 {
     if (fChangeCached)
@@ -2121,6 +2194,38 @@ bool CWalletTx::IsEquivalentTo(const CWalletTx& _tx) const
         for (auto& txin : tx1.vin) txin.scriptSig = CScript();
         for (auto& txin : tx2.vin) txin.scriptSig = CScript();
         return CTransaction(tx1) == CTransaction(tx2);
+}
+
+CAmountMap CWallet::GetUnlockedCoins() const
+{
+    CAmountMap nTotal;
+    {
+        LOCK(cs_wallet);
+        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx* pcoin = &(*it).second;
+
+            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() > 0)
+                nTotal += pcoin->GetUnlockedCredit(ISMINE_ALL);
+        }
+    }
+
+    return nTotal;
+}
+
+CAmountMap CWallet::GetLockedCoins() const
+{
+    CAmountMap nTotal;
+    {
+        LOCK(cs_wallet);
+        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx* pcoin = &(*it).second;
+
+            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() > 0)
+                nTotal += pcoin->GetLockedCredit(ISMINE_ALL);
+        }
+    }
+
+    return nTotal;
 }
 
 // Rebroadcast transactions from the wallet. We do this on a random timer
@@ -2190,6 +2295,12 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
     isminefilter reuse_filter = avoid_reuse ? ISMINE_NO : ISMINE_USED;
     {
         LOCK(cs_wallet);
+
+        const CAmountMap tx_credit_locked = GetLockedCoins();
+        const CAmountMap tx_credit_unlocked = GetUnlockedCoins();
+
+        ret.m_mine_locked += tx_credit_locked;
+        ret.m_mine_unlocked += tx_credit_unlocked;
         std::set<uint256> trusted_parents;
         for (const auto& entry : mapWallet)
         {
@@ -2222,7 +2333,10 @@ CAmountMap CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     AvailableCoins(vCoins, true, coinControl);
     for (const COutput& out : vCoins) {
         if (out.fSpendable) {
-            balance += out.tx->tx->vout[out.i].nValue;
+            if(out.tx->tx->nVersion >= TX_ELE_VERSION)
+                balance[out.tx->tx->vpout[out.i].nAsset] += out.tx->tx->vpout[out.i].nValue;
+            else
+                balance[Params().GetConsensus().subsidy_asset] += out.tx->tx->vout[out.i].nValue;
         }
     }
     return balance;
@@ -2655,12 +2769,12 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
             if (!out.fSpendable)
                  continue;
             CAmount amt = out.tx->tx->vout[out.i].nValue;
-            
+
             if(out.tx->tx->nVersion >= TX_ELE_VERSION)
                 mapValueRet[out.tx->tx->vpout[out.i].nAsset] += amt;
             else
                 mapValueRet[Params().GetConsensus().subsidy_asset] += amt;
-                
+
             setCoinsRet.insert(out.GetInputCoin());
         }
         return (mapValueRet >= mapTargetValue);
@@ -3005,8 +3119,8 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
 
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest)) {
-		strFailReason = "Invalid Crown address";
-		return false;
+        strFailReason = "Invalid Crown address";
+        return false;
     }
 
     CContract newcontract;
@@ -3020,8 +3134,8 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
 
     auto keyid = GetKeyForDestination(*spk_man, dest);
     if (keyid.IsNull()) {
-		strFailReason = "Address does not refer to a key";
-		return false;
+        strFailReason = "Address does not refer to a key";
+        return false;
     }
 
     CKey key;
