@@ -168,7 +168,7 @@ static RPCHelpMan createasset()
                     {"contract", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Contract to issue asset to"},
                 },
                 RPCResult{
-                    RPCResult::Type::STR, "signature", "The signature of the message encoded in base 64"
+                    RPCResult::Type::STR, "assetID", "The id of the asset encoded in hex"
                 },
                 RPCExamples{
             "\nCreate an asset\n"
@@ -192,7 +192,7 @@ static RPCHelpMan createasset()
     std::string shortname = request.params[1].get_str();
     CAmount nAmount = AmountFromValue(request.params[2]);
 
-    if(nAmount < 10*COIN)
+    if(nAmount < 10 * COIN)
         throw JSONRPCError(RPC_MISC_ERROR, "Input error, input amount must be greater than 10 Crown for asset creation");
 
     CAmount nAssetAmount = AmountFromValue(request.params[3]);
