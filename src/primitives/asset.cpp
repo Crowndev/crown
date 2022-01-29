@@ -234,6 +234,12 @@ CAmount valueFor(const CAmountMap& mapValue, const CAsset& asset) {
         return CAmount(0);
     }
 }
+
+bool AssetMetadata::IsEmpty() const
+{
+    return ( nVersion==0 && nFlags==0 && getAssetName() == "");
+}
+
 void AssetMetadata::setName(const std::string& _sAssetName)
 {
     std::string padded = std::string( (10 - strlen(_sAssetName.c_str()) ), '0').append(_sAssetName);

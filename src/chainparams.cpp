@@ -276,7 +276,7 @@ public:
         pchMessageStart[2] = 0x09;
         pchMessageStart[3] = 0x07;
         nDefaultPort = 18333;
-        nBlockPoSStart = 12000;
+        nBlockPoSStart = 20000;
         nPruneAfterHeight = 100000;
         nAuxpowChainId = 20;
         nChainStallDuration = 60*60;
