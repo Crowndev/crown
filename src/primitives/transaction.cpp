@@ -292,7 +292,7 @@ std::string CTransaction::ToString() const
         nVersion,
         nType,
         vin.size(),
-        vout.size(),
+        (nVersion == TX_ELE_VERSION ? vpout.size() : vout.size()),
         nLockTime,
         extraPayload.size());
     for (const auto& tx_in : vin)
@@ -316,7 +316,7 @@ std::string CMutableTransaction::ToString() const
         nVersion,
         nType,
         vin.size(),
-        vout.size(),
+        (nVersion == TX_ELE_VERSION ? vpout.size() : vout.size()),
         nLockTime,
         extraPayload.size());
     for (const auto& tx_in : vin)

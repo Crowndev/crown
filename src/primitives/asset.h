@@ -74,10 +74,7 @@ public:
         contract_hash.SetNull();
     }
 
-    bool IsEmpty() const
-    {
-        return ( nVersion==0 && nFlags==0);
-    }
+    bool IsEmpty() const ;
 
     uint32_t GetVersion() const { return nVersion; }
     uint32_t GetType() const { return nType; }

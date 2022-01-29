@@ -168,8 +168,10 @@ inline int GetWitnessCommitmentIndex(const CBlock& block)
 {
     int commitpos = NO_WITNESS_COMMITMENT;
     if (!block.vtx.empty()) {
-        for (size_t o = 0; o < block.vtx[0]->vout.size(); o++) {
-            const CTxOut& vout = block.vtx[0]->vout[o];
+
+        for(unsigned int i = 0; i < (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size()) ; i++){
+            const CTxOutAsset& vout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[i] : block.vtx[0]->vout[i]);
+
             if (vout.scriptPubKey.size() >= MINIMUM_WITNESS_COMMITMENT &&
                 vout.scriptPubKey[0] == OP_RETURN &&
                 vout.scriptPubKey[1] == 0x24 &&
@@ -177,7 +179,7 @@ inline int GetWitnessCommitmentIndex(const CBlock& block)
                 vout.scriptPubKey[3] == 0x21 &&
                 vout.scriptPubKey[4] == 0xa9 &&
                 vout.scriptPubKey[5] == 0xed) {
-                commitpos = o;
+                commitpos = i;
             }
         }
     }

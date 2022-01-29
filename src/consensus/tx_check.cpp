@@ -104,7 +104,7 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty");
-    if (tx.vout.empty())
+    if (tx.vout.empty() && tx.vpout.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-empty");
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
@@ -114,8 +114,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 
     // Check for negative or overflow output values (see CVE-2010-5139)
     CAmount nValueOut = 0;
-    for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); k++) {
-        CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+    int q = (tx.nVersion == TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size());
+    for (unsigned int k = 0; k < q; k++) {
+        CTxOutAsset txout = (tx.nVersion == TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
         if (txout.nValue < 0)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
@@ -125,11 +126,15 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
-
-        if(tx.nVersion >=3 && txout.nAsset.IsEmpty())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset",
-                         strprintf("%s: %s", __func__, txout.ToString()));
     }
+
+
+    if(tx.nVersion == TX_ELE_VERSION){
+		for (unsigned int k = 0; k < tx.vpout.size(); k++) {
+            if(tx.vpout[k].nAsset.IsEmpty())
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
+         }
+     }
 
     if(tx.nVersion >=3){
         size_t nContractOutputs = 0, nDataOutputs = 0, nIDOutputs = 0;
