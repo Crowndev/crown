@@ -4058,12 +4058,6 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
     std::vector<unsigned char> ret(32, 0x00);
     if (consensusParams.SegwitHeight != std::numeric_limits<int>::max()) {
         if (commitpos == NO_WITNESS_COMMITMENT) {
-            CMutableTransaction tx0(*block.vtx[0]);
-            if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-            tx0.vpout.push_back(CTxOutAsset());
-            else
-            tx0.vout.push_back(CTxOut());
-            block.vtx[0] = MakeTransactionRef(std::move(tx0));
             uint256 witnessroot = BlockWitnessMerkleRoot(block, nullptr);
             CHash256().Write(witnessroot).Write(ret).Finalize(witnessroot);
             CTxOutAsset out;
@@ -4081,10 +4075,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
             commitment = std::vector<unsigned char>(out.scriptPubKey.begin(), out.scriptPubKey.end());
             CMutableTransaction tx(*block.vtx[0]);
             if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-                tx.vpout.back() = out;
+                tx.vpout.push_back(out);
             else
-                tx.vout.back() = out;
-
+                tx.vout.push_back(out);
             block.vtx[0] = MakeTransactionRef(std::move(tx));
         }
     }
