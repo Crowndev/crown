@@ -1346,7 +1346,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 20000)
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 4000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1360,7 +1360,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight > 11999)
+        if (nHeight >= 4000)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
@@ -4058,6 +4058,12 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
     std::vector<unsigned char> ret(32, 0x00);
     if (consensusParams.SegwitHeight != std::numeric_limits<int>::max()) {
         if (commitpos == NO_WITNESS_COMMITMENT) {
+            CMutableTransaction tx0(*block.vtx[0]);
+            if(block.vtx[0]->nVersion == TX_ELE_VERSION)
+            tx0.vpout.push_back(CTxOutAsset());
+            else
+            tx0.vout.push_back(CTxOut());
+            block.vtx[0] = MakeTransactionRef(std::move(tx0));
             uint256 witnessroot = BlockWitnessMerkleRoot(block, nullptr);
             CHash256().Write(witnessroot).Write(ret).Finalize(witnessroot);
             CTxOutAsset out;
@@ -4075,9 +4081,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
             commitment = std::vector<unsigned char>(out.scriptPubKey.begin(), out.scriptPubKey.end());
             CMutableTransaction tx(*block.vtx[0]);
             if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-                tx.vpout.push_back(out);
+                tx.vpout.back() = out;
             else
-                tx.vout.push_back(out);
+                tx.vout.back() = out;
             block.vtx[0] = MakeTransactionRef(std::move(tx));
         }
     }
