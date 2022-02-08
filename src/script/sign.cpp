@@ -445,7 +445,7 @@ SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nI
     SignatureData data;
     assert(tx.vin.size() > nIn);
     data.scriptSig = tx.vin[nIn].scriptSig;
-    data.scriptWitness = tx.vin[nIn].scriptWitness;
+    data.scriptWitness = tx.witness.vtxinwit.size() > nIn ? tx.witness.vtxinwit[nIn].scriptWitness : CScriptWitness();
     Stacks stack(data);
 
     // Get signatures
@@ -508,7 +508,13 @@ SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nI
 void UpdateInput(CTxIn& input, const SignatureData& data)
 {
     input.scriptSig = data.scriptSig;
-    input.scriptWitness = data.scriptWitness;
+}
+
+void UpdateTransaction(CMutableTransaction& tx, const size_t nIn, const SignatureData& data) {
+    assert(tx.vin.size() > nIn);
+    tx.witness.vtxinwit.resize(tx.vin.size());
+    tx.vin[nIn].scriptSig = data.scriptSig;
+    tx.witness.vtxinwit[nIn].scriptWitness = data.scriptWitness;
 }
 
 void SignatureData::MergeSignatureData(SignatureData sigdata)
@@ -530,12 +536,14 @@ void SignatureData::MergeSignatureData(SignatureData sigdata)
 bool SignSignature(const SigningProvider &provider, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType)
 {
     assert(nIn < txTo.vin.size());
+    txTo.witness.vtxinwit.resize(txTo.vin.size());
+    CTransaction txToConst(txTo);
 
     MutableTransactionSignatureCreator creator(&txTo, nIn, amount, nHashType);
 
     SignatureData sigdata;
     bool ret = ProduceSignature(provider, creator, fromPubKey, sigdata);
-    UpdateInput(txTo.vin.at(nIn), sigdata);
+    UpdateTransaction(txTo, nIn, sigdata);
     return ret;
 }
 
@@ -544,7 +552,7 @@ bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, 
     assert(nIn < txTo.vin.size());
     CTxIn& txin = txTo.vin[nIn];
     assert(txin.prevout.n < txFrom.vout.size());
-    const auto& txout = (txFrom.nVersion >= TX_ELE_VERSION ? txFrom.vpout[txin.prevout.n] : txFrom.vout[txin.prevout.n]);
+    const CTxOutAsset& txout = (txFrom.nVersion >= TX_ELE_VERSION ? txFrom.vpout[txin.prevout.n] : txFrom.vout[txin.prevout.n]);
 
     return SignSignature(provider, txout.scriptPubKey, txTo, nIn, txout.nValue, nHashType);
 }
@@ -673,16 +681,17 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
             ProduceSignature(*keystore, MutableTransactionSignatureCreator(&mtx, i, amount, nHashType), prevPubKey, sigdata);
         }
 
-        UpdateInput(txin, sigdata);
+        UpdateTransaction(mtx, i,sigdata);
+        CScriptWitness witness = mtx.witness.vtxinwit.size() > i ? mtx.witness.vtxinwit[i].scriptWitness : CScriptWitness();
 
         // amount must be specified for valid segwit signature
-        if (amount == MAX_MONEY && !txin.scriptWitness.IsNull()) {
+        if (amount == MAX_MONEY && !witness.IsNull()) {
             input_errors[i] = "Missing amount";
             continue;
         }
 
         ScriptError serror = SCRIPT_ERR_OK;
-        if (!VerifyScript(txin.scriptSig, prevPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount, txdata, MissingDataBehavior::FAIL), &serror)) {
+        if (!VerifyScript(txin.scriptSig, prevPubKey, &witness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount, txdata, MissingDataBehavior::FAIL), &serror)) {
             if (serror == SCRIPT_ERR_INVALID_STACK_OPERATION) {
                 // Unable to sign input and verification failed (possible attempt to partially sign).
                 input_errors[i] = "Unable to sign input, invalid stack size (possibly missing key)";

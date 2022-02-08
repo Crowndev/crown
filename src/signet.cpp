@@ -71,13 +71,13 @@ std::optional<SignetTxs> SignetTxs::Create(const CBlock& block, const CScript& c
     tx_to_spend.nVersion = 0;
     tx_to_spend.nLockTime = 0;
     tx_to_spend.vin.emplace_back(COutPoint(), CScript(OP_0), 0);
-    tx_to_spend.vout.emplace_back(0, challenge);
+    //tx_to_spend.vout.emplace_back(0, challenge);
 
     CMutableTransaction tx_spending;
     tx_spending.nVersion = 0;
     tx_spending.nLockTime = 0;
     tx_spending.vin.emplace_back(COutPoint(), CScript(), 0);
-    tx_spending.vout.emplace_back(0, CScript(OP_RETURN));
+    //tx_spending.vout.emplace_back(0, CScript(OP_RETURN));
 
     // can't fill any other fields before extracting signet
     // responses from block coinbase tx
@@ -100,7 +100,7 @@ std::optional<SignetTxs> SignetTxs::Create(const CBlock& block, const CScript& c
         try {
             VectorReader v(SER_NETWORK, INIT_PROTO_VERSION, signet_solution, 0);
             v >> tx_spending.vin[0].scriptSig;
-            v >> tx_spending.vin[0].scriptWitness.stack;
+           // v >> tx_spending.vin[0].scriptWitness.stack;
             if (!v.empty()) return std::nullopt; // extraneous data encountered
         } catch (const std::exception&) {
             return std::nullopt; // parsing error
@@ -137,7 +137,7 @@ bool CheckSignetBlockSolution(const CBlock& block, const Consensus::Params& cons
     }
 
     const CScript& scriptSig = signet_txs->m_to_sign.vin[0].scriptSig;
-    const CScriptWitness& witness = signet_txs->m_to_sign.vin[0].scriptWitness;
+    const CScriptWitness& witness = signet_txs->m_to_sign.witness.vtxinwit[9].scriptWitness;
 
     PrecomputedTransactionData txdata;
     txdata.Init(signet_txs->m_to_sign, {signet_txs->m_to_spend.vout[0]});

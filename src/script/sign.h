@@ -169,6 +169,7 @@ bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, 
 SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nIn, const CTxOutAsset& txout);
 
 void UpdateInput(CTxIn& input, const SignatureData& data);
+void UpdateTransaction(CMutableTransaction& input, const size_t nIn, const SignatureData& data);
 
 /* Check whether we know how to sign for an output like this, assuming we
  * have all private keys. While this function does not need private keys, the passed

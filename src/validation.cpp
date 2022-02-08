@@ -1346,7 +1346,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 4000)
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 1000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1360,7 +1360,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight >= 4000)
+        if (nHeight >= 1000)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
@@ -1608,7 +1608,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
 
 bool CScriptCheck::operator()() {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    const CScriptWitness *witness = &ptxTo->vin[nIn].scriptWitness;
+    const CScriptWitness *witness = ptxTo->witness.vtxinwit.size() > nIn ? &ptxTo->witness.vtxinwit[nIn].scriptWitness : nullptr;
     if (!VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore, *txdata), &error))
         return ::error("CScriptCheck(): %s:%d VerifySignature failed: %s", ptxTo->GetHash().ToString(), nIn, ScriptErrorString(error));
 
@@ -4045,8 +4045,9 @@ void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPr
     static const std::vector<unsigned char> nonce(32, 0x00);
     if (commitpos != NO_WITNESS_COMMITMENT && IsWitnessEnabled(pindexPrev, consensusParams) && !block.vtx[0]->HasWitness()) {
         CMutableTransaction tx(*block.vtx[0]);
-        tx.vin[0].scriptWitness.stack.resize(1);
-        tx.vin[0].scriptWitness.stack[0] = nonce;
+        tx.witness.vtxinwit.resize(1);
+        tx.witness.vtxinwit[0].scriptWitness.stack.resize(1);
+        tx.witness.vtxinwit[0].scriptWitness.stack[0] = nonce;
         block.vtx[0] = MakeTransactionRef(std::move(tx));
     }
 }
@@ -4055,21 +4056,17 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 {
     std::vector<unsigned char> commitment;
     int commitpos = GetWitnessCommitmentIndex(block);
+    LogPrintf("COMMIT POSE %d\n", commitpos);
+    
     std::vector<unsigned char> ret(32, 0x00);
     if (consensusParams.SegwitHeight != std::numeric_limits<int>::max()) {
         if (commitpos == NO_WITNESS_COMMITMENT) {
-            CMutableTransaction tx0(*block.vtx[0]);
-            if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-            tx0.vpout.push_back(CTxOutAsset());
-            else
-            tx0.vout.push_back(CTxOut());
-            block.vtx[0] = MakeTransactionRef(std::move(tx0));
             uint256 witnessroot = BlockWitnessMerkleRoot(block, nullptr);
             CHash256().Write(witnessroot).Write(ret).Finalize(witnessroot);
             CTxOutAsset out;
             out.nValue = 0;
             if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-                out.nAsset = block.vtx[0]->vpout[0].nAsset;
+                out.nAsset = consensusParams.subsidy_asset;
             out.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT);
             out.scriptPubKey[0] = OP_RETURN;
             out.scriptPubKey[1] = 0x24;
@@ -4081,9 +4078,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
             commitment = std::vector<unsigned char>(out.scriptPubKey.begin(), out.scriptPubKey.end());
             CMutableTransaction tx(*block.vtx[0]);
             if(block.vtx[0]->nVersion == TX_ELE_VERSION)
-                tx.vpout.back() = out;
+                tx.vpout.push_back(out);
             else
-                tx.vout.back() = out;
+                tx.vout.push_back(out);
             block.vtx[0] = MakeTransactionRef(std::move(tx));
         }
     }
@@ -4176,7 +4173,6 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-nonfinal", "non-final transaction");
         }
     }
-
     // Enforce rule that the coinbase starts with serialized block height
     if (nHeight >= consensusParams.BIP34Height)
     {
@@ -4186,7 +4182,6 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-height", "block height mismatch in coinbase");
         }
     }
-
     // Validation for witness commitments.
     // * We compute the witness hash (which is the hash including witnesses) of all the block's transactions, except the
     //   coinbase (where 0x0000....0000 is used instead).
@@ -4199,21 +4194,26 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     if (nHeight >= consensusParams.SegwitHeight) {
 
         int commitpos = GetWitnessCommitmentIndex(block);
+    LogPrintf("COMMIT POSE2 %d\n", commitpos);
+
         if (commitpos != NO_WITNESS_COMMITMENT) {
             bool malleated = false;
             uint256 hashWitness = BlockWitnessMerkleRoot(block, &malleated);
+                LogPrintf("TESTING 0 \n %s \n", block.ToString());
             // The malleation check is ignored; as the transaction tree itself
             // already does not permit it, it is impossible to trigger in the
             // witness tree.
-            if (block.vtx[0]->vin[0].scriptWitness.stack.size() != 1 || block.vtx[0]->vin[0].scriptWitness.stack[0].size() != 32) {
-                return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-nonce-size", strprintf("%s : invalid witness reserved value size", __func__));
-            }
-            CHash256().Write(hashWitness).Write(block.vtx[0]->vin[0].scriptWitness.stack[0]).Finalize(hashWitness);
 
+            if ((block.vtx[0]->witness.vtxinwit.empty()) ||
+                (block.vtx[0]->witness.vtxinwit[0].scriptWitness.stack.size() != 1) ||
+                (block.vtx[0]->witness.vtxinwit[0].scriptWitness.stack[0].size() != 32)) {
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-witness-nonce-size", "invalid witness reserved value size");
+            }
+            CHash256().Write(hashWitness).Write(&block.vtx[0]->witness.vtxinwit[0].scriptWitness.stack[0][0],32).Finalize(hashWitness);
+            uint256 committedWitness(std::vector<unsigned char>(&block.vtx[0]->vout[commitpos].scriptPubKey[6], &block.vtx[0]->vout[commitpos].scriptPubKey[6+32]));
             if (memcmp(hashWitness.begin(),(block.vtx[0]->nVersion == TX_ELE_VERSION ? &block.vtx[0]->vpout[commitpos].scriptPubKey[6] : &block.vtx[0]->vout[commitpos].scriptPubKey[6]), 32)) {
                 return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
             }
-
             fHaveWitness = true;
         }
     }

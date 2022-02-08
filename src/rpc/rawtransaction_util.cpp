@@ -138,14 +138,14 @@ CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniVal
 }
 
 /** Pushes a JSON object for script verification or signing errors to vErrorsRet. */
-static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::string& strMessage)
+static void TxInErrorToJSON(const CTxIn& txin, const CTxInWitness& txinwit, UniValue& vErrorsRet, const std::string& strMessage)
 {
     UniValue entry(UniValue::VOBJ);
     entry.pushKV("txid", txin.prevout.hash.ToString());
     entry.pushKV("vout", (uint64_t)txin.prevout.n);
     UniValue witness(UniValue::VARR);
-    for (unsigned int i = 0; i < txin.scriptWitness.stack.size(); i++) {
-        witness.push_back(HexStr(txin.scriptWitness.stack[i]));
+    for (unsigned int i = 0; i < txinwit.scriptWitness.stack.size(); i++) {
+        witness.push_back(HexStr(txinwit.scriptWitness.stack[i]));
     }
     entry.pushKV("witness", witness);
     entry.pushKV("scriptSig", HexStr(txin.scriptSig));
@@ -290,12 +290,15 @@ void SignTransactionResultToJSON(CMutableTransaction& mtx, bool complete, const 
 {
     // Make errors UniValue
     UniValue vErrors(UniValue::VARR);
+    int i =0;
     for (const auto& err_pair : input_errors) {
+        const CTxInWitness& inWitness = mtx.witness.vtxinwit[i];
         if (err_pair.second == "Missing amount") {
             // This particular error needs to be an exception for some reason
             throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing amount for %s", coins.at(mtx.vin.at(err_pair.first).prevout).out.ToString()));
         }
-        TxInErrorToJSON(mtx.vin.at(err_pair.first), vErrors, err_pair.second);
+        TxInErrorToJSON(mtx.vin.at(err_pair.first), inWitness, vErrors, err_pair.second);
+        i++;
     }
 
     result.pushKV("hex", EncodeHexTx(CTransaction(mtx)));

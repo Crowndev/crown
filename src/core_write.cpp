@@ -271,14 +271,19 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
             o.pushKV("hex", HexStr(txin.scriptSig));
             in.pushKV("scriptSig", o);
         }
-        if (!tx.vin[i].scriptWitness.IsNull()) {
-            UniValue txinwitness(UniValue::VARR);
-            for (const auto& item : tx.vin[i].scriptWitness.stack) {
-                txinwitness.push_back(HexStr(item));
-            }
-            in.pushKV("txinwitness", txinwitness);
-        }
+
         in.pushKV("sequence", (int64_t)txin.nSequence);
+
+        if (tx.witness.vtxinwit.size() > i) {
+            const CScriptWitness &scriptWitness = tx.witness.vtxinwit[i].scriptWitness;
+            if (!scriptWitness.IsNull()) {
+                UniValue txinwitness(UniValue::VARR);
+                for (const auto &item : scriptWitness.stack) {
+                    txinwitness.push_back(HexStr(item));
+                }
+                in.pushKV("txinwitness", txinwitness);
+            }
+        }
         vin.push_back(in);
     }
     entry.pushKV("vin", vin);
@@ -294,12 +299,11 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("data", vdata);
 
     UniValue vout(UniValue::VARR);
-	for(unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
-		CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+	for(unsigned int k = 0; k < tx.vout.size(); k++){
+		CTxOut txout = tx.vout[k];
 
         UniValue out(UniValue::VOBJ);
         out.pushKV("value", ValueFromAmount(txout.nValue));
-		out.pushKV("asset", txout.nAsset.getName());
         out.pushKV("n", (int64_t)k);
 
         UniValue o(UniValue::VOBJ);
@@ -308,6 +312,24 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         vout.push_back(out);
     }
     entry.pushKV("vout", vout);
+
+    if(tx.nVersion >= TX_ELE_VERSION ){
+		UniValue vpout(UniValue::VARR);
+		for(unsigned int k = 0; k < tx.vpout.size(); k++){
+			CTxOutAsset txout = tx.vpout[k];
+
+			UniValue out(UniValue::VOBJ);
+			out.pushKV("value", ValueFromAmount(txout.nValue));
+			out.pushKV("asset", txout.nAsset.getName());
+			out.pushKV("n", (int64_t)k);
+
+			UniValue o(UniValue::VOBJ);
+			ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
+			out.pushKV("scriptPubKey", o);
+			vout.push_back(out);
+		}
+		entry.pushKV("vpout", vout);
+    }
 
     if (!tx.extraPayload.empty()) {
         entry.pushKV("extraPayloadSize", (int)tx.extraPayload.size());

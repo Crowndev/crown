@@ -588,6 +588,8 @@ libcrown_consensus_a_SOURCES = \
   primitives/block.h \
   primitives/pureheader.cpp \
   primitives/pureheader.h \
+  primitives/txwitness.cpp \
+  primitives/txwitness.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
   pubkey.cpp \

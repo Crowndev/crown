@@ -489,8 +489,10 @@ struct PartiallySignedTransaction
                     UnserializeFromVector(os, mtx);
                     tx = std::move(mtx);
                     // Make sure that all scriptSigs and scriptWitnesses are empty
-                    for (const CTxIn& txin : tx->vin) {
-                        if (!txin.scriptSig.empty() || !txin.scriptWitness.IsNull()) {
+                    tx->witness.vtxinwit.resize(tx->vin.size());
+                    for (unsigned int i = 0; i < tx->vin.size(); i++) {
+                        const CTxIn& txin = tx->vin[i];
+                        if (!txin.scriptSig.empty() || !tx->witness.vtxinwit[i].scriptWitness.IsNull()) {
                             throw std::ios_base::failure("Unsigned tx does not have empty scriptSigs and scriptWitnesses.");
                         }
                     }

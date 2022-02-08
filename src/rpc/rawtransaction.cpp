@@ -1621,12 +1621,17 @@ static RPCHelpMan converttopsbt()
 
     // Remove all scriptSigs and scriptWitnesses from inputs
     for (CTxIn& input : tx.vin) {
-        if ((!input.scriptSig.empty() || !input.scriptWitness.IsNull()) && !permitsigdata) {
+        if (!input.scriptSig.empty() && !permitsigdata) {
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Inputs must not have scriptSigs and scriptWitnesses");
         }
         input.scriptSig.clear();
-        input.scriptWitness.SetNull();
     }
+    for (CTxInWitness& witness: tx.witness.vtxinwit) {
+        if (!witness.scriptWitness.IsNull() && !permitsigdata) {
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Inputs must not have scriptWitnesses");
+        }
+    }
+    tx.witness.SetNull();
 
     // Make a blank psbt
     PartiallySignedTransaction psbtx;

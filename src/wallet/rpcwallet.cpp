@@ -497,7 +497,7 @@ static RPCHelpMan sendtoaddress()
     }
 
     if (asset.IsNull()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown label and invalid asset hex: %s", asset.GetHex()));
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown label and invalid asset hex: %s %s", asset.GetHex(), asset.getName()));
     }
 
     // Wallet comments

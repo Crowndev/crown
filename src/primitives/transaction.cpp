@@ -232,6 +232,31 @@ uint256 CTransaction::ComputeWitnessHash() const
     return SerializeHash(*this, SER_GETHASH, 0);
 }
 
+uint256 CTransaction::GetWitnessOnlyHash() const
+{
+    std::vector<uint256> leaves;
+    leaves.reserve(std::max(vin.size(), vout.size()));
+    /* Inputs */
+    for (size_t i = 0; i < vin.size(); ++i) {
+        // Input has no witness OR is null input(coinbase)
+        const CTxInWitness& txinwit = (witness.vtxinwit.size() <= i || vin[i].prevout.IsNull()) ? CTxInWitness() : witness.vtxinwit[i];
+        leaves.push_back(txinwit.GetHash());
+    }
+    uint256 hashIn = ComputeFastMerkleRoot(leaves);
+    leaves.clear();
+    /* Outputs */
+    for (size_t i = 0; i < vout.size(); ++i) {
+        const CTxOutWitness& txoutwit = witness.vtxoutwit.size() <= i ? CTxOutWitness() : witness.vtxoutwit[i];
+        leaves.push_back(txoutwit.GetHash());
+    }
+    uint256 hashOut = ComputeFastMerkleRoot(leaves);
+    leaves.clear();
+    /* Combined */
+    leaves.push_back(hashIn);
+    leaves.push_back(hashOut);
+    return ComputeFastMerkleRoot(leaves);
+}
+
 /* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
 CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0), hash{}, m_witness_hash{} {}
 CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
@@ -297,8 +322,8 @@ std::string CTransaction::ToString() const
         extraPayload.size());
     for (const auto& tx_in : vin)
         str += "    " + tx_in.ToString() + "\n";
-    for (const auto& tx_in : vin)
-        str += "    " + tx_in.scriptWitness.ToString() + "\n";
+    for (const auto& tx_in : witness.vtxinwit)
+        str += tx_in.scriptWitness.ToString() + "\n";
     for (const auto& tx_out : vout)
         str += "    " + tx_out.ToString() + "\n";
     for (unsigned int i = 0; i < vpout.size(); i++)
@@ -321,7 +346,7 @@ std::string CMutableTransaction::ToString() const
         extraPayload.size());
     for (const auto& tx_in : vin)
         str += tx_in.ToString() + "\n";
-    for (const auto& tx_in : vin)
+    for (const auto& tx_in : witness.vtxinwit)
         str += tx_in.scriptWitness.ToString() + "\n";
     for (const auto& tx_out : vout)
         str += tx_out.ToString() + "\n";

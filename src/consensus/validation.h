@@ -157,10 +157,15 @@ static inline int64_t GetBlockWeight(const CBlock& block)
 {
     return ::GetSerializeSize(block, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, PROTOCOL_VERSION);
 }
-static inline int64_t GetTransactionInputWeight(const CTxIn& txin)
+
+static inline int64_t GetTransactionInputWeight(const CTransaction& tx, const size_t nIn)
 {
     // scriptWitness size is added here because witnesses and txins are split up in segwit serialization.
-    return ::GetSerializeSize(txin, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(txin, PROTOCOL_VERSION) + ::GetSerializeSize(txin.scriptWitness.stack, PROTOCOL_VERSION);
+    assert(tx.witness.vtxinwit.size() > nIn);
+
+    return ::GetSerializeSize(tx.vin[nIn], PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1)
+    + ::GetSerializeSize(tx.vin[nIn], PROTOCOL_VERSION)
+    + ::GetSerializeSize(tx.witness.vtxinwit[nIn].scriptWitness.stack, PROTOCOL_VERSION);
 }
 
 /** Compute at which vout of the block's coinbase transaction the witness commitment occurs, or -1 if not found */
@@ -168,10 +173,8 @@ inline int GetWitnessCommitmentIndex(const CBlock& block)
 {
     int commitpos = NO_WITNESS_COMMITMENT;
     if (!block.vtx.empty()) {
-
-        for(unsigned int i = 0; i < (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size()) ; i++){
-            const CTxOutAsset& vout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[i] : block.vtx[0]->vout[i]);
-
+        for(size_t o = 0; o < (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size()) ; o++){
+            const CTxOutAsset& vout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[o] : block.vtx[0]->vout[o]);
             if (vout.scriptPubKey.size() >= MINIMUM_WITNESS_COMMITMENT &&
                 vout.scriptPubKey[0] == OP_RETURN &&
                 vout.scriptPubKey[1] == 0x24 &&
@@ -179,7 +182,7 @@ inline int GetWitnessCommitmentIndex(const CBlock& block)
                 vout.scriptPubKey[3] == 0x21 &&
                 vout.scriptPubKey[4] == 0xa9 &&
                 vout.scriptPubKey[5] == 0xed) {
-                commitpos = i;
+                commitpos = o;
             }
         }
     }

@@ -320,6 +320,11 @@ std::string CScriptWitness::ToString() const
     return ret + ")";
 }
 
+uint32_t CScriptWitness::GetSerializedSize() const
+{
+    return ::GetSerializeSize(stack, 0);
+}
+
 std::string CScript::ToString() const
 {
     std::string str;
