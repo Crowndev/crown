@@ -335,7 +335,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         s >> tx.vpout;
     else
         s >> tx.vout;
-    
+    s >> tx.nLockTime;
     if (tx.nVersion >= TX_ELE_VERSION) {
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
@@ -357,6 +357,10 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         }
     }
 
+    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+        s >> tx.extraPayload;
+    }
+
     if ((flags & 1) && fAllowWitness) {
         /* The witness flag is present. */
         flags ^= 1;
@@ -371,10 +375,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     if (flags) {
         /* Unknown flag in the serialization */
         throw std::ios_base::failure("Unknown transaction optional data");
-    }
-    s >> tx.nLockTime;
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
-        s >> tx.extraPayload;
     }
 }
 
@@ -398,12 +398,15 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     // Witness serialization is different between Elements and Core.
     // In Elements-style serialization, all normal data is serialized first and the
     // witnesses all in the end.
-    s << flags;
+    if (flags) {
+        s << flags;
+    }
     s << tx.vin;
     if (tx.nVersion >= TX_ELE_VERSION)
         s << tx.vpout;
     else
         s << tx.vout;
+    s << tx.nLockTime;
 
     if (tx.nVersion >= TX_ELE_VERSION) {
         WriteCompactSize(s, tx.vdata.size());
@@ -412,7 +415,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
             s << *tx.vdata[k];
         }
     }
-    s << tx.nLockTime;
+
     if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
         s << tx.extraPayload;
     }
