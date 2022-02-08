@@ -43,6 +43,7 @@ void RegenerateCommitments(CBlock& block)
 {
     CMutableTransaction tx{*block.vtx.at(0)};
     tx.vout.erase(tx.vout.begin() + GetWitnessCommitmentIndex(block));
+    tx.witness.vtxoutwit.erase(tx.witness.vtxoutwit.begin() + GetWitnessCommitmentIndex(block));
     block.vtx.at(0) = MakeTransactionRef(tx);
 
     GenerateCoinbaseCommitment(block, WITH_LOCK(cs_main, return LookupBlockIndex(block.hashPrevBlock)), Params().GetConsensus());
@@ -121,13 +122,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
 
-    //TODO fix
-    //pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    //if (chainparams.MineBlocksOnDemand())
-    //    pblock->nVersion = gArgs.GetArg("-blockversion", pblock->nVersion);
-
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
@@ -157,7 +151,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
-    if(nHeight >= 1000)
+    if(nHeight >= 1)
         coinbaseTx.nVersion = TX_ELE_VERSION;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
@@ -179,7 +173,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
 
-    LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
+    LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n %s\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost, pblock->ToString());
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();

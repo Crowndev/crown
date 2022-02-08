@@ -327,9 +327,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     tx.vdata.clear();
     tx.witness.SetNull();
 
-    // Witness serialization is different between Elements and Core.
-    // See code comments in SerializeTransaction for details about the differences.
-    s >> flags;
     s >> tx.vin;
     if (tx.nVersion >= TX_ELE_VERSION)
         s >> tx.vpout;
@@ -357,14 +354,23 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         }
     }
 
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
         s >> tx.extraPayload;
     }
-
-    if ((flags & 1) && fAllowWitness) {
+    try {
+        s >> flags;
+    } catch (...) {
+        std::cout << "NO WITNESS" <<std::endl;
+    }
+    // Witness serialization is different between Elements and Core.
+    // See code comments in SerializeTransaction for details about the differences.
+    if (flags & 1) {
         /* The witness flag is present. */
         flags ^= 1;
         const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+        if (tx.nVersion >= TX_ELE_VERSION)
+        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vpout.size());
+        else
         const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vout.size());
         s >> tx.witness;
         if (!tx.HasWitness()) {
@@ -385,6 +391,25 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s << n32bitVersion;
 
+    s << tx.vin;
+    if (tx.nVersion >= TX_ELE_VERSION)
+        s << tx.vpout;
+    else
+        s << tx.vout;
+    s << tx.nLockTime;
+
+    if (tx.nVersion >= TX_ELE_VERSION) {
+        WriteCompactSize(s, tx.vdata.size());
+        for (size_t k = 0; k < tx.vdata.size(); ++k) {
+            s << tx.vdata[k]->nVersion;
+            s << *tx.vdata[k];
+        }
+    }
+
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
+        s << tx.extraPayload;
+    }
+
     // Consistency check
     assert(tx.witness.vtxinwit.size() <= tx.vin.size());
     assert(tx.witness.vtxoutwit.size() <= tx.vout.size());
@@ -401,27 +426,15 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     if (flags) {
         s << flags;
     }
-    s << tx.vin;
-    if (tx.nVersion >= TX_ELE_VERSION)
-        s << tx.vpout;
-    else
-        s << tx.vout;
-    s << tx.nLockTime;
 
-    if (tx.nVersion >= TX_ELE_VERSION) {
-        WriteCompactSize(s, tx.vdata.size());
-        for (size_t k = 0; k < tx.vdata.size(); ++k) {
-            s << tx.vdata[k]->nVersion;
-            s << *tx.vdata[k];
-        }
-    }
-
-    if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
-        s << tx.extraPayload;
-    }
     if (flags & 1) {
         const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+        if (tx.nVersion >= TX_ELE_VERSION)
+        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vpout.size());
+        else
         const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vout.size());
+        std::cout << "ENCODING WITNESS" <<std::endl;
+
         s << tx.witness;
     }
 }
