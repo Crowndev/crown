@@ -345,23 +345,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         else
             s >> tx.vout;
     }
-
-    if ((flags & 1) && fAllowWitness) {
-        /* The witness flag is present, and we support witnesses. */
-        flags ^= 1;
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s >> tx.vin[i].scriptWitness.stack;
-        }
-        if (!tx.HasWitness()) {
-            /* It's illegal to encode witnesses when all witness stacks are empty. */
-            throw std::ios_base::failure("Superfluous witness record");
-        }
-    }
-    if (flags) {
-        /* Unknown flag in the serialization */
-        throw std::ios_base::failure("Unknown transaction optional data");
-    }
-    s >> tx.nLockTime;
     if (tx.nVersion >= TX_ELE_VERSION) {
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
@@ -381,7 +364,25 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             tx.vdata[k]->nVersion = bv;
             s >> *tx.vdata[k];
         }
-    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+    }
+
+    if ((flags & 1) && fAllowWitness) {
+        /* The witness flag is present, and we support witnesses. */
+        flags ^= 1;
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            s >> tx.vin[i].scriptWitness.stack;
+        }
+        if (!tx.HasWitness()) {
+            /* It's illegal to encode witnesses when all witness stacks are empty. */
+            throw std::ios_base::failure("Superfluous witness record");
+        }
+    }
+    if (flags) {
+        /* Unknown flag in the serialization */
+        throw std::ios_base::failure("Unknown transaction optional data");
+    }
+    s >> tx.nLockTime;
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
         s >> tx.extraPayload;
     }
 }
@@ -408,18 +409,10 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         s << flags;
     }
     s << tx.vin;
-
     if (tx.nVersion >= TX_ELE_VERSION)
         s << tx.vpout;
     else
         s << tx.vout;
-
-    if (flags & 1) {
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s << tx.vin[i].scriptWitness.stack;
-        }
-    }
-    s << tx.nLockTime;
 
     if (tx.nVersion >= TX_ELE_VERSION) {
         WriteCompactSize(s, tx.vdata.size());
@@ -427,7 +420,14 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
             s << tx.vdata[k]->nVersion;
             s << *tx.vdata[k];
         }
-    } else if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+    }
+    if (flags & 1) {
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            s << tx.vin[i].scriptWitness.stack;
+        }
+    }
+    s << tx.nLockTime;
+    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
         s << tx.extraPayload;
     }
 }
