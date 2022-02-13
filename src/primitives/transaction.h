@@ -212,7 +212,7 @@ class CTxOutAsset : public CTxOut
 public:
     CTxOutAsset()
     {
-        SetNull();      
+        SetNull();
     }
     CTxOutAsset(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
     CTxOutAsset(const CTxOut &out)
@@ -223,7 +223,7 @@ public:
     int16_t nVersion;
     CAsset nAsset;
 
-    SERIALIZE_METHODS(CTxOutAsset, obj) { 
+    SERIALIZE_METHODS(CTxOutAsset, obj) {
         READWRITEAS(CTxOut, obj);
         READWRITE(obj.nVersion);
         READWRITE(obj.nAsset);
@@ -326,14 +326,19 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     tx.vpout.clear();
     tx.vdata.clear();
     tx.witness.SetNull();
-
-    s >> tx.vin;
-    if (tx.nVersion >= TX_ELE_VERSION)
-        s >> tx.vpout;
-    else
+    if (tx.nVersion < TX_ELE_VERSION) {
+        s >> tx.vin;
         s >> tx.vout;
-    s >> tx.nLockTime;
-    if (tx.nVersion >= TX_ELE_VERSION) {
+        s >> tx.nLockTime;
+        if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
+            s >> tx.extraPayload;
+        }
+    }
+    else {
+        s >> flags;
+        s >> tx.vin;
+        s >> tx.vpout;
+        s >> tx.nLockTime;
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
         for (size_t k = 0; k < nOutputs; ++k) {
@@ -352,35 +357,24 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             tx.vdata[k]->nVersion = bv;
             s >> *tx.vdata[k];
         }
-    }
 
-    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
-        s >> tx.extraPayload;
-    }
-    try {
-        s >> flags;
-    } catch (...) {
-        std::cout << "NO WITNESS" <<std::endl;
-    }
-    // Witness serialization is different between Elements and Core.
-    // See code comments in SerializeTransaction for details about the differences.
-    if (flags & 1) {
-        /* The witness flag is present. */
-        flags ^= 1;
-        const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
-        if (tx.nVersion >= TX_ELE_VERSION)
-        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vpout.size());
-        else
-        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vout.size());
-        s >> tx.witness;
-        if (!tx.HasWitness()) {
-            /* It's illegal to encode witnesses when all witness stacks are empty. */
-            throw std::ios_base::failure("Superfluous witness record");
+
+        if (flags & 1) {
+            /* The witness flag is present. */
+            flags ^= 1;
+            const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+            std::cout << "DECODING WITNESS" <<std::endl;
+
+            s >> tx.witness;
+            if (!tx.HasWitness()) {
+                /* It's illegal to encode witnesses when all witness stacks are empty. */
+                throw std::ios_base::failure("Superfluous witness record");
+            }
         }
-    }
-    if (flags) {
-        /* Unknown flag in the serialization */
-        throw std::ios_base::failure("Unknown transaction optional data");
+        if (flags) {
+            /* Unknown flag in the serialization */
+            throw std::ios_base::failure("Unknown transaction optional data");
+        }
     }
 }
 
@@ -390,52 +384,41 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
 
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s << n32bitVersion;
-
-    s << tx.vin;
-    if (tx.nVersion >= TX_ELE_VERSION)
-        s << tx.vpout;
-    else
+    if (tx.nVersion < TX_ELE_VERSION) {
+        s << tx.vin;
         s << tx.vout;
-    s << tx.nLockTime;
+        s << tx.nLockTime;
+        if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+            s << tx.extraPayload;
+        }
+    }
+    else{
 
-    if (tx.nVersion >= TX_ELE_VERSION) {
+        // Consistency check
+        assert(tx.witness.vtxinwit.size() <= tx.vin.size());
+
+        // Check whether witnesses need to be serialized.
+        unsigned char flags = 0;
+        if (fAllowWitness && tx.HasWitness()) {
+            flags |= 1;
+        }
+
+        s << flags;
+        s << tx.vin;
+        s << tx.vpout;
+        s << tx.nLockTime;
+
         WriteCompactSize(s, tx.vdata.size());
         for (size_t k = 0; k < tx.vdata.size(); ++k) {
             s << tx.vdata[k]->nVersion;
             s << *tx.vdata[k];
         }
-    }
 
-    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
-        s << tx.extraPayload;
-    }
-
-    // Consistency check
-    assert(tx.witness.vtxinwit.size() <= tx.vin.size());
-    assert(tx.witness.vtxoutwit.size() <= tx.vout.size());
-
-    // Check whether witnesses need to be serialized.
-    unsigned char flags = 0;
-    if (fAllowWitness && tx.HasWitness()) {
-        flags |= 1;
-    }
-
-    // Witness serialization is different between Elements and Core.
-    // In Elements-style serialization, all normal data is serialized first and the
-    // witnesses all in the end.
-    if (flags) {
-        s << flags;
-    }
-
-    if (flags & 1) {
-        const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
-        if (tx.nVersion >= TX_ELE_VERSION)
-        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vpout.size());
-        else
-        const_cast<CTxWitness*>(&tx.witness)->vtxoutwit.resize(tx.vout.size());
-        std::cout << "ENCODING WITNESS" <<std::endl;
-
-        s << tx.witness;
+        if (flags & 1) {
+            const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+            std::cout << "ENCODING WITNESS" <<std::endl;
+            s << tx.witness;
+        }
     }
 }
 

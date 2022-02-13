@@ -1346,7 +1346,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 1000)
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 8000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1360,7 +1360,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight >= 1000)
+        if (nHeight >= 8000)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
@@ -4044,6 +4044,7 @@ void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPr
     int commitpos = GetWitnessCommitmentIndex(block);
     static const std::vector<unsigned char> nonce(32, 0x00);
     if (commitpos != NO_WITNESS_COMMITMENT && IsWitnessEnabled(pindexPrev, consensusParams) && !block.vtx[0]->HasWitness()) {
+        LogPrintf("COMMIT POSE 3 %d\n", commitpos);
         CMutableTransaction tx(*block.vtx[0]);
         tx.witness.vtxinwit.resize(1);
         tx.witness.vtxinwit[0].scriptWitness.stack.resize(1);
@@ -4210,7 +4211,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-witness-nonce-size", "invalid witness reserved value size");
             }
             CHash256().Write(hashWitness).Write(&block.vtx[0]->witness.vtxinwit[0].scriptWitness.stack[0][0],32).Finalize(hashWitness);
-            uint256 committedWitness(std::vector<unsigned char>(&block.vtx[0]->vout[commitpos].scriptPubKey[6], &block.vtx[0]->vout[commitpos].scriptPubKey[6+32]));
+            //uint256 committedWitness(std::vector<unsigned char>(&block.vtx[0]->vout[commitpos].scriptPubKey[6], &block.vtx[0]->vout[commitpos].scriptPubKey[6+32]));
             if (memcmp(hashWitness.begin(),(block.vtx[0]->nVersion == TX_ELE_VERSION ? &block.vtx[0]->vpout[commitpos].scriptPubKey[6] : &block.vtx[0]->vout[commitpos].scriptPubKey[6]), 32)) {
                 return state.Invalid(BlockValidationResult::BLOCK_MUTATED, "bad-witness-merkle-match", strprintf("%s : witness merkle commitment mismatch", __func__));
             }

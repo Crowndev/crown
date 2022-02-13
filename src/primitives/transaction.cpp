@@ -244,16 +244,7 @@ uint256 CTransaction::GetWitnessOnlyHash() const
     }
     uint256 hashIn = ComputeFastMerkleRoot(leaves);
     leaves.clear();
-    /* Outputs */
-    for (size_t i = 0; i < vout.size(); ++i) {
-        const CTxOutWitness& txoutwit = witness.vtxoutwit.size() <= i ? CTxOutWitness() : witness.vtxoutwit[i];
-        leaves.push_back(txoutwit.GetHash());
-    }
-    uint256 hashOut = ComputeFastMerkleRoot(leaves);
-    leaves.clear();
-    /* Combined */
     leaves.push_back(hashIn);
-    leaves.push_back(hashOut);
     return ComputeFastMerkleRoot(leaves);
 }
 

@@ -23,7 +23,7 @@ CAssetData::CAssetData(const CAsset& _asset, const CTransactionRef& assetTx, con
     asset = _asset;
     nTime = _nTime;
     txhash = assetTx->GetHash();
-    const CTxOut& txout = assetTx->vout[nOut];
+    CTxOutAsset txout = assetTx->vpout[nOut];
     issuingAddress = txout.scriptPubKey;
     if(txout.nValue)
        issuedAmount = txout.nValue;
