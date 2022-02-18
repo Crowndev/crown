@@ -48,7 +48,7 @@ const std::streamsize MAX_FILE_SIZE_PSBT = 100000000; // 100 MiB
 struct PSBTInput
 {
     CTransactionRef non_witness_utxo;
-    CTxOut witness_utxo;
+    CTxOutAsset witness_utxo;
     CScript redeem_script;
     CScript witness_script;
     CScript final_script_sig;
@@ -400,7 +400,7 @@ struct PartiallySignedTransaction
       * same actual Crown transaction.) Returns true if the merge succeeded, false otherwise. */
     NODISCARD bool Merge(const PartiallySignedTransaction& psbt);
     bool AddInput(const CTxIn& txin, PSBTInput& psbtin);
-    bool AddOutput(const CTxOut& txout, const PSBTOutput& psbtout);
+    bool AddOutput(const CTxOutAsset& txout, const PSBTOutput& psbtout);
     PartiallySignedTransaction() {}
     explicit PartiallySignedTransaction(const CMutableTransaction& tx);
     /**
@@ -410,7 +410,7 @@ struct PartiallySignedTransaction
      * @param[in] input_index Index of the input to retrieve the UTXO of
      * @return Whether the UTXO for the specified input was found
      */
-    bool GetInputUTXO(CTxOut& utxo, int input_index) const;
+    bool GetInputUTXO(CTxOutAsset& utxo, int input_index) const;
 
     template <typename Stream>
     inline void Serialize(Stream& s) const {

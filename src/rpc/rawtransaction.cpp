@@ -477,7 +477,7 @@ static RPCHelpMan createrawtransaction()
 
 			//CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
 			CCoinsViewCache view(&::ChainstateActive().CoinsTip());
-			asset = view.AccessCoin(COutPoint(txid, nOutput)).out2.nAsset;
+			asset = view.AccessCoin(COutPoint(txid, nOutput)).out.nAsset;
 		}
     }
 
@@ -1554,7 +1554,7 @@ static RPCHelpMan createpsbt()
 
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);
         CCoinsViewCache view(&::ChainstateActive().CoinsTip());
-        asset = view.AccessCoin(COutPoint(txid, nOutput)).out2.nAsset;
+        asset = view.AccessCoin(COutPoint(txid, nOutput)).out.nAsset;
     }    
     
     CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2], rbf, asset);

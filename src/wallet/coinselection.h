@@ -23,7 +23,10 @@ public:
     {
         if (!tx)
             throw std::invalid_argument("tx should not be null");
-        if (i >= tx->vout.size())
+        if (tx->nVersion < TX_ELE_VERSION && i >= tx->vout.size())
+            throw std::out_of_range("The output index is out of range");
+
+        if (tx->nVersion >= TX_ELE_VERSION && i >= tx->vpout.size())
             throw std::out_of_range("The output index is out of range");
 
         outpoint = COutPoint(tx->GetHash(), i);

@@ -299,36 +299,18 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("data", vdata);
 
     UniValue vout(UniValue::VARR);
-	for(unsigned int k = 0; k < tx.vout.size(); k++){
-		CTxOut txout = tx.vout[k];
-
+	for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
+		CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
         UniValue out(UniValue::VOBJ);
-        out.pushKV("value", ValueFromAmount(txout.nValue));
-        out.pushKV("n", (int64_t)k);
+    
+		out.pushKV("value", ValueFromAmount(txout.nValue));
+		out.pushKV("asset", txout.nAsset.getName());
+		out.pushKV("n", (int64_t)k);    
 
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
         out.pushKV("scriptPubKey", o);
         vout.push_back(out);
-    }
-    entry.pushKV("vout", vout);
-
-    if(tx.nVersion >= TX_ELE_VERSION ){
-		UniValue vpout(UniValue::VARR);
-		for(unsigned int k = 0; k < tx.vpout.size(); k++){
-			CTxOutAsset txout = tx.vpout[k];
-
-			UniValue out(UniValue::VOBJ);
-			out.pushKV("value", ValueFromAmount(txout.nValue));
-			out.pushKV("asset", txout.nAsset.getName());
-			out.pushKV("n", (int64_t)k);
-
-			UniValue o(UniValue::VOBJ);
-			ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
-			out.pushKV("scriptPubKey", o);
-			vout.push_back(out);
-		}
-		entry.pushKV("vpout", vout);
     }
 
     if (!tx.extraPayload.empty()) {

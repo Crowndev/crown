@@ -14,7 +14,7 @@
 #include <string>
 
 class CCoinsViewCache;
-class CTxOut;
+class CTxOutAsset;
 
 /** Default for -blockmaxweight, which controls the range of block weights the mining code will create **/
 static const unsigned int DEFAULT_BLOCK_MAX_WEIGHT = MAX_BLOCK_WEIGHT - 4000;
@@ -85,7 +85,7 @@ static constexpr unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_VERIFY_S
 
 CAmount GetDustThreshold(const CTxOutAsset& txout, const CFeeRate& dustRelayFee);
 
-bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFee);
+bool IsDust(const CTxOutAsset& txout, const CFeeRate& dustRelayFee);
 
 bool IsStandard(const CScript& scriptPubKey, TxoutType& whichType);
     /**

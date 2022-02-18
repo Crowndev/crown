@@ -229,7 +229,7 @@ public:
     int getTxVersion() override
     {
         int height = ::ChainActive().Height();
-        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && height >= 1000)
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && height >= 1)
             return TX_ELE_VERSION;
         else if (height > 3700000) {
             return TX_ELE_VERSION;

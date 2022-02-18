@@ -98,9 +98,14 @@ struct AmountCompression
 };
 
 /** wrapper for CTxOut that provides a more compact serialization */
-struct TxOutCompression
+/*struct TxOutCompression
 {
     FORMATTER_METHODS(CTxOut, obj) { READWRITE(Using<AmountCompression>(obj.nValue), Using<ScriptCompression>(obj.scriptPubKey)); }
 };
-
+*/
+/** wrapper for CTxOutAsset that provides a more compact serialization */
+struct TxOutAssetCompression
+{
+    FORMATTER_METHODS(CTxOutAsset, obj) { READWRITE(Using<AmountCompression>(obj.nValue), Using<ScriptCompression>(obj.scriptPubKey), obj.nAsset); }
+};
 #endif // CROWN_COMPRESSOR_H
