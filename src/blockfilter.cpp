@@ -231,11 +231,20 @@ static GCSFilter::ElementSet BasicFilterElements(const CBlock& block,
     GCSFilter::ElementSet elements;
 
     for (const CTransactionRef& tx : block.vtx) {
-        for (const CTxOut& txout : tx->vout) {
-            const CScript& script = txout.scriptPubKey;
-            if (script.empty() || script[0] == OP_RETURN) continue;
-            elements.emplace(script.begin(), script.end());
-        }
+		if(tx->nVersion >= TX_ELE_VERSION){
+			for (const CTxOutAsset& txout : tx->vpout) {
+				const CScript& script = txout.scriptPubKey;
+				if (script.empty() || script[0] == OP_RETURN) continue;
+				elements.emplace(script.begin(), script.end());
+			}
+		}
+		else {
+			for (const CTxOut& txout : tx->vout) {
+				const CScript& script = txout.scriptPubKey;
+				if (script.empty() || script[0] == OP_RETURN) continue;
+				elements.emplace(script.begin(), script.end());
+			}
+		}
     }
 
     for (const CTxUndo& tx_undo : block_undo.vtxundo) {

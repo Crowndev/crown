@@ -655,7 +655,7 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
         if (coin == coins.end() || coin->second.IsSpent()) {
             have_all_spent_outputs = false;
         } else {
-            spent_outputs[i] = (mtx.nVersion >= TX_ELE_VERSION ? CTxOutAsset(coin->second.out2.nAsset, coin->second.out2.nValue, coin->second.out2.scriptPubKey) : CTxOut(coin->second.out.nValue, coin->second.out.scriptPubKey));
+            spent_outputs[i] = (mtx.nVersion >= TX_ELE_VERSION ? CTxOutAsset(coin->second.out.nAsset, coin->second.out.nValue, coin->second.out.scriptPubKey) : CTxOut(coin->second.out.nValue, coin->second.out.scriptPubKey));
         }
     }
     if (have_all_spent_outputs) {
@@ -668,16 +668,24 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
     for (unsigned int i = 0; i < mtx.vin.size(); i++) {
         CTxIn& txin = mtx.vin[i];
         auto coin = coins.find(txin.prevout);
-        if (coin == coins.end() || coin->second.IsSpent()) {
-            input_errors[i] = "Input not found or already spent";
+        if (coin == coins.end()) {
+            input_errors[i] = "Input not found";
             continue;
         }
-        const CScript& prevPubKey = coin->second.out.scriptPubKey;
-        const CAmount& amount = coin->second.out.nValue;
+        if (coin->second.IsSpent()) {
+            input_errors[i] = "Input already spent";
+            continue;
+        }
+        const CScript& prevPubKey = (mtx.nVersion >= TX_ELE_VERSION ? coin->second.out.scriptPubKey : coin->second.out.scriptPubKey);
+        const CAmount& amount = (mtx.nVersion >= TX_ELE_VERSION ? coin->second.out.nValue : coin->second.out.nValue);
+        
+        CTxOutAsset rr = (mtx.nVersion >= TX_ELE_VERSION ? coin->second.out : coin->second.out);
 
-        SignatureData sigdata = DataFromTransaction(mtx, i, coin->second.out);
+        SignatureData sigdata = DataFromTransaction(mtx, i, rr);
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
-        if (!fHashSingle || (i < mtx.vout.size())) {
+        int rs = (mtx.nVersion >= TX_ELE_VERSION ? mtx.vpout.size() : mtx.vout.size());
+        
+        if (!fHashSingle || (i < rs)) {
             ProduceSignature(*keystore, MutableTransactionSignatureCreator(&mtx, i, amount, nHashType), prevPubKey, sigdata);
         }
 

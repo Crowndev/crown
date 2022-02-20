@@ -158,7 +158,7 @@ public:
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
-    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);    }
+    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);}
 
     void SetNull()
     {
@@ -218,16 +218,13 @@ public:
     CTxOutAsset(const CTxOut &out)
     {
         SetNull();
-        *(static_cast<CTxOut*>(this)) = out;
+        this->nValue=out.nValue;
+        this->scriptPubKey=out.scriptPubKey;
     }
     int16_t nVersion;
     CAsset nAsset;
 
-    SERIALIZE_METHODS(CTxOutAsset, obj) {
-        READWRITEAS(CTxOut, obj);
-        READWRITE(obj.nVersion);
-        READWRITE(obj.nAsset);
-    }
+    SERIALIZE_METHODS(CTxOutAsset, obj) { READWRITE(obj.nValue, obj.scriptPubKey, obj.nVersion, obj.nAsset);}
 
     void SetNull()
     {
@@ -238,7 +235,7 @@ public:
 
     bool IsNull() const
     {
-        return nAsset.IsNull() && CTxOut::IsNull();
+        return nAsset.IsNull() && nValue==0 && scriptPubKey.empty();
     }
 
     void SetEmpty()
@@ -312,7 +309,6 @@ struct CMutableTransaction;
  */
 template<typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s >> n32bitVersion;
@@ -380,7 +376,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
 
 template<typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s << n32bitVersion;
@@ -399,7 +394,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
 
         // Check whether witnesses need to be serialized.
         unsigned char flags = 0;
-        if (fAllowWitness && tx.HasWitness()) {
+        if (tx.HasWitness()) {
             flags |= 1;
         }
 

@@ -104,11 +104,12 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinbase = tx.IsCoinBase();
     bool fCoinstake = tx.IsCoinStake();
     const uint256& txid = tx.GetHash();
-    for (size_t i = 0; i < tx.vout.size(); ++i) {
+    for (size_t i = 0; i < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); ++i) {
+		CTxOutAsset outc = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[i] : tx.vout[i]);
         bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
         // Coinbase transactions can always be overwritten, in order to correctly
         // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
-        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, fCoinstake), overwrite);
+        cache.AddCoin(COutPoint(txid, i), Coin(outc, nHeight, fCoinbase, fCoinstake), overwrite);
     }
 }
 
@@ -242,7 +243,7 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
 
     CAmount nResult = 0;
     for (unsigned int i = 0; i < tx.vin.size(); i++)
-        nResult += AccessCoin(tx.vin[i].prevout).out.nValue;
+        nResult += AccessCoin(tx.vin[i].prevout).out.nValue;//(tx.nVersion >= TX_ELE_VERSION ? AccessCoin(tx.vin[i].prevout).out2.nValue : AccessCoin(tx.vin[i].prevout).out.nValue) ;
 
     return nResult;
 }
@@ -258,8 +259,8 @@ CAmountMap CCoinsViewCache::GetValueInMap(const CTransaction& tx) const
 		CAsset asset;
 		CAmount amount;
         if(tx.nVersion >= TX_ELE_VERSION){
-    	    asset = AccessCoin(prevout).out2.nAsset;
-    	    amount = AccessCoin(prevout).out2.nValue;
+    	    asset = AccessCoin(prevout).out.nAsset;
+    	    amount = AccessCoin(prevout).out.nValue;
     	}else{
     	    asset = Params().GetConsensus().subsidy_asset;
 		    amount = AccessCoin(prevout).out.nValue;
@@ -291,7 +292,7 @@ void CCoinsViewCache::ReallocateCache()
     ::new (&cacheCoins) CCoinsMap();
 }
 
-static const size_t MIN_TRANSACTION_OUTPUT_WEIGHT = WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxOut(), PROTOCOL_VERSION);
+static const size_t MIN_TRANSACTION_OUTPUT_WEIGHT = WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxOutAsset(), PROTOCOL_VERSION);
 static const size_t MAX_OUTPUTS_PER_BLOCK = MAX_BLOCK_WEIGHT / MIN_TRANSACTION_OUTPUT_WEIGHT;
 
 const Coin& AccessByTxid(const CCoinsViewCache& view, const uint256& txid)

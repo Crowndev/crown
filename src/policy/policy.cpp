@@ -45,7 +45,7 @@ CAmount GetDustThreshold(const CTxOutAsset& txout, const CFeeRate& dustRelayFeeI
     return dustRelayFeeIn.GetFee(nSize);
 }
 
-bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
+bool IsDust(const CTxOutAsset& txout, const CFeeRate& dustRelayFeeIn)
 {
     return (txout.nValue < GetDustThreshold(txout, dustRelayFeeIn));
 }
@@ -111,7 +111,10 @@ bool IsStandardTx(const CTransaction& tx, bool permit_bare_multisig, const CFeeR
 
     unsigned int nDataOut = 0;
     TxoutType whichType;
-    for (const CTxOut& txout : tx.vout) {
+	for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
+		CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+                
+    //for (const CTxOutAsset& txout : tx.vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType)) {
             reason = "scriptpubkey";
             return false;
@@ -162,7 +165,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs,
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
-        const CTxOut& prev = mapInputs.AccessCoin(tx.vin[i].prevout).out;
+        const CTxOutAsset& prev = mapInputs.AccessCoin(tx.vin[i].prevout).out;
 
         std::vector<std::vector<unsigned char> > vSolutions;
         TxoutType whichType = Solver(prev.scriptPubKey, vSolutions);
@@ -204,7 +207,7 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         if (tx.witness.vtxinwit.size() <= i || tx.witness.vtxinwit[i].scriptWitness.IsNull())
             continue;
 
-        const CTxOut &prev = mapInputs.AccessCoin(tx.vin[i].prevout).out;
+        const CTxOutAsset &prev = mapInputs.AccessCoin(tx.vin[i].prevout).out;
 
         // get the scriptPubKey corresponding to this input:
         CScript prevScript = prev.scriptPubKey;

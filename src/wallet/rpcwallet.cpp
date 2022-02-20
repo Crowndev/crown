@@ -495,6 +495,9 @@ static RPCHelpMan sendtoaddress()
     if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {
         asset = pwallet->chain().getAsset(request.params[2].get_str());
     }
+    else if (request.params[2].get_str().empty()){
+		asset = Params().GetConsensus().subsidy_asset;
+	}
 
     if (asset.IsNull()) {
         throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown label and invalid asset hex: %s %s", asset.GetHex(), asset.getName()));

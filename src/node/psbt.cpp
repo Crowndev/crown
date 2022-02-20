@@ -31,7 +31,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
         input_analysis.next = PSBTRole::EXTRACTOR;
 
         // Check for a UTXO
-        CTxOut utxo;
+        CTxOutAsset utxo;
         if (psbtx.GetInputUTXO(utxo, i)) {
             if (!MoneyRange(utxo.nValue) || !MoneyRange(in_amt + utxo.nValue)) {
                 result.SetInvalid(strprintf("PSBT is not valid. Input %u has invalid value", i));
