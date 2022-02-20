@@ -509,7 +509,7 @@ public:
     // Get the marginal bytes if spending the specified output from this transaction
     int GetSpendSize(unsigned int out, bool use_max_sig = false) const
     {
-		CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[out] : tx->vout[out]);
+        CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[out] : tx->vout[out]);
         return CalculateMaximumSignedInputSize(mout, pwallet, use_max_sig);
     }
 
@@ -625,19 +625,23 @@ public:
 
     CAmount Value() const
     {
-		CAmount value =0;
-		if(tx->tx->nVersion >= TX_ELE_VERSION)
+        CAmount value =0;
+        if(tx->tx->nVersion >= TX_ELE_VERSION)
             value = tx->tx->vpout[i].nValue;
-            		
+        else
+            value = tx->tx->vout[i].nValue;
+
         return value;
     }
 
     CAsset Asset() const
     {
-		CAsset asset;
-		if(tx->tx->nVersion >= TX_ELE_VERSION)
+        CAsset asset;
+        if(tx->tx->nVersion >= TX_ELE_VERSION)
             asset = tx->tx->vpout[i].nAsset;
-            
+        else
+            asset = Params().GetConsensus().subsidy_asset;
+
         return asset;
     }
 
@@ -821,7 +825,7 @@ public:
           m_name(name),
           database(std::move(database))
     {
-		fWalletUnlockStaking = false;
+        fWalletUnlockStaking = false;
     }
 
     ~CWallet()

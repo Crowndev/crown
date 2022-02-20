@@ -486,7 +486,7 @@ static bool CheckInputsFromMempoolAndCache(const CTransaction& tx, TxValidationS
         } else {
             const Coin& coinFromDisk = ::ChainstateActive().CoinsTip().AccessCoin(txin.prevout);
             assert(!coinFromDisk.IsSpent());
-            assert((txFrom->nVersion >= TX_ELE_VERSION ? coinFromDisk.out == coin.out : coinFromDisk.out == coin.out));
+            assert(coinFromDisk.out == coin.out);
         }
     }
 
@@ -1055,6 +1055,7 @@ bool MemPoolAccept::ConsensusScriptChecks(ATMPArgs& args, Workspace& ws, Precomp
     // invalid blocks (using TestBlockValidity), however allowing such
     // transactions into the mempool can be exploited as a DoS attack.
     unsigned int currentBlockScriptVerifyFlags = GetBlockScriptFlags(::ChainActive().Tip(), chainparams.GetConsensus());
+    LogPrintf("%s \n", tx.ToString());
     if (!CheckInputsFromMempoolAndCache(tx, state, m_view, m_pool, currentBlockScriptVerifyFlags, txdata)) {
         return error("%s: BUG! PLEASE REPORT THIS! CheckInputScripts failed against latest-block but not STANDARD flags %s, %s",
                 __func__, hash.ToString(), state.ToString());
