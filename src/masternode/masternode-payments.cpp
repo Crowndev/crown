@@ -179,15 +179,25 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
     CAmount blockValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
     CAmount masternodePayment = GetMasternodePayment(pindexPrev->nHeight+1, blockValue);
 
-    txNew.vout[0].nValue = blockValue;
+    if(txNew.nVersion >= TX_ELE_VERSION)
+        txNew.vpout[0].nValue = blockValue;
+    else
+        txNew.vout[0].nValue = blockValue;
+
 
     if(hasPayment){
-        txNew.vout.resize(2);
+        if(txNew.nVersion >= TX_ELE_VERSION){
+            txNew.vpout.resize(2);
+            txNew.vpout[MN_PMT_SLOT].scriptPubKey = payee;
+            txNew.vpout[MN_PMT_SLOT].nValue = masternodePayment;
+            txNew.vpout[0].nValue -= masternodePayment;
+        }else{
+            txNew.vout.resize(2);
+            txNew.vout[MN_PMT_SLOT].scriptPubKey = payee;
+            txNew.vout[MN_PMT_SLOT].nValue = masternodePayment;
+            txNew.vout[0].nValue -= masternodePayment;
+        }
 
-        txNew.vout[MN_PMT_SLOT].scriptPubKey = payee;
-        txNew.vout[MN_PMT_SLOT].nValue = masternodePayment;
-
-        txNew.vout[0].nValue -= masternodePayment;
         LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(ScriptHash(payee)).c_str());
     }
 }
@@ -307,7 +317,7 @@ bool CMasternodePayments::GetBlockPayee(int nBlockHeight, CScript& payee)
     return false;
 }
 
-// Is this masternode scheduled to get paid soon? 
+// Is this masternode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 winners
 bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
 {
@@ -347,7 +357,7 @@ bool CMasternodePayments::AddWinningMasternode(CMasternodePaymentWinner& winnerI
 
     {
         LOCK2(cs_mapMasternodePayeeVotes, cs_mapMasternodeBlocks);
-    
+
         if(mapMasternodePayeeVotes.count(winnerIn.GetHash())){
            return false;
         }
@@ -389,10 +399,13 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
     {
         bool found = false;
         int pos = -1;
-        for (unsigned int i = 0; i < txNew.vout.size(); i++) {
-            if(payee.scriptPubKey == txNew.vout[i].scriptPubKey && masternodePayment == txNew.vout[i].nValue){
+        for (unsigned int k = 0; k <  (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()) ; k++){
+            CTxOutAsset txout = (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout[k] : txNew.vout[k]);
+
+        //for (unsigned int i = 0; i < txNew.vout.size(); i++) {
+            if(payee.scriptPubKey == txout.scriptPubKey && masternodePayment == txout.nValue){
                 found = true;
-                pos = i;
+                pos = k;
                 break;
             }
         }
@@ -523,7 +536,7 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
     int n = mnodeman.GetMasternodeRank(vinMasternode, nBlockHeight-100, MIN_MNW_PEER_PROTO_VERSION);
 
     if(n > MNPAYMENTS_SIGNATURES_TOTAL)
-    {    
+    {
         //It's common to have masternodes mistakenly think they are in the top 10
         // We don't want to print all of these messages, or punish them unless they're way off
         if(n > MNPAYMENTS_SIGNATURES_TOTAL*2)
@@ -572,7 +585,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
         // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
         int nCount = 0;
         CMasternode *pmn = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
-        
+
         if(pmn != NULL)
         {
             LogPrint(BCLog::NET, "CMasternodePayments::ProcessBlock() Found by FindOldestNotInVec \n");

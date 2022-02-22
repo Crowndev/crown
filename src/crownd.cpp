@@ -10,6 +10,7 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <compat.h>
+#include <crown/init.h>
 #include <init.h>
 #include <interfaces/chain.h>
 #include <node/context.h>
@@ -95,6 +96,9 @@ static bool AppInit(int argc, char* argv[])
             InitError(Untranslated(error));
             return false;
         }
+
+        // load masternode/systemnode list
+        loadNodeConfiguration();
 
         // -server defaults to true for crownd but not for the GUI so do this here
         args.SoftSetBoolArg("-server", true);

@@ -355,8 +355,11 @@ bool CMasternode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
             continue;
+        
+        CTxOutAsset out = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[1] : block.vtx[0]->vout[1]);
+        int m = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size());
 
-        if (block.vtx[0]->vout.size() > 1 && block.vtx[0]->vout[1].scriptPubKey == mnpayee) {
+        if (m > 1 && out.scriptPubKey == mnpayee) {
             vPaymentBlocks.emplace_back(pindex);
             fBlockFound = true;
             if (limitMostRecent)
@@ -659,9 +662,12 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
 
     TxValidationState state;
     CMutableTransaction tx = CMutableTransaction();
-    CTxOut vout = CTxOut((Params().MasternodeCollateral() - 0.01)*COIN, legacySigner.collateralPubKey);
+    CTxOutAsset vout = CTxOutAsset(Params().GetConsensus().subsidy_asset, (Params().MasternodeCollateral() - 0.01)*COIN, legacySigner.collateralPubKey);
     tx.vin.push_back(vin);
-    tx.vout.push_back(vout);
+    if(tx.nVersion >= TX_ELE_VERSION)
+        tx.vpout.push_back(vout);
+    else
+        tx.vout.push_back(vout);    
 
     {
         TRY_LOCK(cs_main, lockMain);

@@ -71,6 +71,14 @@ bool CNodeConfig::read(std::string& strErr)
                 streamConfig.close();
                 return false;
             }
+        } else if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            if(CService(ip).GetPort() != 18333) {
+                strErr = ("Invalid port detected in ") + getFileName() + "\n" +
+                        strprintf("Line: %d", linenumber) + "\n\"" + line + "\"" + "\n" +
+                        ("(must be 18333 for testnet)");
+                streamConfig.close();
+                return false;
+            }
         } else if(CService(ip).GetPort() == 9340) {
             strErr = ("Invalid port detected in ") + getFileName() + "\n" +
                     strprintf("Line: %d", linenumber) + "\n\"" + line + "\"" + "\n" +

@@ -9,9 +9,8 @@
 #include <vector>
 #include <nodeconfig.h>
 
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/foreach.hpp>
+#include <util/system.h>
+
 
 class CSystemnodeConfig;
 extern CSystemnodeConfig systemnodeConfig;
@@ -19,7 +18,7 @@ extern CSystemnodeConfig systemnodeConfig;
 class CSystemnodeConfig : public CNodeConfig
 {
 private:
-    boost::filesystem::path getNodeConfigFile() override;
+    fs::path getNodeConfigFile() override;
     std::string getHeader() override;
     std::string getFileName() override;
 };

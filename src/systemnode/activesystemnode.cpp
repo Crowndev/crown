@@ -16,7 +16,7 @@ CActiveSystemnode activeSystemnode;
 // Bootup the Systemnode, look for a 10000 CRW input and register on the network
 //
 void CActiveSystemnode::ManageStatus()
-{    
+{
     std::string errorMessage;
 
     if(!fSystemNode) return;
@@ -198,7 +198,7 @@ bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage) {
     }
 
     LogPrintf("CActiveSystemnode::SendSystemnodePing() - Relay Systemnode Ping vin = %s\n", vin.ToString());
-    
+
     CSystemnodePing mnp(vin);
     if(!mnp.Sign(keySystemnode, pubKeySystemnode))
     {
@@ -268,9 +268,18 @@ std::vector<COutput> CActiveSystemnode::SelectCoinsSystemnode()
     m_wallet->AvailableCoins(vCoins);
 
     // Filter appropriate coins
+
     for (const COutput& out : vCoins) {
-        if (out.tx->tx->vout[out.i].nValue == Params().SystemnodeCollateral()) {
-            filteredCoins.push_back(out);
+        if(out.tx->tx->nVersion >= TX_ELE_VERSION){
+
+            if (out.tx->tx->vpout[out.i].nValue == Params().SystemnodeCollateral()) {
+                filteredCoins.push_back(out);
+            }
+        }
+        else {
+            if (out.tx->tx->vout[out.i].nValue == Params().SystemnodeCollateral()) {
+                filteredCoins.push_back(out);
+            }
         }
     }
 

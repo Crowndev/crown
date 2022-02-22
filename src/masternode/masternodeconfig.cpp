@@ -5,11 +5,10 @@
 
 #include <chainparams.h>
 #include <masternode/masternodeconfig.h>
-#include <util/system.h>
 
 CMasternodeConfig masternodeConfig;
 
-boost::filesystem::path CMasternodeConfig::getNodeConfigFile()
+fs::path CMasternodeConfig::getNodeConfigFile()
 {
     return GetMasternodeConfigFile();
 }
@@ -18,7 +17,7 @@ std::string CMasternodeConfig::getHeader()
 {
     std::string port = "9340";
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        port = "19340";
+        port = "18333";
     }
     std::string strHeader = "# Masternode config file\n"
                     "# Format: alias IP:port masternodeprivkey collateral_output_txid collateral_output_index\n"

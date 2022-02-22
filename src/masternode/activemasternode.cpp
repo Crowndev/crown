@@ -16,7 +16,7 @@ CActiveMasternode activeMasternode;
 // Bootup the Masternode, look for a 10000 CRW input and register on the network
 //
 void CActiveMasternode::ManageStatus()
-{    
+{
     std::string errorMessage;
 
     if(!fMasterNode) return;
@@ -198,7 +198,7 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
     }
 
     LogPrintf("CActiveMasternode::SendMasternodePing() - Relay Masternode Ping vin = %s\n", vin.ToString());
-    
+
     CMasternodePing mnp(vin);
     if(!mnp.Sign(keyMasternode, pubKeyMasternode))
     {
@@ -269,8 +269,16 @@ std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
 
     // Filter appropriate coins
     for (const COutput& out : vCoins) {
-        if (out.tx->tx->vout[out.i].nValue == Params().MasternodeCollateral()) {
-            filteredCoins.push_back(out);
+        if(out.tx->tx->nVersion >= TX_ELE_VERSION){
+
+            if (out.tx->tx->vpout[out.i].nValue == Params().MasternodeCollateral()) {
+                filteredCoins.push_back(out);
+            }
+        }
+        else{
+            if (out.tx->tx->vout[out.i].nValue == Params().MasternodeCollateral()) {
+                filteredCoins.push_back(out);
+            }
         }
     }
 
