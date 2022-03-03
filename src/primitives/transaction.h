@@ -335,6 +335,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
         s >> tx.vin;
         s >> tx.vpout;
         s >> tx.nLockTime;
+
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
         for (size_t k = 0; k < nOutputs; ++k) {
@@ -371,6 +372,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             /* Unknown flag in the serialization */
             throw std::ios_base::failure("Unknown transaction optional data");
         }
+
     }
 }
 
@@ -403,6 +405,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         s << tx.vpout;
         s << tx.nLockTime;
 
+
         WriteCompactSize(s, tx.vdata.size());
         for (size_t k = 0; k < tx.vdata.size(); ++k) {
             s << tx.vdata[k]->nVersion;
@@ -414,6 +417,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
             std::cout << "ENCODING WITNESS" <<std::endl;
             s << tx.witness;
         }
+
     }
 }
 

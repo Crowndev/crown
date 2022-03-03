@@ -1348,6 +1348,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 8000)
+
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1362,6 +1363,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         if (nHeight >= 8000)
+
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
@@ -4085,6 +4087,7 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
             commitment = std::vector<unsigned char>(out.scriptPubKey.begin(), out.scriptPubKey.end());
             CMutableTransaction tx(*block.vtx[0]);
             if(block.vtx[0]->nVersion >= TX_ELE_VERSION)
+
                 tx.vpout.push_back(out);
             else
                 tx.vout.push_back(out);
@@ -4210,6 +4213,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
             // The malleation check is ignored; as the transaction tree itself
             // already does not permit it, it is impossible to trigger in the
             // witness tree.
+
 
             if ((block.vtx[0]->witness.vtxinwit.empty()) ||
                 (block.vtx[0]->witness.vtxinwit[0].scriptWitness.stack.size() != 1) ||
