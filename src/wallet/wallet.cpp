@@ -820,7 +820,7 @@ void CWallet::SetSpentKeyState(WalletBatch& batch, const uint256& hash, unsigned
     if (!srctx) return;
 
     CTxDestination dst;
-    
+
     if (ExtractDestination((srctx->tx->nVersion >= TX_ELE_VERSION ? srctx->tx->vpout[n].scriptPubKey : srctx->tx->vout[n].scriptPubKey), dst)) {
         if (IsMine(dst)) {
             if (used && !GetDestData(dst, "used", nullptr)) {
@@ -839,7 +839,7 @@ bool CWallet::IsSpentKey(const uint256& hash, unsigned int n) const
     AssertLockHeld(cs_wallet);
     const CWalletTx* srctx = GetWalletTx(hash);
     if (srctx) {
-		
+
         assert((srctx->tx->nVersion >= TX_ELE_VERSION ? srctx->tx->vpout.size() : srctx->tx->vout.size()) > n);
         CTxDestination dest;
         if (!ExtractDestination((srctx->tx->nVersion >= TX_ELE_VERSION ? srctx->tx->vpout[n].scriptPubKey : srctx->tx->vout[n].scriptPubKey), dest)) {
@@ -2421,15 +2421,12 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
             if (coinControl && !coinControl->m_add_inputs && !coinControl->IsSelected(COutPoint(entry.first, i))) {
                 continue;
             }
-            if(wtx.tx->nVersion >= TX_ELE_VERSION){
-                if (out.nValue < nMinimumAmount || out.nValue > nMaximumAmount)
-                    continue;
-            } else if (out.nValue < nMinimumAmount || out.nValue > nMaximumAmount)
+
+            if (out.nValue < nMinimumAmount || out.nValue > nMaximumAmount)
                 continue;
 
-            CAmount outValue =0;
+            CAmount outValue = out.nValue;
             CAsset asset;
-                outValue = out.nValue;
 
             if(wtx.tx->nVersion >= TX_ELE_VERSION)
                 asset = out.nAsset;
@@ -2468,10 +2465,8 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
 
             bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
-            LogPrintf("%s 1\n",__func__);
 
             vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
-            LogPrintf("%s 2\n",__func__);
 
             // Checks the sum amount of all UTXO's.
             if (nMinimumSumAmount != MAX_MONEY) {
@@ -2481,7 +2476,6 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
                     return;
                 }
             }
-            LogPrintf("%s 3\n",__func__);
 
             // Checks the maximum number of UTXO's.
             if (nMaximumCount > 0 && vCoins.size() >= nMaximumCount) {
@@ -2498,71 +2492,82 @@ void CWallet::AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed,
 {
     vCoins.clear();
 
-    {
-        LOCK(cs_wallet);
-        for (const auto& entry : mapWallet)
-        {
-            const uint256& wtxid = entry.first;
-            const CWalletTx* pcoin = &entry.second;
 
-            //if (!CheckFinalTx(*pcoin->tx))
+    LOCK(cs_wallet);
+    std::set<uint256> trusted_parents;
+
+    for (const auto& entry : mapWallet)
+    {
+        const uint256& wtxid = entry.first;
+        const CWalletTx& wtx = entry.second;
+
+        if (!chain().checkFinalTx(*wtx.tx)) {
+            continue;
+        }
+
+        if (wtx.IsImmatureCoinBase())
+            continue;
+
+        int nDepth = wtx.GetDepthInMainChain();
+        if (nDepth < 0)
+            continue;
+
+        // We should not consider coins which aren't at least in our mempool
+        // It's possible for these to be conflicted via ancestors which we may never be able to detect
+        if (nDepth == 0 && !wtx.InMempool())
+            continue;
+
+        bool safeTx = IsTrusted(wtx, trusted_parents);
+
+        if (nDepth == 0 && wtx.mapValue.count("replaces_txid")) {
+            safeTx = false;
+        }
+
+        if (nDepth == 0 && wtx.mapValue.count("replaced_by_txid")) {
+            safeTx = false;
+        }
+
+        if (fOnlyConfirmed && !safeTx) {
+            continue;
+        }
+
+        for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
+
+            CTxOutAsset out = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+
+            CAmount outValue = out.nValue;
+            CAsset asset;
+
+            if(wtx.tx->nVersion >= TX_ELE_VERSION)
+                asset = out.nAsset;
+            else
+                asset = Params().GetConsensus().subsidy_asset;
+
+            //LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
+
+            //if (asset != Params().GetConsensus().subsidy_asset)
             //    continue;
 
-            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity() > 0)
+            if (IsSpent(wtxid, i))
                 continue;
 
-            int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 0)
+            isminetype mine = IsMine(out);
+
+            if (mine == ISMINE_NO)
                 continue;
 
-            if (nDepth == 0 && !pcoin->InMempool())
-                continue;
+            std::unique_ptr<SigningProvider> provider = GetSolvingProvider(out.scriptPubKey);
 
-            bool safeTx = pcoin->IsTrusted();
+            bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;
+            bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
-            if (nDepth == 0 && pcoin->mapValue.count("replaces_txid")) {
-                safeTx = false;
-            }
+            LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
 
-            if (nDepth == 0 && pcoin->mapValue.count("replaced_by_txid")) {
-                safeTx = false;
-            }
-
-            if (fOnlyConfirmed && !safeTx) {
-                continue;
-            }
-            
-            for(unsigned int i = 0; i < (pcoin->tx->nVersion >= TX_ELE_VERSION ? pcoin->tx->vpout.size() : pcoin->tx->vout.size()) ; i++)
-            {
-				CTxOutAsset bout = (pcoin->tx->nVersion >= TX_ELE_VERSION ? pcoin->tx->vpout[i] : pcoin->tx->vout[i]);
-                bool found = false;
-                if(coin_type == ONLY_NOT10000IFMN) {
-                    found = !(fMasterNode && bout.nValue == 10000*COIN);
-                } else if(coin_type == ONLY_10000) {
-                    found = bout.nValue == Params().MasternodeCollateral();
-                } else if (coin_type == ONLY_500) {
-                    found = bout.nValue == Params().SystemnodeCollateral();
-                } else {
-                    found = true;
-                }
-                if(!found) continue;
-
-                isminetype mine = IsMine(bout);
-                std::unique_ptr<SigningProvider> provider = GetSolvingProvider(bout.scriptPubKey);
-
-                bool solvable = IsSolvable(*provider, bout.scriptPubKey);
-                bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
-
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                        (!IsLockedCoin(wtxid, i) || coin_type == ONLY_10000 || coin_type == ONLY_500) &&
-                        (bout.nValue > 0) &&
-                        (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected(COutPoint(entry.first, i))))
-                    vCoins.push_back(COutput(pcoin, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
-            }
+            if ((coin_type == ONLY_10000 && out.nValue == 10000*COIN ) || (coin_type == ONLY_500 && out.nValue == 500*COIN))
+                vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
         }
     }
 }
-
 
 std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
 {
@@ -2676,7 +2681,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, ONLY_10000);
+    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_10000);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate any valid masternode vin\n");
         return false;
@@ -2689,11 +2694,14 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
     uint256 txHash = uint256S(strTxHash);
     int nOutputIndex = atoi(strOutputIndex.c_str());
 
-    for (const auto& out : vPossibleCoins)
+    for (const auto& out : vPossibleCoins){
+        LogPrintf("%s - %s %d %d\n", __func__, out.tx->GetHash().ToString(), out.i, out.Value());
+
         if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetVinAndKeysFromOutput(out, vinRet, pubKeyRet, keyRet);
+	}
 
-    LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate specified masternode vin\n");
+    LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate specified masternode vin %s\n", strTxHash);
     return false;
 }
 
@@ -2705,7 +2713,7 @@ bool CWallet::GetSystemnodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins(vPossibleCoins, true, NULL, ONLY_500);
+    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_500);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetSystemnodeVinAndKeys - Could not locate any valid servicenode vin\n");
         return false;
@@ -2738,22 +2746,28 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn& vinRet, CPubKey& pubKe
     vinRet = CTxIn(out.tx->GetHash(),out.i);
     pubScript = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey) ; // the inputs PubKey
 
-    CTxDestination address1;
-    ExtractDestination(pubScript, address1);
-    //CCrownAddress address2(address1);
+    CTxDestination dest;
+    ExtractDestination(pubScript, dest);
+    if (!IsValidDestination(dest)) {
+        LogPrintf("Invalid Crown address");
+        return false;
+    }
+    LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
+    assert(spk_man != nullptr);
+    LOCK(spk_man->cs_KeyStore);
 
-    //CKeyID keyID;
-    //if (!address2.GetKeyID(keyID)) {
-    //    LogPrintf("CWallet::GetVinAndKeysFromOutput - Address does not refer to a key\n");
-    //    return false;
-    //}
+    auto keyid = GetKeyForDestination(*spk_man, dest);
+    if (keyid.IsNull()) {
+        LogPrintf("%s : Address does not refer to a key", __func__);
+        return false;
+    }
 
-    //if (!GetKey(keyID, keyRet)) {
-    //    LogPrintf ("CWallet::GetVinAndKeysFromOutput - Private key for address is not known\n");
-    //    return false;
-    //}
+    if (!spk_man->GetKey(keyid, keyRet)) {
+        LogPrintf("%s : Private key for address %s is not known", __func__ , EncodeDestination(dest));
+        return false;
+    }
 
-    //pubKeyRet = keyRet.GetPubKey();
+    pubKeyRet = keyRet.GetPubKey();
     return true;
 }
 
@@ -2890,7 +2904,7 @@ bool CWallet::SignTransaction(CMutableTransaction& tx) const
         }
         const CWalletTx& wtx = mi->second;
         CTxOutAsset out = (mi->second.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[input.prevout.n] : wtx.tx->vout[input.prevout.n]);
-        
+
         coins[input.prevout] = Coin(out, wtx.m_confirm.block_height, wtx.IsCoinBase(), wtx.IsCoinStake());
     }
 
@@ -3645,7 +3659,7 @@ bool CWallet::CreateTransactionInternal(
                             txNew.vpout.insert(positionr, newTxOut);
                         else
                             txNew.vout.insert(position, newTxOut);
-                        
+
                     }
                 }
 
@@ -3723,7 +3737,7 @@ bool CWallet::CreateTransactionInternal(
 							change_positionr->nValue -= additionalFeeNeeded;
 							nFeeRet += additionalFeeNeeded;
 							break; // Done, able to increase fee from change
-						}						
+						}
 					}
 					else {
 						// Only reduce change if remaining amount is still a large enough output.
@@ -3731,7 +3745,7 @@ bool CWallet::CreateTransactionInternal(
 							change_position->nValue -= additionalFeeNeeded;
 							nFeeRet += additionalFeeNeeded;
 							break; // Done, able to increase fee from change
-						}							
+						}
 					}
                 }
 
@@ -4182,7 +4196,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
                        if(!ExtractDestination(txout.scriptPubKey, txoutAddr))
                            continue;
                        grouping.insert(txoutAddr);
-                   }                    
+                   }
 				}
             }
             if (grouping.size() > 0)
@@ -4203,7 +4217,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
                 grouping.insert(address);
                 groupings.insert(grouping);
                 grouping.clear();
-            }			
+            }
 		}
 
     }

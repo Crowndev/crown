@@ -196,7 +196,9 @@ public:
         fRequireStandard = true;
         m_is_test_chain = false;
         m_is_mockable_chain = false;
-        strSporkKey = "04EA9AF53E4F12CE41F78B666EBDBE96C966ABDD8832979228BD3299E13089F117936EF97B7B9D4644B8B9D2BC7A30029BD7FDDCAC36E40AAC0E03891E493CF197";
+        strSporkKey = "0440409BDACDCE03BFB6D5F16E2D414953038996B49BEE6697CFA400A0001D0837C885C5B57DAD10E5CAAAE36EE975005CC6CBD7001A2A8DE76FF12185904A9BB1";
+        strDevfundAddress = "16tg5tuZrPKoBwfbmj2tmiEPhVPzyn3gtP";
+        strLegacySignerDummyAddress = "18WTcWvwrNnfqeQAn6th9QQ2EpnXMq5Th8";
         checkpointData = {
             {
                 { 150000, uint256S("0000000000012276edd1465babe6d059a3b65b2503b6d9bb4ae5839f5eabac06")},
@@ -322,7 +324,9 @@ public:
         fRequireStandard = false;
         m_is_test_chain = true;
         m_is_mockable_chain = false;
-
+        strSporkKey = "04EA9AF53E4F12CE41F78B666EBDBE96C966ABDD8832979228BD3299E13089F117936EF97B7B9D4644B8B9D2BC7A30029BD7FDDCAC36E40AAC0E03891E493CF197";
+        strDevfundAddress = "mr59c3aniaN3qHXej5L8UBsssRZbiUUMnz";
+        strLegacySignerDummyAddress = "mr59c3aniaN3qHXej5L8UBsssRZbiUUMnz";
         checkpointData = {
             {
                 {546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")},
