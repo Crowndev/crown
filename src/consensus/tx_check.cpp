@@ -104,8 +104,13 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty");
-    if (tx.vout.empty() && tx.vpout.empty())
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-empty");
+        
+    if (tx.nVersion < TX_ELE_VERSION && tx.vout.empty())
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s , bad-txns-vout-empty, %s", __func__, tx.ToString()));
+
+    if(tx.nVersion >= TX_ELE_VERSION && tx.vpout.empty())
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s , bad-txns-vpout-empty, %s", __func__, tx.ToString()));
+    
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
@@ -129,14 +134,14 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     }
 
 
-    if(tx.nVersion == TX_ELE_VERSION){
+    if(tx.nVersion >= TX_ELE_VERSION){
 		for (unsigned int k = 0; k < tx.vpout.size(); k++) {
             if(tx.vpout[k].nAsset.IsEmpty())
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
          }
      }
 
-    if(tx.nVersion >=3){
+    if(tx.nVersion >= TX_ELE_VERSION){
         size_t nContractOutputs = 0, nDataOutputs = 0, nIDOutputs = 0;
         for (unsigned int i = 0; i < tx.vdata.size(); i++){
             uint8_t vers = tx.vdata[i].get()->GetVersion();

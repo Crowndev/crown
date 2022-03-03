@@ -31,7 +31,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
         input_analysis.next = PSBTRole::EXTRACTOR;
 
         // Check for a UTXO
-        CTxOut utxo;
+        CTxOutAsset utxo;
         if (psbtx.GetInputUTXO(utxo, i)) {
             if (!MoneyRange(utxo.nValue) || !MoneyRange(in_amt + utxo.nValue)) {
                 result.SetInvalid(strprintf("PSBT is not valid. Input %u has invalid value", i));
@@ -126,7 +126,7 @@ PSBTAnalysis AnalyzePSBT(PartiallySignedTransaction psbtx)
                 break;
             } else {
                 mtx.vin[i].scriptSig = input.final_script_sig;
-                mtx.vin[i].scriptWitness = input.final_script_witness;
+                //mtx.vin[i].scriptWitness = input.final_script_witness;
                 newcoin.nHeight = 1;
                 view.AddCoin(psbtx.tx->vin[i].prevout, std::move(newcoin), true);
             }

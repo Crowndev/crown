@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <primitives/txdata.h>
 #include <primitives/asset.h>
+#include <primitives/txwitness.h>
 #include <tuple>
 
 #define TX_NFT_VERSION 3
@@ -88,7 +89,6 @@ public:
     COutPoint prevout;
     CScript scriptSig;
     uint32_t nSequence;
-    CScriptWitness scriptWitness; //!< Only serialized through CTransaction
 
     /* Setting nSequence to this value for every input in a transaction
      * disables nLockTime. */
@@ -158,7 +158,7 @@ public:
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
-    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);    }
+    SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);}
 
     void SetNull()
     {
@@ -212,22 +212,19 @@ class CTxOutAsset : public CTxOut
 public:
     CTxOutAsset()
     {
-        SetNull();      
+        SetNull();
     }
     CTxOutAsset(const CAsset& nAssetIn, const CAmount& nValueIn, CScript scriptPubKeyIn);
     CTxOutAsset(const CTxOut &out)
     {
         SetNull();
-        *(static_cast<CTxOut*>(this)) = out;
+        this->nValue=out.nValue;
+        this->scriptPubKey=out.scriptPubKey;
     }
     int16_t nVersion;
     CAsset nAsset;
 
-    SERIALIZE_METHODS(CTxOutAsset, obj) { 
-        READWRITEAS(CTxOut, obj);
-        READWRITE(obj.nVersion);
-        READWRITE(obj.nAsset);
-    }
+    SERIALIZE_METHODS(CTxOutAsset, obj) { READWRITE(obj.nValue, obj.scriptPubKey, obj.nVersion, obj.nAsset);}
 
     void SetNull()
     {
@@ -238,7 +235,7 @@ public:
 
     bool IsNull() const
     {
-        return nAsset.IsNull() && CTxOut::IsNull();
+        return nAsset.IsNull() && nValue==0 && scriptPubKey.empty();
     }
 
     void SetEmpty()
@@ -312,7 +309,6 @@ struct CMutableTransaction;
  */
 template<typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s >> n32bitVersion;
@@ -325,27 +321,21 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     tx.vout.clear();
     tx.vpout.clear();
     tx.vdata.clear();
-    /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
-    s >> tx.vin;
-    if (tx.vin.size() == 0 && fAllowWitness) {
-        /* We read a dummy or an empty vin. */
-        s >> flags;
-        if (flags != 0) {
-            s >> tx.vin;
-
-            if (tx.nVersion >= TX_ELE_VERSION)
-                s >> tx.vpout;
-            else
-                s >> tx.vout;
+    tx.witness.SetNull();
+    if (tx.nVersion < TX_ELE_VERSION) {
+        s >> tx.vin;
+        s >> tx.vout;
+        s >> tx.nLockTime;
+        if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
+            s >> tx.extraPayload;
         }
-    } else {
-        /* We read a non-empty vin. Assume a normal vout follows. */
-        if (tx.nVersion >= TX_ELE_VERSION)
-            s >> tx.vpout;
-        else
-            s >> tx.vout;
     }
-    if (tx.nVersion >= TX_ELE_VERSION) {
+    else {
+        s >> flags;
+        s >> tx.vin;
+        s >> tx.vpout;
+        s >> tx.nLockTime;
+
         size_t nOutputs = ReadCompactSize(s);
         tx.vdata.reserve(nOutputs);
         for (size_t k = 0; k < nOutputs; ++k) {
@@ -364,71 +354,70 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
             tx.vdata[k]->nVersion = bv;
             s >> *tx.vdata[k];
         }
-    }
 
-    if ((flags & 1) && fAllowWitness) {
-        /* The witness flag is present, and we support witnesses. */
-        flags ^= 1;
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s >> tx.vin[i].scriptWitness.stack;
+
+        if (flags & 1) {
+            /* The witness flag is present. */
+            flags ^= 1;
+            const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+            std::cout << "DECODING WITNESS" <<std::endl;
+
+            s >> tx.witness;
+            if (!tx.HasWitness()) {
+                /* It's illegal to encode witnesses when all witness stacks are empty. */
+                throw std::ios_base::failure("Superfluous witness record");
+            }
         }
-        if (!tx.HasWitness()) {
-            /* It's illegal to encode witnesses when all witness stacks are empty. */
-            throw std::ios_base::failure("Superfluous witness record");
+        if (flags) {
+            /* Unknown flag in the serialization */
+            throw std::ios_base::failure("Unknown transaction optional data");
         }
-    }
-    if (flags) {
-        /* Unknown flag in the serialization */
-        throw std::ios_base::failure("Unknown transaction optional data");
-    }
-    s >> tx.nLockTime;
-    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
-        s >> tx.extraPayload;
+
     }
 }
 
 template<typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType& tx, Stream& s) {
-    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
     s << n32bitVersion;
+    if (tx.nVersion < TX_ELE_VERSION) {
+        s << tx.vin;
+        s << tx.vout;
+        s << tx.nLockTime;
+        if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL) {
+            s << tx.extraPayload;
+        }
+    }
+    else{
 
-    unsigned char flags = 0;
-    // Consistency check
-    if (fAllowWitness) {
-        /* Check whether witnesses need to be serialized. */
+        // Consistency check
+        assert(tx.witness.vtxinwit.size() <= tx.vin.size());
+
+        // Check whether witnesses need to be serialized.
+        unsigned char flags = 0;
         if (tx.HasWitness()) {
             flags |= 1;
         }
-    }
-    if (flags) {
-        /* Use extended format in case witnesses are to be serialized. */
-        std::vector<CTxIn> vinDummy;
-        s << vinDummy;
-        s << flags;
-    }
-    s << tx.vin;
-    if (tx.nVersion >= TX_ELE_VERSION)
-        s << tx.vpout;
-    else
-        s << tx.vout;
 
-    if (tx.nVersion >= TX_ELE_VERSION) {
+        s << flags;
+        s << tx.vin;
+        s << tx.vpout;
+        s << tx.nLockTime;
+
+
         WriteCompactSize(s, tx.vdata.size());
         for (size_t k = 0; k < tx.vdata.size(); ++k) {
             s << tx.vdata[k]->nVersion;
             s << *tx.vdata[k];
         }
-    }
-    if (flags & 1) {
-        for (size_t i = 0; i < tx.vin.size(); i++) {
-            s << tx.vin[i].scriptWitness.stack;
+
+        if (flags & 1) {
+            const_cast<CTxWitness*>(&tx.witness)->vtxinwit.resize(tx.vin.size());
+            std::cout << "ENCODING WITNESS" <<std::endl;
+            s << tx.witness;
         }
-    }
-    s << tx.nLockTime;
-    if (tx.nVersion == 3 && tx.nType != TRANSACTION_NORMAL) {
-        s << tx.extraPayload;
+
     }
 }
 
@@ -456,6 +445,8 @@ public:
     const int16_t nType;
     const uint32_t nLockTime;
     const std::vector<uint8_t> extraPayload;
+    // For elements we need to keep track of some extra state for script witness outside of vin
+    const CTxWitness witness;
 
 private:
     /** Memory only. */
@@ -494,6 +485,8 @@ public:
 
     const uint256& GetHash() const { return hash; }
     const uint256& GetWitnessHash() const { return m_witness_hash; };
+    // ELEMENTS: the witness only hash used in elements witness roots
+    uint256 GetWitnessOnlyHash() const;
 
     // Return sum of txouts.
     CAmount GetValueOut() const;
@@ -523,12 +516,7 @@ public:
 
     bool HasWitness() const
     {
-        for (size_t i = 0; i < vin.size(); i++) {
-            if (!vin[i].scriptWitness.IsNull()) {
-                return true;
-            }
-        }
-        return false;
+        return !witness.IsNull();
     }
 };
 
@@ -543,6 +531,8 @@ struct CMutableTransaction
     int16_t nType;
     uint32_t nLockTime;
     std::vector<uint8_t> extraPayload;
+    // For elements we need to keep track of some extra state for script witness outside of vin
+    CTxWitness witness;
 
     CMutableTransaction();
     explicit CMutableTransaction(const CTransaction& tx);
@@ -576,12 +566,7 @@ struct CMutableTransaction
 
     bool HasWitness() const
     {
-        for (size_t i = 0; i < vin.size(); i++) {
-            if (!vin[i].scriptWitness.IsNull()) {
-                return true;
-            }
-        }
-        return false;
+        return !witness.IsNull();
     }
 };
 

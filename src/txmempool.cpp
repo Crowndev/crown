@@ -417,7 +417,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
         const Coin& coin = view.AccessCoin(input.prevout);
-        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+        const auto &prevout = coin.out;//(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
 
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
@@ -506,7 +506,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
         const Coin& coin = view.AccessCoin(input.prevout);
-        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+        const auto &prevout = coin.out;//(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
         uint160 addressHash;
         int addressType;
 
@@ -1080,12 +1080,21 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     // transactions. First checking the underlying cache risks returning a pruned entry instead.
     CTransactionRef ptx = mempool.get(outpoint.hash);
     if (ptx) {
-        if (outpoint.n < ptx->vout.size()) {
-            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false, false);
-            return true;
-        } else {
-            return false;
-        }
+        if(ptx->nVersion >= TX_ELE_VERSION ){
+			if (outpoint.n < ptx->vpout.size()) {
+				coin = Coin(ptx->vpout[outpoint.n], MEMPOOL_HEIGHT, false, false);
+				return true;
+			} else {
+				return false;
+			}
+		}else{
+			if (outpoint.n < ptx->vout.size()) {
+				coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false, false);
+				return true;
+			} else {
+				return false;
+			}			
+		}
     }
     return base->GetCoin(outpoint, coin);
 }

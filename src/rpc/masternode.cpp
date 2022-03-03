@@ -19,6 +19,7 @@
 #include <masternode/masternode-sync.h>
 #include <masternode/masternodeconfig.h>
 #include <masternode/masternodeman.h>
+#include <crown/nodesync.h>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/tokenizer.hpp>
@@ -260,7 +261,7 @@ UniValue startmasternode(const JSONRPCRequest& request)
     }
 
     if (!masternodeSync.IsSynced()) {
-        throw std::runtime_error("Masternode sync has not yet completed.\n");
+        throw std::runtime_error("Masternode sync has not yet completed.\n" + currentSyncStatus() +"\n");
     }
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3 || (request.params.size() == 2 && (strCommand != "local" && strCommand != "all" && strCommand != "many" && strCommand != "missing" && strCommand != "disabled")) || (request.params.size() == 3 && strCommand != "alias"))

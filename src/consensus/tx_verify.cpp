@@ -128,7 +128,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& in
     {
         const Coin& coin = inputs.AccessCoin(tx.vin[i].prevout);
         assert(!coin.IsSpent());
-        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+        const auto &prevout = coin.out; //(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
         if (prevout.scriptPubKey.IsPayToScriptHash())
             nSigOps += prevout.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
     }
@@ -150,8 +150,9 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     {
         const Coin& coin = inputs.AccessCoin(tx.vin[i].prevout);
         assert(!coin.IsSpent());
-        const auto &prevout = (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
-        nSigOps += CountWitnessSigOps(tx.vin[i].scriptSig, prevout.scriptPubKey, &tx.vin[i].scriptWitness, flags);
+        const auto &prevout =coin.out; // (tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
+        const CScriptWitness* pScriptWitness = tx.witness.vtxinwit.size() > i ? &tx.witness.vtxinwit[i].scriptWitness : nullptr;
+        nSigOps += CountWitnessSigOps(tx.vin[i].scriptSig, prevout.scriptPubKey, pScriptWitness, flags);
     }
     return nSigOps;
 }
@@ -167,9 +168,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     CAmountMap inputAssets;
     CAmountMap outputAssets;
 
-    //std::vector<CTxOut> spent_inputs;
     std::vector<CTxOutAsset> spent_inputs;
-
     CAmount nValueIn = 0;
     for (unsigned int i = 0; i < tx.vin.size(); ++i) {
         const COutPoint &prevout = tx.vin[i].prevout;
@@ -182,17 +181,13 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
         }
 
-        if(tx.nVersion >= TX_ELE_VERSION && coin.out2.nAsset.IsEmpty())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-not-explicit-asset",
-                         strprintf("%s: inputs missing/spent", __func__));
-
-        //spent_inputs.push_back((tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out));
+        spent_inputs.push_back(coin.out);
         if(tx.nVersion >= TX_ELE_VERSION)
-            inputAssets.insert(std::make_pair(coin.out2.nAsset, coin.out2.nValue));
+            inputAssets.insert(std::make_pair(coin.out.nAsset, coin.out.nValue));
 
         // Check for negative or overflow input values
-        nValueIn += tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue;
-        if (!MoneyRange((tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue)) || !MoneyRange(nValueIn)) {
+        nValueIn += coin.out.nValue; //tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue;
+        if (!MoneyRange(coin.out.nValue /*(tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue)*/) || !MoneyRange(nValueIn)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
     }

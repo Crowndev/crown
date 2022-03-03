@@ -4,11 +4,10 @@
 
 #include <chainparams.h>
 #include <systemnode/systemnodeconfig.h>
-#include <util/system.h>
 
 CSystemnodeConfig systemnodeConfig;
 
-boost::filesystem::path CSystemnodeConfig::getNodeConfigFile()
+fs::path CSystemnodeConfig::getNodeConfigFile()
 {
     return GetSystemnodeConfigFile();
 }

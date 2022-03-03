@@ -179,14 +179,14 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
 
 void ContractToUniv(CContract *s , UniValue &entry){
     if(!s->IsEmpty()){
-		entry.pushKV("url", s->contract_url);
-		entry.pushKV("name", s->asset_name);
-		entry.pushKV("symbol", s->asset_symbol);
-		entry.pushKV("issuing address", s->sIssuingaddress);
-		entry.pushKV("description", s->description);
-		entry.pushKV("website", s->website_url);
-		entry.pushKV("script", HexStr(s->scriptcode));
-		entry.pushKV("signature", HexStr(s->vchContractSig));
+        entry.pushKV("url", s->contract_url);
+        entry.pushKV("name", s->asset_name);
+        entry.pushKV("symbol", s->asset_symbol);
+        entry.pushKV("issuing address", s->sIssuingaddress);
+        entry.pushKV("description", s->description);
+        entry.pushKV("website", s->website_url);
+        entry.pushKV("script", HexStr(s->scriptcode));
+        entry.pushKV("signature", HexStr(s->vchContractSig));
     }
 }
 
@@ -221,28 +221,28 @@ void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
 
 void AssetToUniv(CAsset& asset, UniValue &entry){
     if(!asset.IsEmpty()){
-		entry.pushKV("version", (int)asset.nVersion);
-		uint32_t type = asset.GetType();
-		
-		entry.pushKV("type", AssetTypeToString(type));
-		entry.pushKV("name", asset.getAssetName());
-		entry.pushKV("symbol", asset.getShortName());
-		entry.pushKV("id", asset.GetHex());
-		//if (asset.contract_hash != uint256()){
-		//	CContract contract = GetContract(asset.getAssetName());
-		//	UniValue a(UniValue::VOBJ);
-		//	ContractToUniv(&contract, a);
-		//    entry.pushKV("contract", a);
-		//}
-		entry.pushKV("contract_hash", asset.contract_hash.GetHex());
-		entry.pushKV("expiry", (int64_t)asset.GetExpiry());
-		entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
-		entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
-		entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
-		entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
-		entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
-		entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");	
-	}
+        entry.pushKV("version", (int)asset.nVersion);
+        uint32_t type = asset.GetType();
+
+        entry.pushKV("type", AssetTypeToString(type));
+        entry.pushKV("name", asset.getAssetName());
+        entry.pushKV("symbol", asset.getShortName());
+        entry.pushKV("id", asset.GetHex());
+        //if (asset.contract_hash != uint256()){
+        //  CContract contract = GetContract(asset.getAssetName());
+        //  UniValue a(UniValue::VOBJ);
+        //  ContractToUniv(&contract, a);
+        //    entry.pushKV("contract", a);
+        //}
+        entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+        entry.pushKV("expiry", (int64_t)asset.GetExpiry());
+        entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
+        entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
+        entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
+        entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
+        entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
+        entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");
+    }
 }
 
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags)
@@ -271,14 +271,19 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
             o.pushKV("hex", HexStr(txin.scriptSig));
             in.pushKV("scriptSig", o);
         }
-        if (!tx.vin[i].scriptWitness.IsNull()) {
-            UniValue txinwitness(UniValue::VARR);
-            for (const auto& item : tx.vin[i].scriptWitness.stack) {
-                txinwitness.push_back(HexStr(item));
-            }
-            in.pushKV("txinwitness", txinwitness);
-        }
+
         in.pushKV("sequence", (int64_t)txin.nSequence);
+
+        if (tx.witness.vtxinwit.size() > i) {
+            const CScriptWitness &scriptWitness = tx.witness.vtxinwit[i].scriptWitness;
+            if (!scriptWitness.IsNull()) {
+                UniValue txinwitness(UniValue::VARR);
+                for (const auto &item : scriptWitness.stack) {
+                    txinwitness.push_back(HexStr(item));
+                }
+                in.pushKV("txinwitness", txinwitness);
+            }
+        }
         vin.push_back(in);
     }
     entry.pushKV("vin", vin);
@@ -294,11 +299,12 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("data", vdata);
 
     UniValue vout(UniValue::VARR);
-	for(unsigned int k = 0; k < tx.vout.size(); k++){
-		CTxOut txout = tx.vout[k];
-
+    for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
+        CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
         UniValue out(UniValue::VOBJ);
         out.pushKV("value", ValueFromAmount(txout.nValue));
+        out.pushKV("asset", txout.nAsset.ToString());
+
         out.pushKV("n", (int64_t)k);
 
         UniValue o(UniValue::VOBJ);
@@ -306,7 +312,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         out.pushKV("scriptPubKey", o);
         vout.push_back(out);
     }
-    entry.pushKV("vout", vout);
+    entry.pushKV((tx.nVersion >= TX_ELE_VERSION ? "vpout" : "vout"), vout);
 
     if(tx.nVersion >= TX_ELE_VERSION ){
 		UniValue vpout(UniValue::VARR);

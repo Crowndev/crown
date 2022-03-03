@@ -114,7 +114,7 @@ enum class FeeEstimateMode;
 class ReserveDestination;
 
 //! Default for -addresstype
-constexpr OutputType DEFAULT_ADDRESS_TYPE{OutputType::BECH32};
+constexpr OutputType DEFAULT_ADDRESS_TYPE{OutputType::LEGACY};
 
 static constexpr uint64_t KNOWN_WALLET_FLAGS =
         WALLET_FLAG_AVOID_REUSE
@@ -509,7 +509,8 @@ public:
     // Get the marginal bytes if spending the specified output from this transaction
     int GetSpendSize(unsigned int out, bool use_max_sig = false) const
     {
-        return CalculateMaximumSignedInputSize(tx->vout[out], pwallet, use_max_sig);
+        CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[out] : tx->vout[out]);
+        return CalculateMaximumSignedInputSize(mout, pwallet, use_max_sig);
     }
 
     void GetAmounts(std::list<COutputEntry>& listReceived,
@@ -624,19 +625,23 @@ public:
 
     CAmount Value() const
     {
-		CAmount value =0;
-		if(tx->tx->nVersion >= TX_ELE_VERSION)
+        CAmount value =0;
+        if(tx->tx->nVersion >= TX_ELE_VERSION)
             value = tx->tx->vpout[i].nValue;
-            		
+        else
+            value = tx->tx->vout[i].nValue;
+
         return value;
     }
 
     CAsset Asset() const
     {
-		CAsset asset;
-		if(tx->tx->nVersion >= TX_ELE_VERSION)
+        CAsset asset;
+        if(tx->tx->nVersion >= TX_ELE_VERSION)
             asset = tx->tx->vpout[i].nAsset;
-            
+        else
+            asset = Params().GetConsensus().subsidy_asset;
+
         return asset;
     }
 
@@ -820,7 +825,7 @@ public:
           m_name(name),
           database(std::move(database))
     {
-		fWalletUnlockStaking = false;
+        fWalletUnlockStaking = false;
     }
 
     ~CWallet()
@@ -874,7 +879,7 @@ public:
     /**
      * Find non-change parent output.
      */
-    const CTxOut& FindNonChangeParentOutput(const CTransaction& tx, int output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    const CTxOutAsset& FindNonChangeParentOutput(const CTransaction& tx, int output) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -1050,14 +1055,14 @@ public:
 
     void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
 
-    bool DummySignTx(CMutableTransaction &txNew, const std::set<CTxOut> &txouts, bool use_max_sig = false) const
+    bool DummySignTx(CMutableTransaction &txNew, const std::set<CTxOutAsset> &txouts, bool use_max_sig = false) const
     {
-        std::vector<CTxOut> v_txouts(txouts.size());
+        std::vector<CTxOutAsset> v_txouts(txouts.size());
         std::copy(txouts.begin(), txouts.end(), v_txouts.begin());
         return DummySignTx(txNew, v_txouts, use_max_sig);
     }
-    bool DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOut> &txouts, bool use_max_sig = false) const;
-    bool DummySignInput(CTxIn &tx_in, const CTxOutAsset &txout, bool use_max_sig = false) const;
+    bool DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOutAsset> &txouts, bool use_max_sig = false) const;
+    bool DummySignInput(CMutableTransaction& tx, const size_t nIn, const CTxOutAsset &txout, bool use_max_sig = false) const;
 
     bool ImportScripts(const std::set<CScript> scripts, int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool ImportPrivKeys(const std::map<CKeyID, CKey>& privkey_map, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1399,7 +1404,7 @@ public:
 // NOTE: this requires that all inputs must be in mapWallet (eg the tx should
 // be IsAllFromMe).
 int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, bool use_max_sig = false) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet);
-int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, bool use_max_sig = false);
+int64_t CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOutAsset>& txouts, bool use_max_sig = false);
 
 //! Add wallet name to persistent configuration so it will be loaded on startup.
 bool AddWalletSetting(interfaces::Chain& chain, const std::string& wallet_name);

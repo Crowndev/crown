@@ -481,7 +481,7 @@ public:
     bool fCoinStake;
 
     //! unspent transaction outputs; spent outputs are .IsNull(); spent outputs at the end of the array are dropped
-    std::vector<CTxOut> vout;
+    std::vector<CTxOutAsset> vout;
 
     //! at which height this transaction was included in the active block chain
     int nHeight;
@@ -515,10 +515,10 @@ public:
                 nMaskCode--;
         }
         // txouts themself
-        vout.assign(vAvail.size(), CTxOut());
+        vout.assign(vAvail.size(), CTxOutAsset());
         for (unsigned int i = 0; i < vAvail.size(); i++) {
             if (vAvail[i])
-                ::Unserialize(s, Using<TxOutCompression>(vout[i]));
+                ::Unserialize(s, Using<TxOutAssetCompression>(vout[i]));
         }
         // coinbase height
         ::Unserialize(s, VARINT_MODE(nHeight, VarIntMode::NONNEGATIVE_SIGNED));

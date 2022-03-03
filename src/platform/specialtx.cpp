@@ -103,7 +103,7 @@ bool UndoNftTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
         int64_t nTime1 = GetTimeMicros();
         for (int i = (int)block.vtx.size() - 1; i >= 0; --i) {
             const CTransaction& tx = *block.vtx[i];
-            if (!UndoNftTx(tx, pindex)) {
+            if (tx.nVersion < TX_ELE_VERSION && !UndoNftTx(tx, pindex)) {
                 return false;
             }
         }

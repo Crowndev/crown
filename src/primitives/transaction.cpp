@@ -212,7 +212,7 @@ std::vector<CTxDataBaseRef> DeepCopy(const std::vector<CTxDataBaseRef> &from)
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0) {}
-CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload) {}
+CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness) {}
 
 uint256 CMutableTransaction::GetHash() const
 {
@@ -232,10 +232,26 @@ uint256 CTransaction::ComputeWitnessHash() const
     return SerializeHash(*this, SER_GETHASH, 0);
 }
 
+uint256 CTransaction::GetWitnessOnlyHash() const
+{
+    std::vector<uint256> leaves;
+    leaves.reserve(std::max(vin.size(), vout.size()));
+    /* Inputs */
+    for (size_t i = 0; i < vin.size(); ++i) {
+        // Input has no witness OR is null input(coinbase)
+        const CTxInWitness& txinwit = (witness.vtxinwit.size() <= i || vin[i].prevout.IsNull()) ? CTxInWitness() : witness.vtxinwit[i];
+        leaves.push_back(txinwit.GetHash());
+    }
+    uint256 hashIn = ComputeFastMerkleRoot(leaves);
+    leaves.clear();
+    leaves.push_back(hashIn);
+    return ComputeFastMerkleRoot(leaves);
+}
+
 /* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
 CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0), hash{}, m_witness_hash{} {}
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
-CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), vpout(std::move(tx.vpout)), vdata(std::move(tx.vdata)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
+CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
+CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), vpout(std::move(tx.vpout)), vdata(std::move(tx.vdata)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(std::move(tx.witness)), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
 
 CAmount CTransaction::GetValueOut() const
 {
@@ -296,11 +312,11 @@ std::string CTransaction::ToString() const
         nLockTime,
         extraPayload.size());
     for (const auto& tx_in : vin)
-        str += "    " + tx_in.ToString() + "\n";
-    for (const auto& tx_in : vin)
-        str += "    " + tx_in.scriptWitness.ToString() + "\n";
+        str +=tx_in.ToString() + "\n";
+    for (const auto& tx_in : witness.vtxinwit)
+        str += tx_in.scriptWitness.ToString() + "\n";
     for (const auto& tx_out : vout)
-        str += "    " + tx_out.ToString() + "\n";
+        str += tx_out.ToString() + "\n";
     for (unsigned int i = 0; i < vpout.size(); i++)
         str += "    " + vpout[i].ToString() + "\n";
     for (unsigned int i = 0; i < vdata.size(); i++)
@@ -321,7 +337,7 @@ std::string CMutableTransaction::ToString() const
         extraPayload.size());
     for (const auto& tx_in : vin)
         str += tx_in.ToString() + "\n";
-    for (const auto& tx_in : vin)
+    for (const auto& tx_in : witness.vtxinwit)
         str += tx_in.scriptWitness.ToString() + "\n";
     for (const auto& tx_out : vout)
         str += tx_out.ToString() + "\n";

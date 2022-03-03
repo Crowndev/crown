@@ -14,7 +14,7 @@
 #include <string>
 
 class CCoinsViewCache;
-class CTxOut;
+class CTxOutAsset;
 
 /** Default for -blockmaxweight, which controls the range of block weights the mining code will create **/
 static const unsigned int DEFAULT_BLOCK_MAX_WEIGHT = MAX_BLOCK_WEIGHT - 4000;
@@ -85,7 +85,7 @@ static constexpr unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_VERIFY_S
 
 CAmount GetDustThreshold(const CTxOutAsset& txout, const CFeeRate& dustRelayFee);
 
-bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFee);
+bool IsDust(const CTxOutAsset& txout, const CFeeRate& dustRelayFee);
 
 bool IsStandard(const CScript& scriptPubKey, TxoutType& whichType);
     /**
@@ -110,16 +110,16 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 /** Compute the virtual transaction size (weight reinterpreted as bytes). */
 int64_t GetVirtualTransactionSize(int64_t nWeight, int64_t nSigOpCost, unsigned int bytes_per_sigop);
 int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost, unsigned int bytes_per_sigop);
-int64_t GetVirtualTransactionInputSize(const CTxIn& tx, int64_t nSigOpCost, unsigned int bytes_per_sigop);
+int64_t GetVirtualTransactionInputSize(const CTransaction& tx, const size_t nIn, int64_t nSigOpCost, unsigned int bytes_per_sigop);
 
 static inline int64_t GetVirtualTransactionSize(const CTransaction& tx)
 {
     return GetVirtualTransactionSize(tx, 0, 0);
 }
 
-static inline int64_t GetVirtualTransactionInputSize(const CTxIn& tx)
+static inline int64_t GetVirtualTransactionInputSize(const CTransaction& tx)
 {
-    return GetVirtualTransactionInputSize(tx, 0, 0);
+    return GetVirtualTransactionInputSize(tx, 0, 0, 0);
 }
 
 #endif // CROWN_POLICY_POLICY_H

@@ -227,13 +227,20 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
     //txNew.vout[0].nValue = blockValue;
 
     if (hasPayment) {
-        txNew.vout.resize(3);
-
-        // [0] is for miner, [1] masternode, [2] systemnode
-        txNew.vout[2].scriptPubKey = payee;
-        txNew.vout[2].nValue = systemnodePayment;
-
-        txNew.vout[0].nValue -= systemnodePayment;
+        if(txNew.nVersion >= TX_ELE_VERSION){
+            txNew.vpout.resize(3);
+            // [0] is for miner, [1] masternode, [2] systemnode
+            txNew.vpout[2].scriptPubKey = payee;
+            txNew.vpout[2].nValue = systemnodePayment;
+            txNew.vpout[0].nValue -= systemnodePayment;
+        }
+        else{
+            txNew.vout.resize(3);
+            // [0] is for miner, [1] masternode, [2] systemnode
+            txNew.vout[2].scriptPubKey = payee;
+            txNew.vout[2].nValue = systemnodePayment;
+            txNew.vout[0].nValue -= systemnodePayment;
+        }
 
         LogPrint(BCLog::NET, "Systemnode payment to %s\n", EncodeDestination(ScriptHash(CScriptID(payee))).c_str());
     }
@@ -290,9 +297,12 @@ bool CSystemnodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
     {
         bool found = false;
         int pos = -1;
-        for (unsigned int i = 0; i < txNew.vout.size(); i++){
-            if(payee.scriptPubKey == txNew.vout[i].scriptPubKey && systemnodePayment == txNew.vout[i].nValue){
-                pos = i;
+        for (unsigned int k = 0; k <  (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()) ; k++){
+            CTxOutAsset txout = (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout[k] : txNew.vout[k]);
+
+        //for (unsigned int i = 0; i < txNew.vout.size(); i++){
+            if(payee.scriptPubKey == txout.scriptPubKey && systemnodePayment == txout.nValue){
+                pos = k;
                 found = true;
                 break;
             }
@@ -381,7 +391,7 @@ bool CSystemnodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
     int n = snodeman.GetSystemnodeRank(vinSystemnode, nBlockHeight-100, MIN_MNW_PEER_PROTO_VERSION);
 
     if(n > MNPAYMENTS_SIGNATURES_TOTAL)
-    {    
+    {
         //It's common to have systemnodes mistakenly think they are in the top 10
         // We don't want to print all of these messages, or punish them unless they're way off
         if(n > MNPAYMENTS_SIGNATURES_TOTAL*2)
@@ -475,7 +485,7 @@ bool CSystemnodePayments::AddWinningSystemnode(CSystemnodePaymentWinner& winnerI
 
     {
         LOCK2(cs_mapSystemnodePayeeVotes, cs_mapSystemnodeBlocks);
-    
+
         if(mapSystemnodePayeeVotes.count(winnerIn.GetHash())){
            return false;
         }
@@ -552,7 +562,7 @@ void CSystemnodePayments::Sync(CNode* node, int nCountNeeded)
     g_connman->PushMessage(node, msgMaker.Make("snssc", SYSTEMNODE_SYNC_SNW, nInvCount));
 }
 
-// Is this systemnode scheduled to get paid soon? 
+// Is this systemnode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 winners
 bool CSystemnodePayments::IsScheduled(CSystemnode& sn, int nNotBlockHeight)
 {

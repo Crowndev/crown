@@ -10,6 +10,7 @@
 #include <qt/crowngui.h>
 
 #include <chainparams.h>
+#include <crown/init.h>
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
@@ -568,6 +569,8 @@ int GuiMain(int argc, char* argv[])
     QApplication::setApplicationName(networkStyle->getAppName());
     // Re-initialize translations after changing application name (language in network-specific settings can be different)
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
+
+    loadNodeConfiguration();
 
 #ifdef ENABLE_WALLET
     /// 8. URI IPC sending
