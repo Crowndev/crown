@@ -304,7 +304,6 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         UniValue out(UniValue::VOBJ);
         out.pushKV("value", ValueFromAmount(txout.nValue));
         out.pushKV("asset", txout.nAsset.ToString());
-
         out.pushKV("n", (int64_t)k);
 
         UniValue o(UniValue::VOBJ);
@@ -313,24 +312,6 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         vout.push_back(out);
     }
     entry.pushKV((tx.nVersion >= TX_ELE_VERSION ? "vpout" : "vout"), vout);
-
-    if(tx.nVersion >= TX_ELE_VERSION ){
-		UniValue vpout(UniValue::VARR);
-		for(unsigned int k = 0; k < tx.vpout.size(); k++){
-			CTxOutAsset txout = tx.vpout[k];
-
-			UniValue out(UniValue::VOBJ);
-			out.pushKV("value", ValueFromAmount(txout.nValue));
-			out.pushKV("asset", txout.nAsset.getName());
-			out.pushKV("n", (int64_t)k);
-
-			UniValue o(UniValue::VOBJ);
-			ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
-			out.pushKV("scriptPubKey", o);
-			vout.push_back(out);
-		}
-		entry.pushKV("vpout", vout);
-    }
 
     if (!tx.extraPayload.empty()) {
         entry.pushKV("extraPayloadSize", (int)tx.extraPayload.size());

@@ -271,15 +271,13 @@ std::vector<COutput> CActiveSystemnode::SelectCoinsSystemnode()
 
     for (const COutput& out : vCoins) {
         if(out.tx->tx->nVersion >= TX_ELE_VERSION){
-
-            if (out.tx->tx->vpout[out.i].nValue == Params().SystemnodeCollateral()) {
+            if (out.tx->tx->vpout[out.i].nValue == Params().SystemnodeCollateral())
                 filteredCoins.push_back(out);
-            }
+            
         }
         else {
-            if (out.tx->tx->vout[out.i].nValue == Params().SystemnodeCollateral()) {
+            if (out.tx->tx->vout[out.i].nValue == Params().SystemnodeCollateral())
                 filteredCoins.push_back(out);
-            }
         }
     }
 
