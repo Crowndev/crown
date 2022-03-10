@@ -270,15 +270,12 @@ std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
     // Filter appropriate coins
     for (const COutput& out : vCoins) {
         if(out.tx->tx->nVersion >= TX_ELE_VERSION){
-
-            if (out.tx->tx->vpout[out.i].nValue == Params().MasternodeCollateral()) {
-                filteredCoins.push_back(out);
-            }
+            if (out.tx->tx->vpout[out.i].nValue == Params().MasternodeCollateral())
+                filteredCoins.push_back(out);           
         }
         else{
-            if (out.tx->tx->vout[out.i].nValue == Params().MasternodeCollateral()) {
+            if (out.tx->tx->vout[out.i].nValue == Params().MasternodeCollateral()) 
                 filteredCoins.push_back(out);
-            }
         }
     }
 
