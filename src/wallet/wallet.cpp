@@ -2111,7 +2111,7 @@ CAmountMap CWalletTx::GetLockedCredit(const isminefilter& filter) const
     {
         if ((!pwallet->IsSpent(hashTx, i) && pwallet->IsLockedCoin(hashTx, i))) {
             if (pwallet->IsMine((tx->nVersion >= TX_ELE_VERSION ?  tx->vpout[i] :  tx->vout[i])) & filter) {
-                CAmount credit = tx->vout[i].nValue;
+                CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
                 if (!MoneyRange(credit))
                     throw std::runtime_error(std::string(__func__) + ": value out of range");
 
