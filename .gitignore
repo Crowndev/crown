@@ -2,7 +2,6 @@
 
 *.exe
 *.pdb
-src/crown
 src/crownd
 src/crown-cli
 src/crown-gui
