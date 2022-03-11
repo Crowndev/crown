@@ -20,6 +20,19 @@
 #include <timedata.h>
 #include <util/moneystr.h>
 #include <util/system.h>
+#include <wallet/wallet.h>
+
+#include <crown/nodewallet.h>
+#include <crown/legacysigner.h>
+#include <crown/spork.h>
+#include <masternode/masternode-budget.h>
+#include <masternode/masternode-payments.h>
+#include <masternode/masternodeconfig.h>
+#include <systemnode/systemnode-payments.h>
+#include <pos/stakepointer.h>
+#include <pos/stakeminer.h>
+#include <pos/stakevalidation.h>
+
 
 #include <algorithm>
 #include <utility>
@@ -100,7 +113,7 @@ void BlockAssembler::resetBlock()
 std::optional<int64_t> BlockAssembler::m_last_block_num_txs{std::nullopt};
 std::optional<int64_t> BlockAssembler::m_last_block_weight{std::nullopt};
 
-std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
+std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, CWallet* pwallet, bool fProofOfStake)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -151,6 +164,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
+    CMutableTransaction txCoinStake;
     if(nHeight >= 1)
         coinbaseTx.nVersion = TX_ELE_VERSION;
     coinbaseTx.vin.resize(1);
@@ -172,6 +186,73 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
+
+
+    if (fProofOfStake && ::ChainActive().Height() + 1 >= Params().PoSStartHeight()) {
+        pblock->nTime = GetAdjustedTime();
+        CBlockIndex* pindexPrev = ::ChainActive().Tip();
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        bool fStakeFound = false;
+        uint32_t nTxNewTime = 0;
+        uint32_t nTime = pblock->nTime;
+        uint32_t nBits = pblock->nBits;
+        StakePointer stakePointer;
+
+        // Slow down blocks so that the testnet chain does not burn through the stakepointers too quick
+        if (Params().NetworkIDString() == "test" && GetAdjustedTime() - ::ChainActive().Tip()->nTime < 30)
+            UninterruptibleSleep(std::chrono::milliseconds(30000));
+
+        if (currentNode.CreateCoinStake(nHeight, nBits, nTime, txCoinStake, nTxNewTime, stakePointer)) {
+            pblock->nTime = nTxNewTime;
+            pblock->vtx.clear();
+            coinbaseTx.vout[0].scriptPubKey = CScript();
+            pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
+            txCoinStake.vin[0].scriptSig << nHeight << OP_0;
+            pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
+            pblock->stakePointer = stakePointer;
+            fStakeFound = true;
+        }
+
+        if (!fStakeFound)
+            return NULL;
+    }
+
+    // Masternode and general budget payments
+    if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS)) {
+        FillBlockPayee(coinbaseTx, nFees);
+        SNFillBlockPayee(coinbaseTx, nFees);
+    } else {
+        coinbaseTx.vout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
+    }
+
+    // Proof of stake blocks pay the mining reward in the coinstake transaction
+    if (fProofOfStake) {
+        CAmount nValueNodeRewards = 0;
+        if (coinbaseTx.vout.size() > 1)
+            nValueNodeRewards += coinbaseTx.vout[MN_PMT_SLOT].nValue;
+        if (coinbaseTx.vout.size() > 2)
+            nValueNodeRewards += coinbaseTx.vout[SN_PMT_SLOT].nValue;
+        if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1))) {
+            //Reduce PoS reward by the node rewards
+            txCoinStake.vout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
+        } else {
+            // Miner gets full block value in case of superblock
+            txCoinStake.vout[0].nValue = GetBlockValue(nHeight, nFees);
+        }
+        pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
+        // Make sure coinbase has null values
+        coinbaseTx.vout[0].nValue = 0;
+        coinbaseTx.vout[0].scriptPubKey = CScript();
+    }
+
+    if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1))) {
+        // Make payee
+        if(coinbaseTx.vout.size() > 1)
+            pblock->payee = coinbaseTx.vout[MN_PMT_SLOT].scriptPubKey;
+        // Make SNpayee
+        if(coinbaseTx.vout.size() > 2)
+           pblock->payeeSN = coinbaseTx.vout[SN_PMT_SLOT].scriptPubKey;
+    }
 
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n %s\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost, pblock->ToString());
 

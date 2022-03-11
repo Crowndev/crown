@@ -2031,12 +2031,17 @@ CAmountMap CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& fil
     CAmountMap nCredit;
     uint256 hashTx = GetHash();
     for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
-        CTxOutAsset txout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i] : tx->vout[i]);
 
         if (!pwallet->IsSpent(hashTx, i) && (allow_used_addresses || !pwallet->IsSpentKey(hashTx, i))) {
-            nCredit += pwallet->GetCredit(txout, filter);
-            if (!MoneyRange(nCredit))
+            //nCredit += pwallet->GetCredit(txout, filter);
+            CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
+            if (!MoneyRange(credit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
+            
+            if(tx->nVersion >= TX_ELE_VERSION)
+                nCredit[tx->vpout[i].nAsset] += credit;
+            else
+                nCredit[Params().GetConsensus().subsidy_asset] += credit;
         }
     }
 
