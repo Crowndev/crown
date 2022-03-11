@@ -795,7 +795,6 @@ fs::path GetSystemnodeConfigFile()
 {
     fs::path pathConfigFile(gArgs.GetArg("-mnconf", "systemnode.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
-
     return AbsPathForConfigVal(pathConfigFile, false);
 }
 
