@@ -157,7 +157,7 @@ bool CSystemnode::UpdateFromNewBroadcast(const CSystemnodeBroadcast& snb)
         int nDoS = 0;
         if(snb.lastPing == CSystemnodePing() || (snb.lastPing != CSystemnodePing() && snb.lastPing.CheckAndUpdate(nDoS, false))) {
             lastPing = snb.lastPing;
-            snodeman.mapSeenSystemnodePing.insert(make_pair(lastPing.GetHash(), lastPing));
+            snodeman.mapSeenSystemnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
         }
         return true;
     }
@@ -498,13 +498,13 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         activeSystemnode.EnableHotColdSystemNode(vin, addr);
         if (!vchSignover.empty()) {
             if (pubkey.Verify(pubkey2.GetHash(), vchSignover)) {
-                LogPrint(BCLog::NET, "%s: Verified pubkey2 signover for staking, added to activesystemnode\n", __func__);
+                LogPrint(BCLog::SYSTEMNODE, "%s: Verified pubkey2 signover for staking, added to activesystemnode\n", __func__);
                 activeSystemnode.vchSigSignover = vchSignover;
             } else {
-                LogPrint(BCLog::NET, "%s: Failed to verify pubkey on signover!\n", __func__);
+                LogPrint(BCLog::SYSTEMNODE, "%s: Failed to verify pubkey on signover!\n", __func__);
             }
         } else {
-            LogPrint(BCLog::NET, "%s: NOT SIGNOVER!\n", __func__);
+            LogPrint(BCLog::SYSTEMNODE, "%s: NOT SIGNOVER!\n", __func__);
         }
 
     }
@@ -581,7 +581,7 @@ bool CSystemnodeBroadcast::Create(std::string strService, std::string strKeySyst
         //need correct blocks to send ping
         if(!fOffline && !systemnodeSync.IsBlockchainSynced()) {
             strErrorMessage = "Sync in progress. Must wait until sync is complete to start Systemnode";
-            LogPrint(BCLog::NET, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
             return false;
         }
     }
@@ -616,7 +616,7 @@ bool CSystemnodeBroadcast::Create(std::string strService, std::string strKeySyst
         }
     } else if(service.GetPort() == 9340) {
         strErrorMessage = strprintf("Invalid port %u for systemnode %s - 9340 is only supported on mainnet.", service.GetPort(), strService);
-        LogPrint(BCLog::NET, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
         return false;
     }
 

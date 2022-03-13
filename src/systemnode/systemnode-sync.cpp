@@ -75,7 +75,7 @@ void CSystemnodeSync::AddedSystemnodeList(uint256 hash)
         }
     } else {
         lastSystemnodeList = GetTime();
-        mapSeenSyncSNB.insert(make_pair(hash, 1));
+        mapSeenSyncSNB.insert(std::make_pair(hash, 1));
     }
 }
 
@@ -88,7 +88,7 @@ void CSystemnodeSync::AddedSystemnodeWinner(uint256 hash)
         }
     } else {
         lastSystemnodeWinner = GetTime();
-        mapSeenSyncSNW.insert(make_pair(hash, 1));
+        mapSeenSyncSNW.insert(std::make_pair(hash, 1));
     }
 }
 

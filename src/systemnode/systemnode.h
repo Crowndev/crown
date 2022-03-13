@@ -22,12 +22,11 @@
 #define SYSTEMNODE_REMOVAL_SECONDS (75 * 60)
 #define SYSTEMNODE_CHECK_SECONDS 5
 
-using namespace std;
 
 class CSystemnode;
 class CSystemnodeBroadcast;
 class CSystemnodePing;
-extern map<int64_t, uint256> mapCacheBlockHashes;
+extern std::map<int64_t, uint256> mapCacheBlockHashes;
 
 //
 // The Systemnode Ping Class : Contains a different serialize method for sending pings from systemnodes throughout the network

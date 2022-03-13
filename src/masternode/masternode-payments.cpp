@@ -256,7 +256,7 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const s
 
         int nFirstBlock = nHeight - (mnodeman.CountEnabled()*1.25);
         if(winner.nBlockHeight < nFirstBlock || winner.nBlockHeight > nHeight+20){
-            LogPrint(BCLog::NET, "mnw - winner out of range - FirstBlock %d Height %d bestHeight %d\n", nFirstBlock, winner.nBlockHeight, nHeight);
+            LogPrint(BCLog::MASTERNODE, "mnw - winner out of range - FirstBlock %d Height %d bestHeight %d\n", nFirstBlock, winner.nBlockHeight, nHeight);
             return;
         }
 
@@ -267,19 +267,19 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const s
         }
 
         if(!masternodePayments.CanVote(winner.vinMasternode.prevout, winner.nBlockHeight)){
-            LogPrint(BCLog::NET, "mnw - masternode already voted - %s\n", winner.vinMasternode.prevout.ToStringShort());
+            LogPrint(BCLog::MASTERNODE, "mnw - masternode already voted - %s\n", winner.vinMasternode.prevout.ToStringShort());
             return;
         }
 
         if(!winner.SignatureValid()){
-            LogPrint(BCLog::NET, "mnw - invalid signature\n");
+            LogPrint(BCLog::MASTERNODE, "mnw - invalid signature\n");
             if(masternodeSync.IsSynced()) Misbehaving(pfrom->GetId(), 20);
             // it could just be a non-synced masternode
             mnodeman.AskForMN(pfrom, winner.vinMasternode);
             return;
         }
 
-        LogPrint(BCLog::NET, "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", EncodeDestination(ScriptHash(CScriptID(winner.payee))).c_str(), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
+        LogPrint(BCLog::MASTERNODE, "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", EncodeDestination(ScriptHash(CScriptID(winner.payee))).c_str(), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
 
         if(masternodePayments.AddWinningMasternode(winner)){
             winner.Relay();
@@ -401,8 +401,6 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
         int pos = -1;
         for (unsigned int k = 0; k <  (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()) ; k++){
             CTxOutAsset txout = (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout[k] : txNew.vout[k]);
-
-        //for (unsigned int i = 0; i < txNew.vout.size(); i++) {
             if(payee.scriptPubKey == txout.scriptPubKey && masternodePayment == txout.nValue){
                 found = true;
                 pos = k;
@@ -428,7 +426,7 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
     }
 
 
-    LogPrint(BCLog::NET, "CMasternodePayments::IsTransactionValid - Missing required payment of %s to %s\n",
+    LogPrint(BCLog::MASTERNODE, "CMasternodePayments::IsTransactionValid - Missing required payment of %s to %s\n",
             FormatMoney(masternodePayment), strPayeesPossible.c_str());
     return false;
 }
@@ -464,7 +462,8 @@ std::string CMasternodePayments::GetRequiredPaymentsString(int nBlockHeight)
 
 bool CMasternodePayments::IsTransactionValid(const CAmount& nValueCreated, const CTransaction& txNew, int nBlockHeight)
 {
-    AssertLockHeld(cs_mapMasternodeBlocks);
+    //AssertLockHeld
+    LOCK(cs_mapMasternodeBlocks);
 
     if(mapMasternodeBlocks.count(nBlockHeight)){
         return mapMasternodeBlocks[nBlockHeight].IsTransactionValid(txNew, nValueCreated);
@@ -521,7 +520,7 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
     if(!pmn)
     {
         strError = strprintf("Unknown Masternode %s", vinMasternode.prevout.ToStringShort());
-        LogPrintf ("CMasternodePaymentWinner::IsValid - %s\n", strError);
+        LogPrint(BCLog::MASTERNODE, "CMasternodePaymentWinner::IsValid - %s\n", strError);
         mnodeman.AskForMN(pnode, vinMasternode);
         return false;
     }
@@ -529,7 +528,7 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
     if(pmn->protocolVersion < MIN_MNW_PEER_PROTO_VERSION)
     {
         strError = strprintf("Masternode protocol too old %d - req %d", pmn->protocolVersion, MIN_MNW_PEER_PROTO_VERSION);
-        LogPrintf ("CMasternodePaymentWinner::IsValid - %s\n", strError);
+        LogPrint(BCLog::MASTERNODE, "CMasternodePaymentWinner::IsValid - %s\n", strError);
         return false;
     }
 
@@ -539,10 +538,10 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)
     {
         //It's common to have masternodes mistakenly think they are in the top 10
         // We don't want to print all of these messages, or punish them unless they're way off
-        if(n > MNPAYMENTS_SIGNATURES_TOTAL*2)
+        if(n > MNPAYMENTS_SIGNATURES_TOTAL * 2)
         {
             strError = strprintf("Masternode not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL, n);
-            LogPrint(BCLog::NET, "CMasternodePaymentWinner::IsValid - %s\n", strError);
+            LogPrint(BCLog::MASTERNODE, "CMasternodePaymentWinner::IsValid - %s\n", strError);
             if(masternodeSync.IsSynced()) Misbehaving(pnode->GetId(), 20);
         }
         return false;
@@ -610,10 +609,10 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
         return false;
     }
 
-    LogPrint(BCLog::NET, "CMasternodePayments::ProcessBlock() - Signing Winner\n");
+    LogPrint(BCLog::MASTERNODE, "CMasternodePayments::ProcessBlock() - Signing Winner\n");
     if(newWinner.Sign(keyMasternode, pubKeyMasternode))
     {
-        LogPrint(BCLog::NET, "CMasternodePayments::ProcessBlock() - AddWinningMasternode\n");
+        LogPrint(BCLog::MASTERNODE, "CMasternodePayments::ProcessBlock() - AddWinningMasternode\n");
 
         if(AddWinningMasternode(newWinner))
         {
@@ -672,7 +671,7 @@ void CMasternodePayments::Sync(CNode* node, int nCountNeeded)
     std::map<uint256, CMasternodePaymentWinner>::iterator it = mapMasternodePayeeVotes.begin();
     while(it != mapMasternodePayeeVotes.end()) {
         CMasternodePaymentWinner winner = (*it).second;
-        if(winner.nBlockHeight >= nHeight-nCountNeeded && winner.nBlockHeight <= nHeight + 20) {
+        if(winner.nBlockHeight >= nHeight - nCountNeeded && winner.nBlockHeight <= nHeight + 20) {
             node->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
             nInvCount++;
         }

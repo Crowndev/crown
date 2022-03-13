@@ -216,7 +216,7 @@ bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage) {
         }
 
         pmn->lastPing = mnp;
-        snodeman.mapSeenSystemnodePing.insert(make_pair(mnp.GetHash(), mnp));
+        snodeman.mapSeenSystemnodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
         //snodeman.mapSeenSystemnodeBroadcast.lastPing is probably outdated, so we'll update it
         CSystemnodeBroadcast mnb(*pmn);

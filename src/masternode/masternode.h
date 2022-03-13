@@ -200,7 +200,7 @@ public:
         return !(a.vin == b.vin);
     }
 
-    arith_uint256 CalculateScore(int64_t nBlockHeight=0) const;
+    arith_uint256 CalculateScore(int64_t nBlockHeight = 0) const;
 
     SERIALIZE_METHODS(CMasternode, obj)
     {
@@ -268,7 +268,7 @@ public:
             cacheInputAgeBlock = ::ChainActive().Tip()->nHeight;
         }
 
-        return cacheInputAge+(::ChainActive().Tip()->nHeight-cacheInputAgeBlock);
+        return cacheInputAge + (::ChainActive().Tip()->nHeight - cacheInputAgeBlock);
     }
 
     std::string Status() const
@@ -322,8 +322,7 @@ public:
         READWRITE(obj.protocolVersion);
         READWRITE(obj.lastPing);
         READWRITE(obj.nLastDsq);
-        if (obj.protocolVersion >= PROTOCOL_POS_START)
-        {
+        if (obj.protocolVersion >= PROTOCOL_POS_START) {
             READWRITE(obj.vchSignover);
         }
     }

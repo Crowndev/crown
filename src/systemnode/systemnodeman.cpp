@@ -21,8 +21,8 @@ CSystemnodeMan snodeman;
 
 struct CompareLastPaid
 {
-    bool operator()(const pair<int64_t, CTxIn>& t1,
-                    const pair<int64_t, CTxIn>& t2) const
+    bool operator()(const std::pair<int64_t, CTxIn>& t1,
+                    const std::pair<int64_t, CTxIn>& t2) const
     {
         return t1.first < t2.first;
     }
@@ -30,8 +30,8 @@ struct CompareLastPaid
 
 struct CompareScoreTxIn
 {
-    bool operator()(const pair<int64_t, CTxIn>& t1,
-                    const pair<int64_t, CTxIn>& t2) const
+    bool operator()(const std::pair<int64_t, CTxIn>& t1,
+                    const std::pair<int64_t, CTxIn>& t2) const
     {
         return t1.first < t2.first;
     }
@@ -39,8 +39,8 @@ struct CompareScoreTxIn
 
 struct CompareScoreSN
 {
-    bool operator()(const pair<int64_t, CSystemnode>& t1,
-                    const pair<int64_t, CSystemnode>& t2) const
+    bool operator()(const std::pair<int64_t, CSystemnode>& t1,
+                    const std::pair<int64_t, CSystemnode>& t2) const
     {
         return t1.first < t2.first;
     }
@@ -62,10 +62,10 @@ int CSystemnodeMan::CountSystemnodes(bool fEnabled)
     return nCount;
 }
 
-std::vector<pair<int, CSystemnode> > CSystemnodeMan::GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol)
+std::vector<std::pair<int, CSystemnode> > CSystemnodeMan::GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol)
 {
-    std::vector<pair<int64_t, CSystemnode> > vecSystemnodeScores;
-    std::vector<pair<int, CSystemnode> > vecSystemnodeRanks;
+    std::vector<std::pair<int64_t, CSystemnode> > vecSystemnodeScores;
+    std::vector<std::pair<int, CSystemnode> > vecSystemnodeRanks;
 
     //make sure we know about this block
     uint256 hash = uint256();
@@ -79,14 +79,14 @@ std::vector<pair<int, CSystemnode> > CSystemnodeMan::GetSystemnodeRanks(int64_t 
         if(!sn.IsEnabled())
             continue;
         int64_t n2 = sn.CalculateScore(nBlockHeight).GetCompact(false);
-        vecSystemnodeScores.push_back(make_pair(n2, sn));
+        vecSystemnodeScores.push_back(std::make_pair(n2, sn));
     }
     sort(vecSystemnodeScores.rbegin(), vecSystemnodeScores.rend(), CompareScoreSN());
 
     int rank = 0;
      for (const auto& s : vecSystemnodeScores) {
         rank++;
-        vecSystemnodeRanks.push_back(make_pair(rank, s.second));
+        vecSystemnodeRanks.push_back(std::make_pair(rank, s.second));
     }
 
     return vecSystemnodeRanks;
@@ -97,8 +97,7 @@ void CSystemnodeMan::ProcessSystemnodeConnections()
     //we don't care about this for regtest
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
 
-    LOCK(g_connman->cs_vNodes);
-    for (const auto &pnode : g_connman->GetNodes()) {
+    for (const auto& pnode : g_connman->CopyNodeVector()) {
         if(pnode->fSystemnode) {
             if(legacySigner.pSubmittedToSystemnode != NULL && pnode->addr == legacySigner.pSubmittedToSystemnode->addr) continue;
             LogPrint(BCLog::NET, "Closing Systemnode connection %s \n", pnode->addr.ToString());
@@ -138,7 +137,7 @@ void CSystemnodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
 
         if (mapSeenSystemnodePing.count(snp.GetHash()))
             return; //seen
-        mapSeenSystemnodePing.insert(make_pair(snp.GetHash(), snp));
+        mapSeenSystemnodePing.insert(std::make_pair(snp.GetHash(), snp));
 
         int nDoS = 0;
         if(snp.CheckAndUpdate(nDoS)) return;
@@ -190,7 +189,7 @@ void CSystemnodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
                     uint256 hash = snb.GetHash();
                     pfrom->PushInventory(CInv(MSG_SYSTEMNODE_ANNOUNCE, hash));
                     nInvCount++;
-                    if(!mapSeenSystemnodeBroadcast.count(hash)) mapSeenSystemnodeBroadcast.insert(make_pair(hash, snb));
+                    if(!mapSeenSystemnodeBroadcast.count(hash)) mapSeenSystemnodeBroadcast.insert(std::make_pair(hash, snb));
                     if(vin == sn.vin) {
                         LogPrint(BCLog::NET, "sndseg - Sent 1 Systemnode entries to %s\n", pfrom->addr.ToString());
                         return;
@@ -234,7 +233,7 @@ bool CSystemnodeMan::CheckSnbAndUpdateSystemnodeList(CSystemnodeBroadcast snb, i
         systemnodeSync.AddedSystemnodeList(snbHash);
         return true;
     }
-    mapSeenSystemnodeBroadcast.insert(make_pair(snbHash, snb));
+    mapSeenSystemnodeBroadcast.insert(std::make_pair(snbHash, snb));
 
     LogPrint(BCLog::NET, "CSystemnodeMan::CheckSnbAndUpdateSystemnodeList - Systemnode broadcast, vin: %s new\n", snb.vin.ToString());
     // We check addr before both initial snb and update
@@ -314,7 +313,7 @@ CSystemnode* CSystemnodeMan::GetNextSystemnodeInQueueForPayment(int nBlockHeight
     LOCK(cs);
 
     CSystemnode *pBestSystemnode = NULL;
-    std::vector<pair<int64_t, CTxIn> > vecSystemnodeLastPaid;
+    std::vector<std::pair<int64_t, CTxIn> > vecSystemnodeLastPaid;
 
     /*
         Make a vector with all of the last paid times
@@ -339,7 +338,7 @@ CSystemnode* CSystemnodeMan::GetNextSystemnodeInQueueForPayment(int nBlockHeight
         //make sure it has as many confirmations as there are systemnodes
         if(sn.GetSystemnodeInputAge() < nSnCount) continue;
 
-        vecSystemnodeLastPaid.push_back(make_pair(sn.SecondsSincePayment(), sn.vin));
+        vecSystemnodeLastPaid.push_back(std::make_pair(sn.SecondsSincePayment(), sn.vin));
     }
 
     nCount = (int)vecSystemnodeLastPaid.size();
@@ -391,12 +390,12 @@ bool CSystemnodeMan::Add(CSystemnode &sn)
 
 void CSystemnodeMan::UpdateSystemnodeList(CSystemnodeBroadcast snb)
 {
-	auto snbHash = snb.GetHash();
-    mapSeenSystemnodePing.insert(make_pair(snb.lastPing.GetHash(), snb.lastPing));
-    mapSeenSystemnodeBroadcast.insert(make_pair(snbHash, snb));
+    auto snbHash = snb.GetHash();
+    mapSeenSystemnodePing.insert(std::make_pair(snb.lastPing.GetHash(), snb.lastPing));
+    mapSeenSystemnodeBroadcast.insert(std::make_pair(snbHash, snb));
     systemnodeSync.AddedSystemnodeList(snbHash);
 
-    LogPrint(BCLog::NET, "CSystemnodeMan::UpdateSystemnodeList() - addr: %s\n    vin: %s\n", snb.addr.ToString(), snb.vin.ToString());
+    LogPrint(BCLog::SYSTEMNODE, "CSystemnodeMan::UpdateSystemnodeList() - addr: %s\n    vin: %s\n", snb.addr.ToString(), snb.vin.ToString());
 
     CSystemnode* psn = Find(snb.vin);
     if (!psn) {
@@ -411,7 +410,7 @@ void CSystemnodeMan::Remove(CTxIn vin)
 {
     LOCK(cs);
 
-    vector<CSystemnode>::iterator it = vSystemnodes.begin();
+    std::vector<CSystemnode>::iterator it = vSystemnodes.begin();
     while(it != vSystemnodes.end()){
         if((*it).vin == vin){
             LogPrint(BCLog::NET, "CSystemnodeMan: Removing Systemnode %s - %i now\n", (*it).addr.ToString(), size() - 1);
@@ -515,7 +514,7 @@ CSystemnode* CSystemnodeMan::GetCurrentSystemNode(int mod, int64_t nBlockHeight,
 
 int CSystemnodeMan::GetSystemnodeRank(const CTxIn& vin, int64_t nBlockHeight, int minProtocol, bool fOnlyActive)
 {
-    std::vector<pair<int64_t, CTxIn> > vecSystemnodeScores;
+    std::vector<std::pair<int64_t, CTxIn> > vecSystemnodeScores;
 
     //make sure we know about this block
     uint256 hash = uint256();
@@ -530,7 +529,7 @@ int CSystemnodeMan::GetSystemnodeRank(const CTxIn& vin, int64_t nBlockHeight, in
         }
         int64_t n2 = sn.CalculateScore(nBlockHeight).GetCompact(false);
 
-        vecSystemnodeScores.push_back(make_pair(n2, sn.vin));
+        vecSystemnodeScores.push_back(std::make_pair(n2, sn.vin));
     }
 
     sort(vecSystemnodeScores.rbegin(), vecSystemnodeScores.rend(), CompareScoreTxIn());
@@ -553,7 +552,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
     LOCK(cs);
 
     //remove inactive and outdated
-    vector<CSystemnode>::iterator it = vSystemnodes.begin();
+    std::vector<CSystemnode>::iterator it = vSystemnodes.begin();
     while(it != vSystemnodes.end()){
         if((*it).activeState == CSystemnode::SYSTEMNODE_REMOVE ||
                 (*it).activeState == CSystemnode::SYSTEMNODE_VIN_SPENT ||
@@ -564,7 +563,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
             //erase all of the broadcasts we've seen from this vin
             // -- if we missed a few pings and the node was removed, this will allow is to get it back without them 
             //    sending a brand new snb
-            map<uint256, CSystemnodeBroadcast>::iterator it3 = mapSeenSystemnodeBroadcast.begin();
+            std::map<uint256, CSystemnodeBroadcast>::iterator it3 = mapSeenSystemnodeBroadcast.begin();
             while(it3 != mapSeenSystemnodeBroadcast.end()){
                 if((*it3).second.vin == (*it).vin){
                     systemnodeSync.mapSeenSyncSNB.erase((*it3).first);
@@ -575,7 +574,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
             }
 
             // allow us to ask for this systemnode again if we see another ping
-            map<COutPoint, int64_t>::iterator it2 = mWeAskedForSystemnodeListEntry.begin();
+            std::map<COutPoint, int64_t>::iterator it2 = mWeAskedForSystemnodeListEntry.begin();
             while(it2 != mWeAskedForSystemnodeListEntry.end()){
                 if((*it2).first == (*it).vin.prevout){
                     mWeAskedForSystemnodeListEntry.erase(it2++);
@@ -591,7 +590,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
     }
 
     // check who's asked for the Systemnode list
-    map<CNetAddr, int64_t>::iterator it1 = mAskedUsForSystemnodeList.begin();
+    std::map<CNetAddr, int64_t>::iterator it1 = mAskedUsForSystemnodeList.begin();
     while(it1 != mAskedUsForSystemnodeList.end()){
         if((*it1).second < GetTime()) {
             mAskedUsForSystemnodeList.erase(it1++);
@@ -611,7 +610,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
     }
 
     // check which Systemnodes we've asked for
-    map<COutPoint, int64_t>::iterator it2 = mWeAskedForSystemnodeListEntry.begin();
+    std::map<COutPoint, int64_t>::iterator it2 = mWeAskedForSystemnodeListEntry.begin();
     while(it2 != mWeAskedForSystemnodeListEntry.end()){
         if((*it2).second < GetTime()){
             mWeAskedForSystemnodeListEntry.erase(it2++);
@@ -633,7 +632,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
     }
 
     // remove expired mapSeenSystemnodePing
-    map<uint256, CSystemnodePing>::iterator it4 = mapSeenSystemnodePing.begin();
+    std::map<uint256, CSystemnodePing>::iterator it4 = mapSeenSystemnodePing.begin();
     while(it4 != mapSeenSystemnodePing.end()){
         if((*it4).second.sigTime < GetTime()-(SYSTEMNODE_REMOVAL_SECONDS*2)){
             mapSeenSystemnodePing.erase(it4++);
