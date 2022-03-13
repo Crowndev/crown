@@ -37,7 +37,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
         strCommand = request.params[0].get_str();
 
     if (request.fHelp || (strCommand != "vote-many" && strCommand != "prepare" && strCommand != "submit" && strCommand != "vote" && strCommand != "getvotes" && strCommand != "getinfo" && strCommand != "show" && strCommand != "projection" && strCommand != "check" && strCommand != "nextblock"))
-        throw runtime_error(
+        throw std::runtime_error(
             "mnbudget \"command\"... ( \"passphrase\" )\n"
             "Vote or show current budgets\n"
             "\nAvailable commands:\n"
@@ -66,7 +66,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
         CBlockIndex* pindexPrev = ::ChainActive().Tip();
 
         if (request.params.size() != 7)
-            throw runtime_error("Correct usage is 'mnbudget prepare proposal-name url payment_count block_start crown_address monthly_payment_crown'");
+            throw std::runtime_error("Correct usage is 'mnbudget prepare proposal-name url payment_count block_start crown_address monthly_payment_crown'");
 
         std::string strProposalName = request.params[1].get_str();
         if (strProposalName.size() > 20)
@@ -141,7 +141,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
         CBlockIndex* pindexPrev = ::ChainActive().Tip();
 
         if (request.params.size() != 8)
-            throw runtime_error("Correct usage is 'mnbudget submit proposal-name url payment_count block_start crown_address monthly_payment_crown fee_tx'");
+            throw std::runtime_error("Correct usage is 'mnbudget submit proposal-name url payment_count block_start crown_address monthly_payment_crown fee_tx'");
 
         // Check these inputs the same way we check the vote commands:
         // **********************************************************
@@ -207,7 +207,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
     if (strCommand == "vote-many") {
 
         if (request.params.size() != 3)
-            throw runtime_error("Correct usage is 'mnbudget vote-many proposal-hash yes|no'");
+            throw std::runtime_error("Correct usage is 'mnbudget vote-many proposal-hash yes|no'");
 
         uint256 hash = ParseHashV(request.params[1], "parameter 1");
         std::string strVote = request.params[2].get_str();
@@ -286,7 +286,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
     if (strCommand == "vote") {
 
         if (request.params.size() != 3)
-            throw runtime_error("Correct usage is 'mnbudget vote proposal-hash yes|no'");
+            throw std::runtime_error("Correct usage is 'mnbudget vote proposal-hash yes|no'");
 
         uint256 hash = ParseHashV(request.params[1], "parameter 1");
         std::string strVote = request.params[2].get_str();
@@ -416,7 +416,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
     if (strCommand == "getinfo") {
         if (request.params.size() != 2)
-            throw runtime_error("Correct usage is 'mnbudget getinfo profilename'");
+            throw std::runtime_error("Correct usage is 'mnbudget getinfo profilename'");
 
         std::string strProposalName = request.params[1].get_str();
 
@@ -457,7 +457,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
     if (strCommand == "getvotes") {
         if (request.params.size() != 2)
-            throw runtime_error("Correct usage is 'mnbudget getvotes profilename'");
+            throw std::runtime_error("Correct usage is 'mnbudget getvotes profilename'");
 
         std::string strProposalName = request.params[1].get_str();
 
@@ -497,7 +497,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 UniValue mnbudgetvoteraw(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 6)
-        throw runtime_error(
+        throw std::runtime_error(
             "mnbudgetvoteraw <masternode-tx-hash> <masternode-tx-index> <proposal-hash> <yes|no> <time> <vote-sig>\n"
             "Compile and relay a proposal vote with provided external signature instead of signing vote internally\n");
 
@@ -519,7 +519,7 @@ UniValue mnbudgetvoteraw(const JSONRPCRequest& request)
     int64_t nTime = request.params[4].get_int64();
     std::string strSig = request.params[5].get_str();
     bool fInvalid = false;
-    vector<unsigned char> vchSig = DecodeBase64(strSig.c_str(), &fInvalid);
+    std::vector<unsigned char> vchSig = DecodeBase64(strSig.c_str(), &fInvalid);
 
     if (fInvalid)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
@@ -548,12 +548,12 @@ UniValue mnbudgetvoteraw(const JSONRPCRequest& request)
 
 UniValue mnfinalbudget(const JSONRPCRequest& request)
 {
-    string strCommand;
+    std::string strCommand;
     if (request.params.size() >= 1)
         strCommand = request.params[0].get_str();
 
     if (request.fHelp || (strCommand != "suggest" && strCommand != "vote-many" && strCommand != "vote" && strCommand != "show" && strCommand != "getvotes"))
-        throw runtime_error(
+        throw std::runtime_error(
             "mnfinalbudget \"command\"... ( \"passphrase\" )\n"
             "Vote or show current budgets\n"
             "\nAvailable commands:\n"
@@ -565,7 +565,7 @@ UniValue mnfinalbudget(const JSONRPCRequest& request)
     if (strCommand == "vote-many") {
 
         if (request.params.size() != 2)
-            throw runtime_error("Correct usage is 'mnfinalbudget vote-many BUDGET_HASH'");
+            throw std::runtime_error("Correct usage is 'mnfinalbudget vote-many BUDGET_HASH'");
 
         std::string strHash = request.params[1].get_str();
         uint256 hash(uint256S(strHash));
@@ -635,7 +635,7 @@ UniValue mnfinalbudget(const JSONRPCRequest& request)
 
     if (strCommand == "vote") {
         if (request.params.size() != 2)
-            throw runtime_error("Correct usage is 'mnfinalbudget vote BUDGET_HASH'");
+            throw std::runtime_error("Correct usage is 'mnfinalbudget vote BUDGET_HASH'");
 
         std::string strHash = request.params[1].get_str();
         uint256 hash(uint256S(strHash));
@@ -693,7 +693,7 @@ UniValue mnfinalbudget(const JSONRPCRequest& request)
 
     if (strCommand == "getvotes") {
         if (request.params.size() != 2)
-            throw runtime_error("Correct usage is 'mnbudget getvotes budget-hash'");
+            throw std::runtime_error("Correct usage is 'mnbudget getvotes budget-hash'");
 
         std::string strHash = request.params[1].get_str();
         uint256 hash(uint256S(strHash));

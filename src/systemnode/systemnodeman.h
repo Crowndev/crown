@@ -13,10 +13,9 @@
 #include <validation.h>
 #include <systemnode/systemnode.h>
 
-#define SYSTEMNODES_DUMP_SECONDS               (15*60)
-#define SYSTEMNODES_DSEG_SECONDS               (3*60*60)
+#define SYSTEMNODES_DUMP_SECONDS (15 * 60)
+#define SYSTEMNODES_DSEG_SECONDS (3 * 60 * 60)
 
-using namespace std;
 
 class CSystemnodeMan;
 
@@ -53,9 +52,9 @@ private:
 
 public:
     // Keep track of all broadcasts I've seen
-    map<uint256, CSystemnodeBroadcast> mapSeenSystemnodeBroadcast;
+    std::map<uint256, CSystemnodeBroadcast> mapSeenSystemnodeBroadcast;
     // Keep track of all pings I've seen
-    map<uint256, CSystemnodePing> mapSeenSystemnodePing;
+    std::map<uint256, CSystemnodePing> mapSeenSystemnodePing;
 
     SERIALIZE_METHODS(CSystemnodeMan, obj)
     {
@@ -107,7 +106,7 @@ public:
 
     std::vector<CSystemnode> GetFullSystemnodeVector() { Check(); return vSystemnodes; }
     
-    std::vector<pair<int, CSystemnode> > GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol=0);
+    std::vector<std::pair<int, CSystemnode> > GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol=0);
     int GetSystemnodeRank(const CTxIn &vin, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
 
     void ProcessSystemnodeConnections();

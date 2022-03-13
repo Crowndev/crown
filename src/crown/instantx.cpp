@@ -69,7 +69,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
 
             DoConsensusVote(tx, nBlockHeight, connman);
 
-            m_txLockReq.insert(make_pair(tx.GetHash(), tx));
+            m_txLockReq.insert(std::make_pair(tx.GetHash(), tx));
 
             LogPrintf("ProcessMessageInstantX::ix - Transaction Lock Request: %s %s : accepted %s\n",
                 pfrom->addr.ToString().c_str(), pfrom->cleanSubVer.c_str(),
@@ -79,7 +79,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
             return;
 
         } else {
-            m_txLockReqRejected.insert(make_pair(tx.GetHash(), tx));
+            m_txLockReqRejected.insert(std::make_pair(tx.GetHash(), tx));
 
             // can we get the conflicting transaction as proof?
 
@@ -90,7 +90,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
 
             for (const auto& in : tx.vin) {
                 if(!m_lockedInputs.count(in.prevout)){
-                    m_lockedInputs.insert(make_pair(in.prevout, tx.GetHash()));
+                    m_lockedInputs.insert(std::make_pair(in.prevout, tx.GetHash()));
                 }
             }
 
@@ -104,7 +104,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
 
                         //reprocess the last 15 blocks
                         ReprocessBlocks(15);
-                        m_txLockReq.insert(make_pair(tx.GetHash(), tx));
+                        m_txLockReq.insert(std::make_pair(tx.GetHash(), tx));
                     }
                 }
             }
@@ -135,7 +135,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
             return;
         }
 
-        m_txLockVote.insert(make_pair(ctx.GetHash(), ctx));
+        m_txLockVote.insert(std::pair(ctx.GetHash(), ctx));
 
         if (ProcessConsensusVote(pfrom, ctx))
         {
@@ -261,13 +261,13 @@ int64_t CInstantSend::CreateNewLock(const CMutableTransaction& tx)
         CTransactionLock newLock;
         newLock.nBlockHeight = nBlockHeight;
         newLock.txHash = tx.GetHash();
-        m_txLocks.insert(make_pair(tx.GetHash(), newLock));
+        m_txLocks.insert(std::pair(tx.GetHash(), newLock));
     } else {
         m_txLocks[tx.GetHash()].nBlockHeight = nBlockHeight;
         LogPrintf("CreateNewLock - Transaction Lock Exists %s !\n", tx.GetHash().ToString().c_str());
     }
 
-    m_txLockReq.insert(make_pair(tx.GetHash(), tx));
+    m_txLockReq.insert(std::make_pair(tx.GetHash(), tx));
     return nBlockHeight;
 }
 
@@ -352,7 +352,7 @@ bool CInstantSend::ProcessConsensusVote(CNode* pnode, const CConsensusVote& ctx)
         CTransactionLock newLock;
         newLock.nBlockHeight = 0;
         newLock.txHash = ctx.txHash;
-        m_txLocks.insert(make_pair(ctx.txHash, newLock));
+        m_txLocks.insert(std::make_pair(ctx.txHash, newLock));
     } else
         LogPrintf("InstantX::ProcessConsensusVote - Transaction Lock Exists %s !\n", ctx.txHash.ToString().c_str());
 
@@ -375,7 +375,7 @@ bool CInstantSend::ProcessConsensusVote(CNode* pnode, const CConsensusVote& ctx)
                 if(m_txLockReq.count(ctx.txHash)){
                     for (const auto& in : tx.vin) {
                         if(!m_lockedInputs.count(in.prevout)){
-                            m_lockedInputs.insert(make_pair(in.prevout, ctx.txHash));
+                            m_lockedInputs.insert(std::make_pair(in.prevout, ctx.txHash));
                         }
                     }
                 }

@@ -10,7 +10,6 @@
 #include <systemnode/systemnode.h>
 #include <boost/lexical_cast.hpp>
 
-using namespace std;
 
 extern RecursiveMutex cs_vecSNPayments;
 extern RecursiveMutex cs_mapSystemnodeBlocks;

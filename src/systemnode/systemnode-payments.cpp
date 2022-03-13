@@ -299,8 +299,6 @@ bool CSystemnodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
         int pos = -1;
         for (unsigned int k = 0; k <  (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()) ; k++){
             CTxOutAsset txout = (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout[k] : txNew.vout[k]);
-
-        //for (unsigned int i = 0; i < txNew.vout.size(); i++){
             if(payee.scriptPubKey == txout.scriptPubKey && systemnodePayment == txout.nValue){
                 pos = k;
                 found = true;
@@ -432,7 +430,7 @@ bool CSystemnodePayments::ProcessBlock(int nBlockHeight)
 
     CSystemnodePaymentWinner newWinner(activeSystemnode.vin);
 
-    LogPrint(BCLog::NET, "CSystemnodePayments::ProcessBlock() Start nHeight %d - vin %s. \n", nBlockHeight, activeSystemnode.vin.ToString().c_str());
+    LogPrint(BCLog::SYSTEMNODE, "CSystemnodePayments::ProcessBlock() Start nHeight %d - vin %s. \n", nBlockHeight, activeSystemnode.vin.ToString().c_str());
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
     int nCount = 0;
     CSystemnode *psn = snodeman.GetNextSystemnodeInQueueForPayment(nBlockHeight, true, nCount);
@@ -446,9 +444,9 @@ bool CSystemnodePayments::ProcessBlock(int nBlockHeight)
         CScript payee = GetScriptForDestination(PKHash(psn->pubkey.GetID()));
         newWinner.AddPayee(payee);
 
-        LogPrint(BCLog::NET, "CSystemnodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", EncodeDestination(ScriptHash(CScriptID(payee))).c_str(), newWinner.nBlockHeight);
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", payee.ToString(), newWinner.nBlockHeight);
     } else {
-        LogPrint(BCLog::NET, "CSystemnodePayments::ProcessBlock() Failed to find systemnode to pay\n");
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodePayments::ProcessBlock() Failed to find systemnode to pay\n");
     }
 
     std::string errorMessage;

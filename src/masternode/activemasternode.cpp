@@ -30,7 +30,8 @@ void CActiveMasternode::ManageStatus()
         return;
     }
 
-    if(status == ACTIVE_MASTERNODE_SYNC_IN_PROCESS) status = ACTIVE_MASTERNODE_INITIAL;
+    if(status == ACTIVE_MASTERNODE_SYNC_IN_PROCESS) 
+        status = ACTIVE_MASTERNODE_INITIAL;
 
     if(status == ACTIVE_MASTERNODE_INITIAL) {
         CMasternode *pmn;
@@ -53,6 +54,7 @@ void CActiveMasternode::ManageStatus()
         }
     }
 
+
     if(status != ACTIVE_MASTERNODE_STARTED) {
 
         // Set defaults
@@ -61,13 +63,13 @@ void CActiveMasternode::ManageStatus()
 
         const auto pwallet = GetMainWallet();
 
-        if(pwallet->IsLocked()){
+        if (pwallet && pwallet->IsLocked()) {
             notCapableReason = "Wallet is locked.";
             LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
         }
 
-        if(pwallet->GetBalance().m_mine_trusted == CAmountMap()){
+        if(!pwallet || (pwallet && pwallet->GetBalance().m_mine_trusted == CAmountMap())){
             notCapableReason = "Masternode configured correctly and ready, please use your local wallet to start it -Start alias-.";
             LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
@@ -165,6 +167,8 @@ void CActiveMasternode::ManageStatus()
         }
     }
 
+    LogPrintf("CActiveMasternode::ManageStatus() - 4\n");
+
     //send to all peers
     if(!SendMasternodePing(errorMessage)) {
         LogPrintf("CActiveMasternode::ManageStatus() - Error on Ping: %s\n", errorMessage);
@@ -216,7 +220,7 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
         }
 
         pmn->lastPing = mnp;
-        mnodeman.mapSeenMasternodePing.insert(make_pair(mnp.GetHash(), mnp));
+        mnodeman.mapSeenMasternodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
         //mnodeman.mapSeenMasternodeBroadcast.lastPing is probably outdated, so we'll update it
         CMasternodeBroadcast mnb(*pmn);

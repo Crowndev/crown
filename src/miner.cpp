@@ -221,8 +221,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS)) {
         FillBlockPayee(coinbaseTx, nFees);
         SNFillBlockPayee(coinbaseTx, nFees);
-    } else {
-        coinbaseTx.vout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
     }
 
     // Proof of stake blocks pay the mining reward in the coinstake transaction

@@ -23,7 +23,7 @@
 #include <boost/lexical_cast.hpp>
 
 // keep track of the scanning errors I've seen
-map<uint256, int> mapSeenMasternodeScanningErrors;
+std::map<uint256, int> mapSeenMasternodeScanningErrors;
 // cache block hashes as we calculate them
 std::map<int64_t, uint256> mapCacheBlockHashes;
 
@@ -161,7 +161,7 @@ bool CMasternode::UpdateFromNewBroadcast(const CMasternodeBroadcast& mnb)
         int nDoS = 0;
         if(mnb.lastPing == CMasternodePing() || (mnb.lastPing != CMasternodePing() && mnb.lastPing.CheckAndUpdate(nDoS, false))) {
             lastPing = mnb.lastPing;
-            mnodeman.mapSeenMasternodePing.insert(make_pair(lastPing.GetHash(), lastPing));
+            mnodeman.mapSeenMasternodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
         }
         return true;
     }
@@ -468,7 +468,7 @@ bool CMasternodeBroadcast::Create(std::string strService, std::string strKeyMast
     {
         strErrorMessage = strprintf("Input must have at least %d confirmations. Now it has %d",
                                      MASTERNODE_MIN_CONFIRMATIONS, age);
-        LogPrintf("CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        LogPrint(BCLog::MASTERNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
         return false;
     }
 
@@ -476,12 +476,12 @@ bool CMasternodeBroadcast::Create(std::string strService, std::string strKeyMast
     if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if(service.GetPort() != 9340) {
             strErrorMessage = strprintf("Invalid port %u for masternode %s - only 9340 is supported on mainnet.", service.GetPort(), strService);
-            LogPrint(BCLog::NET, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
+            LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
             return false;
         }
     } else if(service.GetPort() == 9340) {
         strErrorMessage = strprintf("Invalid port %u for masternode %s - 9340 is only supported on mainnet.", service.GetPort(), strService);
-        LogPrint(BCLog::NET, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
+        LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
         return false;
     }
 
@@ -496,7 +496,7 @@ bool CMasternodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
     CMasternodePing mnp(txin);
     if(!mnp.Sign(keyMasternodeNew, pubKeyMasternodeNew)){
         strErrorMessage = strprintf("Failed to sign ping, txin: %s", txin.ToString());
-        LogPrint(BCLog::NET, "CMasternodeBroadcast::Create --  %s\n", strErrorMessage);
+        LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::Create --  %s\n", strErrorMessage);
         mnb = CMasternodeBroadcast();
         return false;
     }
@@ -513,7 +513,7 @@ bool CMasternodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
     mnb.lastPing = mnp;
     if(!mnb.Sign(keyCollateralAddress)){
         strErrorMessage = strprintf("Failed to sign broadcast, txin: %s", txin.ToString());
-        LogPrint(BCLog::NET, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
+        LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
         mnb = CMasternodeBroadcast();
         return false;
     }
@@ -521,11 +521,11 @@ bool CMasternodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
     //Additional signature for use in proof of stake
     if (fSignOver) {
         if (!keyCollateralAddress.Sign(pubKeyMasternodeNew.GetHash(), mnb.vchSignover)) {
-            LogPrint(BCLog::NET, "CMasternodeBroadcast::Create failed signover\n");
+            LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::Create failed signover\n");
             mnb = CMasternodeBroadcast();
             return false;
         }
-        LogPrintf("%s: Signed over to key %s\n", __func__, pubKeyMasternodeNew.GetID().GetHex());
+        LogPrint(BCLog::MASTERNODE, "%s: Signed over to key %s\n", __func__, pubKeyMasternodeNew.GetID().GetHex());
     }
 
     return true;
@@ -543,7 +543,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     if(protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
-        LogPrintf("mnb - ignoring outdated Masternode %s protocol version %d\n", vin.ToString(), protocolVersion);
+        LogPrint(BCLog::MASTERNODE, "mnb - ignoring outdated Masternode %s protocol version %d\n", vin.ToString(), protocolVersion);
         return false;
     }
 
@@ -551,7 +551,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
     pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
 
     if(pubkeyScript.size() != 25) {
-        LogPrintf("mnb - pubkey the wrong size\n");
+        LogPrint(BCLog::MASTERNODE, "mnb - pubkey the wrong size\n");
         nDos = 100;
         return false;
     }
@@ -560,13 +560,13 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
     pubkeyScript2 = GetScriptForDestination(PKHash(pubkey2.GetID()));
 
     if(pubkeyScript2.size() != 25) {
-        LogPrintf("mnb - pubkey2 the wrong size\n");
+        LogPrint(BCLog::MASTERNODE, "mnb - pubkey2 the wrong size\n");
         nDos = 100;
         return false;
     }
 
     if(!vin.scriptSig.empty()) {
-        LogPrintf("mnb - Ignore Not Empty ScriptSig %s\n",vin.ToString());
+        LogPrint(BCLog::MASTERNODE, "mnb - Ignore Not Empty ScriptSig %s\n", vin.ToString());
         return false;
     }
 
@@ -712,7 +712,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         }
     }
 
-    LogPrintf("mnb - Got NEW Masternode entry - %s - %s - %s - %lli \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
+    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %lli \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
     CMasternode mn(*this);
     mnodeman.Add(mn);
 
@@ -721,10 +721,10 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         activeMasternode.EnableHotColdMasterNode(vin, addr);
         if (!vchSignover.empty()) {
             if (pubkey.Verify(pubkey2.GetHash(), vchSignover)) {
-                LogPrintf("%s: Verified pubkey2 signover for staking, added to activemasternode\n", __func__);
+                LogPrint(BCLog::MASTERNODE, "%s: Verified pubkey2 signover for staking, added to activemasternode\n", __func__);
                 activeMasternode.vchSigSignover = vchSignover;
             } else {
-                LogPrintf("%s: Failed to verify pubkey on signover!\n", __func__);
+                LogPrint(BCLog::MASTERNODE, "%s: Failed to verify pubkey on signover!\n", __func__);
             }
         } else {
             LogPrintf("%s: NOT SIGNOVER!\n", __func__);
@@ -872,13 +872,13 @@ bool CMasternodePing::VerifySignature(const CPubKey& pubKeyMasternode, int &nDos
 bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fCheckSigTimeOnly) const
 {
     if (sigTime > GetAdjustedTime() + 60 * 60) {
-        LogPrint(BCLog::NET, "CMasternodePing::CheckAndUpdate - Signature rejected, too far into the future %s\n", vin.ToString());
+        LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Signature rejected, too far into the future %s\n", vin.ToString());
         nDos = 1;
         return false;
     }
 
     if (sigTime <= GetAdjustedTime() - 60 * 60) {
-        LogPrint(BCLog::NET, "CMasternodePing::CheckAndUpdate - Signature rejected, too far into the past %s - %d %d \n", vin.ToString(), sigTime, GetAdjustedTime());
+        LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Signature rejected, too far into the past %s - %d %d \n", vin.ToString(), sigTime, GetAdjustedTime());
         nDos = 1;
         return false;
     }
@@ -917,7 +917,7 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
                     return false;
                 }
             } else {
-                LogPrint(BCLog::NET, "CMasternodePing::CheckAndUpdate - Masternode %s block hash %s is unknown\n", vin.ToString(), blockHash.ToString());
+                LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Masternode %s block hash %s is unknown\n", vin.ToString(), blockHash.ToString());
                 // maybe we stuck so we shouldn't ban this node, just fail to accept it
                 // TODO: or should we also request this block?
 
@@ -938,22 +938,21 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
 
             if (this->nVersion > 1) {
                 for (const uint256& hashBlock : vPrevBlockHash) {
-                    LogPrint(BCLog::NET, "masternode", "%s: Adding witness for block %s from mn %s\n", __func__, hashBlock.GetHex(), vin.ToString());
-                    // TODO fix
-                    //g_proofTracker->AddWitness(BlockWitness(pmn->vin, hashBlock));
+                    LogPrint(BCLog::MASTERNODE, "%s: Adding witness for block %s from mn %s\n", __func__, hashBlock.GetHex(), vin.ToString());
+                    g_proofTracker->AddWitness(BlockWitness(pmn->vin, hashBlock));
                 }
             }
 
-            LogPrint(BCLog::NET, "masternode", "CMasternodePing::CheckAndUpdate - Masternode ping accepted, vin: %s\n", vin.ToString());
+            LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Masternode ping accepted, vin: %s\n", vin.ToString());
 
             Relay();
             return true;
         }
-        LogPrint(BCLog::NET, "masternode", "CMasternodePing::CheckAndUpdate - Masternode ping arrived too early, vin: %s\n", vin.ToString());
+        LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Masternode ping arrived too early, vin: %s\n", vin.ToString());
         //nDos = 1; //disable, this is happening frequently and causing banned peers
         return false;
     }
-    LogPrint(BCLog::NET, "masternode", "CMasternodePing::CheckAndUpdate - Couldn't find compatible Masternode entry, vin: %s\n", vin.ToString());
+    LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - Couldn't find compatible Masternode entry, vin: %s\n", vin.ToString());
 
     return false;
 }

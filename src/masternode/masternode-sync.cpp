@@ -39,14 +39,14 @@ bool CMasternodeSync::IsBlockchainSynced()
         
     CBlockIndex* pindex = ::ChainActive().Tip();
 
-    if (!gArgs.GetBoolArg("-jumpstart", false) && pindex->nTime + 60*60 < GetTime())
+    if (!gArgs.GetBoolArg("-jumpstart", false) && pindex->nTime + 60 * 60 < GetTime())
         return false;
 
     return true;
 }
 
 void CMasternodeSync::Reset()
-{   
+{
     lastMasternodeList = 0;
     lastMasternodeWinner = 0;
     lastBudgetItem = 0;
@@ -77,7 +77,7 @@ void CMasternodeSync::AddedMasternodeList(uint256 hash)
         }
     } else {
         lastMasternodeList = GetTime();
-        mapSeenSyncMNB.insert(make_pair(hash, 1));
+        mapSeenSyncMNB.insert(std::make_pair(hash, 1));
     }
 }
 
@@ -90,7 +90,7 @@ void CMasternodeSync::AddedMasternodeWinner(uint256 hash)
         }
     } else {
         lastMasternodeWinner = GetTime();
-        mapSeenSyncMNW.insert(make_pair(hash, 1));
+        mapSeenSyncMNW.insert(std::make_pair(hash, 1));
     }
 }
 
@@ -103,18 +103,18 @@ void CMasternodeSync::AddedBudgetItem(uint256 hash)
         }
     } else {
         lastBudgetItem = GetTime();
-        mapSeenSyncBudget.insert(make_pair(hash, 1));
+        mapSeenSyncBudget.insert(std::make_pair(hash, 1));
     }
 }
 
 bool CMasternodeSync::IsBudgetPropEmpty()
 {
-    return sumBudgetItemProp==0 && countBudgetItemProp>0;
+    return sumBudgetItemProp == 0 && countBudgetItemProp > 0;
 }
 
 bool CMasternodeSync::IsBudgetFinEmpty()
 {
-    return sumBudgetItemFin==0 && countBudgetItemFin>0;
+    return sumBudgetItemFin == 0 && countBudgetItemFin > 0;
 }
 
 void CMasternodeSync::GetNextAsset()
@@ -193,7 +193,7 @@ void CMasternodeSync::ProcessMessage(CNode* pfrom, const std::string& strCommand
                 countBudgetItemFin++;
                 break;
         }
-        
+
         LogPrintf("CMasternodeSync:ProcessMessage - ssc - got inventory count %d %d\n", nItemID, nCount);
     }
 }
@@ -221,20 +221,19 @@ void CMasternodeSync::Process()
     }
 
     //try syncing again
-    if (RequestedMasternodeAssets == MASTERNODE_SYNC_FAILED && lastFailure + (1*60) < GetTime()) {
+    if (RequestedMasternodeAssets == MASTERNODE_SYNC_FAILED && lastFailure + (1 * 60) < GetTime()) {
         Reset();
     } else if (RequestedMasternodeAssets == MASTERNODE_SYNC_FAILED) {
         return;
     }
 
     // Calculate "progress" for LOG reporting / GUI notification
-    double nSyncProgress = double(RequestedMasternodeAttempt + (RequestedMasternodeAssets - 1) * 8) / (8*4);
+    double nSyncProgress = double(RequestedMasternodeAttempt + (RequestedMasternodeAssets - 1) * 8) / (8 * 4);
     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d nSyncProgress %f\n", tick, RequestedMasternodeAssets, RequestedMasternodeAttempt, nSyncProgress);
 
     if (!IsBlockchainSynced() && RequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS)
         return;
-
     if (RequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL)
         GetNextAsset();
 

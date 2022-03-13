@@ -15,10 +15,7 @@ fs::path CMasternodeConfig::getNodeConfigFile()
 
 std::string CMasternodeConfig::getHeader()
 {
-    std::string port = "9340";
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        port = "18333";
-    }
+    std::string port = std::to_string(Params().GetDefaultPort());
     std::string strHeader = "# Masternode config file\n"
                     "# Format: alias IP:port masternodeprivkey collateral_output_txid collateral_output_index\n"
                     "# Example: mn1 127.0.0.2:" + port + " 93HaYBVUCYjEMeeH1Y4sBGLALQZE1Yc1K64xiqgX37tGBDQL8Xg "

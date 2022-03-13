@@ -133,8 +133,6 @@ bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, s
     bool foundOpReturn = false;
     for (unsigned int k = 0; k <  (txCollateral->nVersion >= TX_ELE_VERSION ? txCollateral->vpout.size() : txCollateral->vout.size()) ; k++){
         CTxOutAsset o = (txCollateral->nVersion >= TX_ELE_VERSION ? txCollateral->vpout[k] : txCollateral->vout[k]);
-
-    //for (const auto& o : txCollateral->vout) {
         if(!o.scriptPubKey.IsNormalPaymentScript() && !o.scriptPubKey.IsUnspendable()){
             strError = strprintf("Invalid Script %s", txCollateral->ToString());
             LogPrintf ("CBudgetProposalBroadcast::IsBudgetCollateralValid - %s\n", strError);
@@ -269,7 +267,7 @@ void CBudgetManager::SubmitBudgetDraft()
             }
 
             LOCK(m_cs);
-            mapSeenBudgetDrafts.insert(make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
+            mapSeenBudgetDrafts.insert(std::make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
             budgetDraftBroadcast.Relay();
             AddBudgetDraft(budgetDraftBroadcast.Budget());
             nSubmittedHeight = nCurrentHeight;
@@ -302,7 +300,7 @@ void CBudgetManager::SubmitBudgetDraft()
             //send the tx to the network
             GetWallets()[0]->CommitTransaction(wtx, std::move(mapValue), {});
             txidCollateral = wtx->GetHash();
-            mapCollateralTxids.insert(make_pair(tempBudget.GetHash(), txidCollateral));
+            mapCollateralTxids.insert(std::make_pair(tempBudget.GetHash(), txidCollateral));
         } else {
             txidCollateral = mapCollateralTxids[tempBudget.GetHash()];
         }
@@ -346,7 +344,7 @@ void CBudgetManager::SubmitBudgetDraft()
         }
 
         LOCK(m_cs);
-        mapSeenBudgetDrafts.insert(make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
+        mapSeenBudgetDrafts.insert(std::make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
         budgetDraftBroadcast.Relay();
         AddBudgetDraft(budgetDraftBroadcast.Budget());
         nSubmittedHeight = nCurrentHeight;
@@ -366,7 +364,7 @@ bool CBudgetManager::AddBudgetDraft(const BudgetDraft &budgetDraft, bool checkCo
         return false;
     }
 
-    mapBudgetDrafts.insert(make_pair(budgetDraft.GetHash(), budgetDraft));
+    mapBudgetDrafts.insert(std::make_pair(budgetDraft.GetHash(), budgetDraft));
     return true;
 }
 
@@ -383,8 +381,8 @@ bool CBudgetManager::AddProposal(const CBudgetProposal& budgetProposal, bool che
         return false;
     }
 
-    mapProposals.insert(make_pair(budgetProposal.GetHash(), budgetProposal));
-    mapSeenMasternodeBudgetProposals.insert(make_pair(budgetProposal.GetHash(), budgetProposal));
+    mapProposals.insert(std::make_pair(budgetProposal.GetHash(), budgetProposal));
+    mapSeenMasternodeBudgetProposals.insert(std::make_pair(budgetProposal.GetHash(), budgetProposal));
     return true;
 }
 
@@ -615,7 +613,7 @@ std::vector<CBudgetProposal*> CBudgetManager::GetBudget()
     std::map<uint256, CBudgetProposal>::iterator it = mapProposals.begin();
     while(it != mapProposals.end()){
         (*it).second.CleanAndRemove(false);
-        vBudgetPorposalsSort.push_back(make_pair(&((*it).second), (*it).second.GetYeas()-(*it).second.GetNays()));
+        vBudgetPorposalsSort.push_back(std::make_pair(&((*it).second), (*it).second.GetYeas()-(*it).second.GetNays()));
         ++it;
     }
 
@@ -682,7 +680,7 @@ std::vector<BudgetDraft*> CBudgetManager::GetBudgetDrafts()
     {
         BudgetDraft* pbudgetDraft = &((*it).second);
 
-        budgetDraftsSorted.push_back(make_pair(pbudgetDraft, pbudgetDraft->GetVoteCount()));
+        budgetDraftsSorted.push_back(std::make_pair(pbudgetDraft, pbudgetDraft->GetVoteCount()));
         ++it;
     }
     std::sort(budgetDraftsSorted.begin(), budgetDraftsSorted.end(), SortBudgetDraftsByVotes());
@@ -768,11 +766,10 @@ void CBudgetManager::NewBlock()
             ResetSync();
         }
 
-        //LOCK(cs_vNodes);
-        /*for (auto& pnode : g_connman->GetNodes())
-            if(pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
+        for (CNode* pnode : g_connman->CopyNodeVector())
+            if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
                 Sync(pnode, uint256(), true);
-        */
+
         MarkSynced();
     }
 
@@ -906,7 +903,7 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             return;
         }
 
-        mapSeenMasternodeBudgetProposals.insert(make_pair(budgetProposalBroadcast.GetHash(), budgetProposalBroadcast));
+        mapSeenMasternodeBudgetProposals.insert(std::make_pair(budgetProposalBroadcast.GetHash(), budgetProposalBroadcast));
 
         if(!budgetProposalBroadcast.IsValid(strError)) {
             LogPrint(BCLog::MASTERNODE, "mprop - invalid budget proposal - %s\n", strError);
@@ -944,7 +941,7 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         }
 
 
-        mapSeenMasternodeBudgetVotes.insert(make_pair(vote.GetHash(), vote));
+        mapSeenMasternodeBudgetVotes.insert(std::make_pair(vote.GetHash(), vote));
         if(!vote.SignatureValid(true)){
             LogPrintf("mvote - signature invalid\n");
             if(masternodeSync.IsSynced()) Misbehaving(pfrom->GetId(), 20);
@@ -1006,7 +1003,7 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             }
         }
 
-        mapSeenBudgetDrafts.insert(make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
+        mapSeenBudgetDrafts.insert(std::make_pair(budgetDraftBroadcast.GetHash(), budgetDraftBroadcast));
 
         if(!budgetDraftBroadcast.IsValid(strError)) {
             LogPrintf("fbs - invalid finalized budget - %s\n", strError);
@@ -1042,7 +1039,7 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, const std::string& strCommand,
             return;
         }
 
-        mapSeenBudgetDraftVotes.insert(make_pair(vote.GetHash(), vote));
+        mapSeenBudgetDraftVotes.insert(std::make_pair(vote.GetHash(), vote));
         if(!vote.SignatureValid(true)){
             LogPrintf("fbvote - signature invalid\n");
             if(masternodeSync.IsSynced()) Misbehaving(pfrom->GetId(), 20);
@@ -1239,7 +1236,7 @@ bool CBudgetManager::SubmitProposalVote(const CBudgetVote& vote, std::string& st
     LOCK(m_cs);
 
     DebugLogBudget(vote, CAddress(), "VR");
-    map<uint256, CBudgetProposal>::iterator found = mapProposals.find(vote.nProposalHash);
+    std::map<uint256, CBudgetProposal>::iterator found = mapProposals.find(vote.nProposalHash);
     if (found == mapProposals.end())
     {
         strError = "Proposal not found!";
@@ -1256,7 +1253,7 @@ bool CBudgetManager::SubmitProposalVote(const CBudgetVote& vote, std::string& st
     DebugLogBudget(vote, CAddress(), "VA");
     if (proposal.AddOrUpdateVote(vote, strError))
     {
-        mapSeenMasternodeBudgetVotes.insert(make_pair(vote.GetHash(), vote));
+        mapSeenMasternodeBudgetVotes.insert(std::make_pair(vote.GetHash(), vote));
         return true;
     }
     return false;
@@ -1317,7 +1314,7 @@ bool CBudgetManager::ReceiveProposalVote(const CBudgetVote &vote, CNode *pfrom, 
 
     if (fMasterNode)
     {
-        for (map<uint256, BudgetDraft>::iterator i = mapBudgetDrafts.begin(); i != mapBudgetDrafts.end(); ++i) {
+        for (std::map<uint256, BudgetDraft>::iterator i = mapBudgetDrafts.begin(); i != mapBudgetDrafts.end(); ++i) {
             BudgetDraft& budgetDraft = i->second;
 
             if (budgetDraft.IsValid() && !budgetDraft.IsVoteSubmitted())
@@ -1359,9 +1356,9 @@ bool CBudgetManager::UpdateBudgetDraft(const BudgetDraftVote& vote, CNode* pfrom
     for (std::map<uint256, BudgetDraft>::iterator i = mapBudgetDrafts.begin(); i != mapBudgetDrafts.end(); ++i)
     {
         const std::map<uint256, BudgetDraftVote>& votes = i->second.GetVotes();
-        //const std::map<uint256, BudgetDraftVote>::const_iterator found = votes.find(vote.vin.prevout.GetHash());
-        //if (found != votes.end() && found->second.nTime > vote.nTime)
-          //  isOldVote = true;
+        const std::map<uint256, BudgetDraftVote>::const_iterator found = votes.find(vote.vin.prevout.GetHash());
+        if (found != votes.end() && found->second.nTime > vote.nTime)
+            isOldVote = true;
     }
 
     if (!mapBudgetDrafts[vote.nBudgetHash].AddOrUpdateVote(isOldVote, vote, strError))
@@ -1372,7 +1369,7 @@ bool CBudgetManager::UpdateBudgetDraft(const BudgetDraftVote& vote, CNode* pfrom
         i->second.DiscontinueOlderVotes(vote);
     }
 
-    mapSeenBudgetDraftVotes.insert(make_pair(vote.GetHash(), vote));
+    mapSeenBudgetDraftVotes.insert(std::make_pair(vote.GetHash(), vote));
     return true;
 }
 
@@ -1483,7 +1480,7 @@ bool CBudgetProposal::AddOrUpdateVote(const CBudgetVote& vote, std::string& strE
 {
     LOCK(m_cs);
 
-    uint256 hash ;//= vote.vin.prevout.GetHash();
+    uint256 hash = vote.vin.prevout.GetHash();
 
     if(mapVotes.count(hash)){
         if(mapVotes[hash].nTime > vote.nTime){
@@ -1769,7 +1766,7 @@ void BudgetDraft::DiscontinueOlderVotes(const BudgetDraftVote& newerVote)
 {
     LOCK(m_cs);
 
-/*    std::map<uint256, BudgetDraftVote>::iterator found = m_votes.find(newerVote.vin.prevout.GetHash());
+    std::map<uint256, BudgetDraftVote>::iterator found = m_votes.find(newerVote.vin.prevout.GetHash());
     if (found == m_votes.end())
         return;
 
@@ -1777,7 +1774,7 @@ void BudgetDraft::DiscontinueOlderVotes(const BudgetDraftVote& newerVote)
     {
         m_obsoleteVotes.insert(std::make_pair(newerVote.vin.prevout.GetHash(), found->second));
         m_votes.erase(found);
-    }*/
+    }
 }
 
 bool BudgetDraft::AddOrUpdateVote(bool isOldVote, const BudgetDraftVote& vote, std::string& strError)
@@ -1792,8 +1789,8 @@ bool BudgetDraft::AddOrUpdateVote(bool isOldVote, const BudgetDraftVote& vote, s
 
 bool BudgetDraft::AddOrUpdateVote(std::map<uint256, BudgetDraftVote>& votes, const BudgetDraftVote& vote, std::string& strError)
 {
-    uint256 masternodeHash ;//= vote.vin.prevout.GetHash();
-    map<uint256, BudgetDraftVote>::iterator found = votes.find(masternodeHash);
+    uint256 masternodeHash = vote.vin.prevout.GetHash();
+    std::map<uint256, BudgetDraftVote>::iterator found = votes.find(masternodeHash);
 
     if(found != votes.end()){
         const BudgetDraftVote& previousVote = found->second;
@@ -2114,9 +2111,6 @@ bool BudgetDraft::IsTransactionValid(const CTransaction& txNew, int nBlockHeight
         bool found = false;
         for (unsigned int k = 0; k <  (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()) ; k++){
             CTxOutAsset out = (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout[k] : txNew.vout[k]);
-
-        //for (const auto& out : txNew.vout)
-        //{
             if(payment.payee == out.scriptPubKey && payment.nAmount == out.nValue)
                 found = true;
         }
