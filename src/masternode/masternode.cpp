@@ -188,7 +188,7 @@ arith_uint256 CMasternode::CalculateScore(int64_t nBlockHeight) const
     uint256 hash = uint256();
 
     if(!GetBlockHash(hash, nBlockHeight)) {
-        LogPrintf("CalculateScore ERROR - nHeight %d - Returned 0\n", nBlockHeight);
+        LogPrint(BCLog::MASTERNODE, "CalculateScore ERROR - nHeight %d - Returned 0\n", nBlockHeight);
         return arith_uint256();
     }
 
@@ -660,8 +660,8 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         else mnodeman.Remove(pmn->vin);
     }
 
-    TxValidationState state;
-    CMutableTransaction tx = CMutableTransaction();
+/*    TxValidationState state;
+    CMutableTransaction tx;
     CTxOutAsset vout = CTxOutAsset(Params().GetConsensus().subsidy_asset, (Params().MasternodeCollateral() - 0.01)*COIN, legacySigner.collateralPubKey);
     tx.vin.push_back(vin);
     if(tx.nVersion >= TX_ELE_VERSION)
@@ -683,12 +683,13 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
             //state.IsInvalid(nDoS);
             return false;
         }
-    }
+    }*/
+    LogPrintf("%s - 3\n", __func__);
 
-//  LogPrint(BCLog::NET, "masternode", "mnb - Accepted Masternode entry\n");
+    LogPrint(BCLog::NET, "masternode", "mnb - Accepted Masternode entry\n");
 
-    if(GetUTXOConfirmations(vin.prevout) < MASTERNODE_MIN_CONFIRMATIONS){
-        LogPrintf("mnb - Input must have at least %d confirmations\n", MASTERNODE_MIN_CONFIRMATIONS);
+    if(GetInputAge(vin) < MASTERNODE_MIN_CONFIRMATIONS){
+        LogPrint(BCLog::MASTERNODE, "mnb - Input must have at least %d confirmations\n", MASTERNODE_MIN_CONFIRMATIONS);
         // maybe we miss few blocks, let this mnb to be checked again later
         mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
         masternodeSync.mapSeenSyncMNB.erase(GetHash());
@@ -712,7 +713,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         }
     }
 
-    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %lli \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
+    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %d \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
     CMasternode mn(*this);
     mnodeman.Add(mn);
 
@@ -774,7 +775,7 @@ bool CMasternodeBroadcast::VerifySignature() const
     std::string strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(protocolVersion);
 
     if(!legacySigner.VerifyMessage(pubkey, sig, strMessage, errorMessage)) {
-        LogPrint(BCLog::NET, "CMasternodeBroadcast::VerifySignature() - Error: %s\n", errorMessage);
+        LogPrint(BCLog::MASTERNODE, "CMasternodeBroadcast::VerifySignature() - Error: %s\n", errorMessage);
         return false;
     }
 
@@ -850,8 +851,7 @@ bool CMasternodePing::VerifySignature(const CPubKey& pubKeyMasternode, int &nDos
 
     if(!legacySigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, errorMessage))
     {
-        LogPrint(BCLog::NET, "CMasternodePing::VerifySignature - Got bad Masternode ping signature %s Error: %s\n", vin.ToString(), errorMessage);
-        nDos = 33;
+        LogPrint(BCLog::MASTERNODE, "CMasternodePing::VerifySignature - Got bad Masternode ping signature %s Error: %s\n", vin.ToString(), errorMessage);
         return false;
     }
 
@@ -889,12 +889,11 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
         return true;
     }
 
-    LogPrint(BCLog::NET, "masternode", "CMasternodePing::CheckAndUpdate - New Ping - %s - %s - %lli\n", GetHash().ToString(), blockHash.ToString(), sigTime);
+    LogPrint(BCLog::MASTERNODE, "CMasternodePing::CheckAndUpdate - New Ping - %s - %s - %d\n", GetHash().ToString(), blockHash.ToString(), sigTime);
 
     // see if we have this Masternode
     CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn != NULL && pmn->protocolVersion >= masternodePayments.GetMinMasternodePaymentsProto())
-    {
+    if (pmn && pmn->protocolVersion >= masternodePayments.GetMinMasternodePaymentsProto()) {
         if (fRequireEnabled && !pmn->IsEnabled()) return false;
 
         // LogPrintf("mnping - Found corresponding mn for vin: %s\n", vin.ToString());

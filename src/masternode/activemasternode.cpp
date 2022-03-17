@@ -167,8 +167,6 @@ void CActiveMasternode::ManageStatus()
         }
     }
 
-    LogPrintf("CActiveMasternode::ManageStatus() - 4\n");
-
     //send to all peers
     if(!SendMasternodePing(errorMessage)) {
         LogPrintf("CActiveMasternode::ManageStatus() - Error on Ping: %s\n", errorMessage);

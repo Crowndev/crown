@@ -105,7 +105,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinstake = tx.IsCoinStake();
     const uint256& txid = tx.GetHash();
     for (size_t i = 0; i < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); ++i) {
-		CTxOutAsset outc = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[i] : tx.vout[i]);
+        CTxOutAsset outc = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[i] : tx.vout[i]);
         bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
         // Coinbase transactions can always be overwritten, in order to correctly
         // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.

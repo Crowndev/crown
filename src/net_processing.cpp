@@ -1746,11 +1746,15 @@ void static ProcessGetData(CNode& pfrom, Peer& peer, const CChainParams& chainpa
             }
         }
 
-        ProcessGetDataMasternodeTypes(&pfrom, chainparams, &connman, mempool, inv, push);
-
         if (!push) {
             vNotFound.push_back(inv);
         }
+    }
+
+    if (it != peer.m_getdata_requests.end() && it->IsMnSnMsg()) {
+        bool push = false;
+        const CInv &inv = *it++;
+        ProcessGetDataMasternodeTypes(&pfrom, chainparams, &connman, mempool, inv, push);
     }
 
     // Only process one BLOCK item per call, since they're uncommon and can be
@@ -2781,8 +2785,12 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
                     AddTxAnnouncement(pfrom, gtxid, current_time);
                 }
             } else {
-                if(!AlreadyHaveMasternodeTypes(inv, m_mempool))
+                const bool fAlreadyHave = AlreadyHaveMasternodeTypes(inv, m_mempool);
+                LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
+                if (!fAlreadyHave && !m_chainman.ActiveChainstate().IsInitialBlockDownload()){
+                    pfrom.AskFor(inv);
                     LogPrint(BCLog::NET, "Unknown inv type \"%s\" received from peer=%d\n", inv.ToString(), pfrom.GetId());
+                }
             }
         }
 
@@ -4659,6 +4667,25 @@ bool PeerManager::SendMessages(CNode* pto)
                 m_txrequest.ForgetTxHash(gtxid.GetHash());
             }
         }
+
+        int64_t nNow = GetTimeMicros();
+
+        while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow)
+        {
+            const CInv& inv = (*pto->mapAskFor.begin()).second;
+            if (!AlreadyHaveMasternodeTypes(inv, m_mempool))
+            {
+                LogPrint(BCLog::NET, "Requesting %s peer=%d\n", inv.ToString(), pto->GetId());
+                vGetData.push_back(inv);
+                if (vGetData.size() >= MAX_GETDATA_SZ)
+                {
+                    m_connman.PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));
+                    vGetData.clear();
+                }
+            }
+            pto->mapAskFor.erase(pto->mapAskFor.begin());
+        }
+
         if (!vGetData.empty())
             m_connman.PushMessage(pto, msgMaker.Make(NetMsgType::GETDATA, vGetData));
 
