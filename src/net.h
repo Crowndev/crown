@@ -1028,6 +1028,7 @@ public:
     // List of block ids we still have announce.
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
+    std::multimap<int64_t, CInv> mapAskFor;
     std::list<CInv> listAskForBlocks;
     std::vector<CInv> vInventoryOtherToSend;
     std::vector<uint256> vInventoryBlockToSend GUARDED_BY(cs_inventory);
@@ -1209,6 +1210,7 @@ public:
         }
     }
 
+    void AskFor(const CInv& inv);
     void AskForBlock(const CInv& inv);
 
     void CloseSocketDisconnect();

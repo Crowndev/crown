@@ -98,7 +98,7 @@ bool AlreadyHaveMasternodeTypes(const CInv& inv, const CTxMemPool& mempool)
     return true;
 }
 
-void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const CTxMemPool& mempool, const CInv& inv, bool& pushed) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const CTxMemPool& mempool, const CInv& inv, bool& pushed)
 {
     const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
     {
