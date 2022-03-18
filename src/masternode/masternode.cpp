@@ -641,6 +641,8 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
 
 bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
 {
+    LogPrintf("%s - 1\n", __func__);
+
     // we are a masternode with the same vin (i.e. already activated) and this mnb is ours (matches our Masternode privkey)
     // so nothing to do here for us
     if(fMasterNode && vin.prevout == activeMasternode.vin.prevout && pubkey2 == activeMasternode.pubKeyMasternode)
@@ -649,6 +651,8 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // incorrect ping or its sigTime
     if(lastPing == CMasternodePing() || !lastPing.CheckAndUpdate(nDoS, false, true))
         return false;
+        
+    LogPrintf("%s - 2\n", __func__);
 
     // search existing Masternode list
     CMasternode* pmn = mnodeman.Find(vin);
