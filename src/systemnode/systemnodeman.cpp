@@ -212,7 +212,7 @@ void CSystemnodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
                     nInvCount++;
                     if(!mapSeenSystemnodeBroadcast.count(hash)) mapSeenSystemnodeBroadcast.insert(std::make_pair(hash, snb));
                     if(vin == sn.vin) {
-                        LogPrint(BCLog::SYSTEMNODE, "sndseg - Sent 1 Systemnode entries to %s\n", pfrom->addr.LegacyToString());
+                        LogPrint(BCLog::SYSTEMNODE, "sndseg - Sent 1 Systemnode entries to %s\n", pfrom->addr.ToString());
                         return;
                     }
                 }
@@ -222,7 +222,7 @@ void CSystemnodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         if(vin == CTxIn()) {
             const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
             g_connman->PushMessage(pfrom, msgMaker.Make("snssc", SYSTEMNODE_SYNC_LIST, nInvCount));
-            LogPrint(BCLog::SYSTEMNODE, "sndseg - Sent %d Systemnode entries to %s\n", nInvCount, pfrom->addr.LegacyToString());
+            LogPrint(BCLog::SYSTEMNODE, "sndseg - Sent %d Systemnode entries to %s\n", nInvCount, pfrom->addr.ToString());
         }
     }
 }
@@ -240,7 +240,7 @@ void CSystemnodeMan::CheckAndRemove(bool forceExpiredRemoval)
                 (*it).activeState == CSystemnode::SYSTEMNODE_VIN_SPENT ||
                 (forceExpiredRemoval && (*it).activeState == CSystemnode::SYSTEMNODE_EXPIRED) ||
                 (*it).protocolVersion < systemnodePayments.GetMinSystemnodePaymentsProto()) {
-            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeMan: Removing inactive Systemnode %s - %i now\n", (*it).addr.LegacyToString(), size() - 1);
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeMan: Removing inactive Systemnode %s - %i now\n", (*it).addr.ToString(), size() - 1);
 
             //erase all of the broadcasts we've seen from this vin
             // -- if we missed a few pings and the node was removed, this will allow is to get it back without them
@@ -357,7 +357,7 @@ void CSystemnodeMan::DsegUpdate(CNode* pnode)
         std::map<CNetAddr, int64_t>::iterator it = mWeAskedForSystemnodeList.find(pnode->addr);
         if (it != mWeAskedForSystemnodeList.end()) {
             if (GetTime() < (*it).second) {
-                LogPrint(BCLog::SYSTEMNODE, "sndseg - we already asked %s for the list; skipping...\n", pnode->addr.LegacyToString());
+                LogPrint(BCLog::SYSTEMNODE, "sndseg - we already asked %s for the list; skipping...\n", pnode->addr.ToString());
                 return;
             }
         }
