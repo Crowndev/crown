@@ -1340,7 +1340,7 @@ static void MaybePushAddress(UniValue & entry, const CTxDestination &dest)
  * @param  filter_ismine  The "is mine" filter flags.
  * @param  filter_label   Optional label string to filter incoming transactions.
  */
-static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter_ismine, const std::string* filter_label) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)
+static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx, int nMinDepth, bool fLong, UniValue& ret, const isminefilter& filter_ismine, const std::string* filter_label, bool unconfirmed = false) EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)
 {
     CAmountMap mapFee;
     std::list<COutputEntry> listReceived;
@@ -1349,6 +1349,7 @@ static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx,
     wtx.GetAmounts(listReceived, listSent, mapFee, filter_ismine);
 
     bool involvesWatchonly = wtx.IsFromMe(ISMINE_WATCH_ONLY);
+    int confirms = wtx.GetDepthInMainChain();
 
     // Sent
     if (!filter_label)
@@ -1372,6 +1373,10 @@ static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx,
             if (fLong)
                 WalletTxToJSON(pwallet->chain(), wtx, entry);
             entry.pushKV("abandoned", wtx.isAbandoned());
+
+            if(unconfirmed && confirms > 0)
+                continue;
+
             ret.push_back(entry);
         }
     }
@@ -1414,6 +1419,10 @@ static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx,
             entry.pushKV("vout", r.vout);
             if (fLong)
                 WalletTxToJSON(pwallet->chain(), wtx, entry);
+
+            if(unconfirmed && confirms > 0)
+                continue;
+
             ret.push_back(entry);
         }
     }

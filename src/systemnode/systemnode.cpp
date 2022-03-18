@@ -435,7 +435,7 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         // if it's not enabled, remove old MN first and continue
         else snodeman.Remove(psn->vin);
     }
-
+/*
     TxValidationState state;
     CMutableTransaction tx = CMutableTransaction();
     CTxOutAsset vout = CTxOutAsset(Params().GetConsensus().subsidy_asset, (Params().SystemnodeCollateral() - 0.01)*COIN, legacySigner.collateralPubKey);
@@ -460,7 +460,7 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
             return false;
         }
     }
-
+*/
 //  LogPrint(BCLog::NET, "snb - Accepted systemnode entry\n");
 
     if(GetUTXOConfirmations(vin.prevout) < SYSTEMNODE_MIN_CONFIRMATIONS){
@@ -656,7 +656,7 @@ bool CSystemnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
     //Additional signature for use in proof of stake
     if (fSignOver) {
         if (!keyCollateralAddress.Sign(pubKeySystemnodeNew.GetHash(), snb.vchSignover)) {
-            LogPrint(BCLog::NET, "CSystemnodeBroadcast::Create failed signover\n");
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create failed signover\n");
             snb = CSystemnodeBroadcast();
             return false;
         }
@@ -738,10 +738,18 @@ bool CSystemnodePing::Sign(const CKey& keySystemnode, const CPubKey& pubKeySyste
     return true;
 }
 
-void CSystemnodePing::Relay() const
+bool CSystemnodePing::VerifySignature(const CPubKey& pubKeySystemnode, int &nDos) const
 {
-    CInv inv(MSG_SYSTEMNODE_PING, GetHash());
-    g_connman->RelayInv(inv);
+    std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
+    std::string errorMessage = "";
+
+    if(!legacySigner.VerifyMessage(pubKeySystemnode, vchSig, strMessage, errorMessage))
+    {
+        LogPrint(BCLog::NET, "CSystemnodePing::VerifySignature - Got bad Systemnode ping signature %s Error: %s\n", vin.ToString(), errorMessage);
+        nDos = 33;
+        return false;
+    }
+    return true;
 }
 
 bool CSystemnodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fCheckSigTimeOnly) const
@@ -821,21 +829,13 @@ bool CSystemnodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
         //nDos = 1; //disable, this is happening frequently and causing banned peers
         return false;
     }
-    LogPrint(BCLog::NET, "CSystemnodePing::CheckAndUpdate - Couldn't find compatible Systemnode entry, vin: %s\n", vin.ToString());
+    LogPrint(BCLog::SYSTEMNODE, "CSystemnodePing::CheckAndUpdate - Couldn't find compatible Systemnode entry, vin: %s\n", vin.ToString());
 
     return false;
 }
 
-bool CSystemnodePing::VerifySignature(const CPubKey& pubKeySystemnode, int &nDos) const
+void CSystemnodePing::Relay() const
 {
-    std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
-    std::string errorMessage = "";
-
-    if(!legacySigner.VerifyMessage(pubKeySystemnode, vchSig, strMessage, errorMessage))
-    {
-        LogPrint(BCLog::NET, "CSystemnodePing::VerifySignature - Got bad Systemnode ping signature %s Error: %s\n", vin.ToString(), errorMessage);
-        nDos = 33;
-        return false;
-    }
-    return true;
+    CInv inv(MSG_SYSTEMNODE_PING, GetHash());
+    g_connman->RelayInv(inv);
 }
