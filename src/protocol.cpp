@@ -95,9 +95,9 @@ static const char* ppszTypeName[] = {
         "mn quorum",
         "mn announce",
         "mn ping",
-        "sn winner",
         "sn announce",
         "sn ping",
+        "sn winner",
         "dstx"
 };
 

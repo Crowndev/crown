@@ -100,6 +100,8 @@ bool AlreadyHaveMasternodeTypes(const CInv& inv, const CTxMemPool& mempool)
 
 void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const CTxMemPool& mempool, const CInv& inv, bool& pushed)
 {
+    LogPrintf("%s %s\n", __func__, inv.ToString());
+
     const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
     {
         //! common spork
@@ -132,6 +134,7 @@ void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams
             }
         }
         if (!pushed && inv.type == MSG_MASTERNODE_ANNOUNCE) {
+			
             if(mnodeman.mapSeenMasternodeBroadcast.count(inv.hash)) {
                 if (pfrom->nVersion < MIN_MNW_PING_VERSION) {
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNBROADCAST, mnodeman.mapSeenMasternodeBroadcast[inv.hash]));
@@ -151,23 +154,22 @@ void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams
                 pushed = true;
             }
         }
-
         //! systemnode types
         if (!pushed && inv.type == MSG_SYSTEMNODE_WINNER) {
             if(systemnodePayments.mapSystemnodePayeeVotes.count(inv.hash)){
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNWINNER, masternodePayments.mapMasternodePayeeVotes[inv.hash]));
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNWINNER, systemnodePayments.mapSystemnodePayeeVotes[inv.hash]));
                 pushed = true;
             }
         }
         if (!pushed && inv.type == MSG_SYSTEMNODE_ANNOUNCE) {
             if(snodeman.mapSeenSystemnodeBroadcast.count(inv.hash)){
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNBROADCAST, mnodeman.mapSeenMasternodeBroadcast[inv.hash]));
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNBROADCAST, snodeman.mapSeenSystemnodeBroadcast[inv.hash]));
                 pushed = true;
             }
         }
         if (!pushed && inv.type == MSG_SYSTEMNODE_PING) {
             if(snodeman.mapSeenSystemnodePing.count(inv.hash)){
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNPING, mnodeman.mapSeenMasternodePing[inv.hash]));
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SNPING, snodeman.mapSeenSystemnodePing[inv.hash]));
                 pushed = true;
             }
         }

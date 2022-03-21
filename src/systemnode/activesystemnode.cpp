@@ -61,13 +61,13 @@ void CActiveSystemnode::ManageStatus()
 
         const auto pwallet = GetMainWallet();
 
-        if(pwallet->IsLocked()){
+        if (pwallet && pwallet->IsLocked()) {
             notCapableReason = "Wallet is locked.";
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
         }
 
-        if(pwallet->GetBalance().m_mine_trusted == CAmountMap()){
+        if(!pwallet || (pwallet && pwallet->GetBalance().m_mine_trusted == CAmountMap())){
             notCapableReason = "Systemnode configured correctly and ready, please use your local wallet to start it -Start alias-.";
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
@@ -84,12 +84,12 @@ void CActiveSystemnode::ManageStatus()
         }
 
         if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
-            if(service.GetPort() != 9340) {
+            if(service.GetPort() != Params().GetDefaultPort()) {
                 notCapableReason = strprintf("Invalid port: %u - only 9340 is supported on mainnet.", service.GetPort());
                 LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
                 return;
             }
-        } else if(service.GetPort() == 9340) {
+        } else if(service.GetPort() == Params().GetDefaultPort()) {
             notCapableReason = strprintf("Invalid port: %u - 9340 is only supported on mainnet.", service.GetPort());
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
@@ -268,14 +268,12 @@ std::vector<COutput> CActiveSystemnode::SelectCoinsSystemnode()
     m_wallet->AvailableCoins(vCoins);
 
     // Filter appropriate coins
-
     for (const COutput& out : vCoins) {
         if(out.tx->tx->nVersion >= TX_ELE_VERSION){
             if (out.tx->tx->vpout[out.i].nValue == Params().SystemnodeCollateral())
-                filteredCoins.push_back(out);
-            
+                filteredCoins.push_back(out);           
         }
-        else {
+        else{
             if (out.tx->tx->vout[out.i].nValue == Params().SystemnodeCollateral())
                 filteredCoins.push_back(out);
         }
