@@ -77,13 +77,26 @@ CSystemnode::CSystemnode(const CSystemnodeBroadcast& snb)
     lastTimeChecked = 0;
 }
 
-bool CSystemnode::IsValidNetAddr()
+//
+// When a new systemnode broadcast is sent, update our information
+//
+bool CSystemnode::UpdateFromNewBroadcast(const CSystemnodeBroadcast& snb)
 {
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET)
+    if(snb.sigTime > sigTime) {    
+        pubkey2 = snb.pubkey2;
+        sigTime = snb.sigTime;
+        sig = snb.sig;
+        protocolVersion = snb.protocolVersion;
+        addr = snb.addr;
+        lastTimeChecked = 0;
+        int nDoS = 0;
+        if(snb.lastPing == CSystemnodePing() || (snb.lastPing != CSystemnodePing() && snb.lastPing.CheckAndUpdate(nDoS, false))) {
+            lastPing = snb.lastPing;
+            snodeman.mapSeenSystemnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
+        }
         return true;
-    // TODO: regtest is fine with any addresses for now,
-    // should probably be a bit smarter if one day we start to implement tests for this
-    return (addr.IsIPv4() && addr.IsRoutable());
+    }
+    return false;
 }
 
 //
@@ -93,7 +106,7 @@ bool CSystemnode::IsValidNetAddr()
 //
 arith_uint256 CSystemnode::CalculateScore(int64_t nBlockHeight) const
 {
-    if (::ChainActive().Tip() == nullptr)
+    if(::ChainActive().Tip() == NULL)
         return arith_uint256();
 
     // Find the block hash where tx got SYSTEMNODE_MIN_CONFIRMATIONS
@@ -142,28 +155,6 @@ CSystemnode::CollateralStatus CSystemnode::CheckCollateral(const COutPoint& outp
     return COLLATERAL_OK;
 }
 
-//
-// When a new systemnode broadcast is sent, update our information
-//
-bool CSystemnode::UpdateFromNewBroadcast(const CSystemnodeBroadcast& snb)
-{
-    if(snb.sigTime > sigTime) {    
-        pubkey2 = snb.pubkey2;
-        sigTime = snb.sigTime;
-        sig = snb.sig;
-        protocolVersion = snb.protocolVersion;
-        addr = snb.addr;
-        lastTimeChecked = 0;
-        int nDoS = 0;
-        if(snb.lastPing == CSystemnodePing() || (snb.lastPing != CSystemnodePing() && snb.lastPing.CheckAndUpdate(nDoS, false))) {
-            lastPing = snb.lastPing;
-            snodeman.mapSeenSystemnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
-        }
-        return true;
-    }
-    return false;
-}
-
 void CSystemnode::Check(bool forceCheck)
 {
     if(ShutdownRequested()) return;
@@ -201,6 +192,15 @@ void CSystemnode::Check(bool forceCheck)
     activeState = SYSTEMNODE_ENABLED; // OK
 }
 
+bool CSystemnode::IsValidNetAddr()
+{
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET)
+        return true;
+    // TODO: regtest is fine with any addresses for now,
+    // should probably be a bit smarter if one day we start to implement tests for this
+    return (addr.IsIPv4() && addr.IsRoutable());
+}
+
 int64_t CSystemnode::SecondsSincePayment() const
 {
     CScript pubkeyScript;
@@ -223,8 +223,7 @@ int64_t CSystemnode::SecondsSincePayment() const
 int64_t CSystemnode::GetLastPaid() const
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
-    if (pindexPrev == nullptr)
-        return false;
+    if(pindexPrev == nullptr) return false;
 
     CScript snpayee;
     snpayee = GetScriptForDestination(PKHash(pubkey));
@@ -304,6 +303,148 @@ bool CSystemnode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
 //
 // CSystemnodeBroadcast
 //
+
+CSystemnodeBroadcast::CSystemnodeBroadcast()
+{
+    vin = CTxIn();
+    addr = CService();
+    pubkey = CPubKey();
+    pubkey2 = CPubKey();
+    sig = std::vector<unsigned char>();
+    vchSignover = std::vector<unsigned char>();
+    activeState = SYSTEMNODE_ENABLED;
+    sigTime = GetAdjustedTime();
+    lastPing = CSystemnodePing();
+    unitTest = false;
+    protocolVersion = PROTOCOL_VERSION;
+}
+
+CSystemnodeBroadcast::CSystemnodeBroadcast(CService newAddr, CTxIn newVin, CPubKey newPubkey, CPubKey newPubkey2, int protocolVersionIn)
+{
+    vin = newVin;
+    addr = newAddr;
+    pubkey = newPubkey;
+    pubkey2 = newPubkey2;
+    sig = std::vector<unsigned char>();
+    vchSignover = std::vector<unsigned char>();
+    activeState = SYSTEMNODE_ENABLED;
+    sigTime = GetAdjustedTime();
+    lastPing = CSystemnodePing();
+    unitTest = false;
+    protocolVersion = protocolVersionIn;
+}
+
+CSystemnodeBroadcast::CSystemnodeBroadcast(const CSystemnode& sn)
+{
+    vin = sn.vin;
+    addr = sn.addr;
+    pubkey = sn.pubkey;
+    pubkey2 = sn.pubkey2;
+    sig = sn.sig;
+    vchSignover = sn.vchSignover;
+    activeState = sn.activeState;
+    sigTime = sn.sigTime;
+    lastPing = sn.lastPing;
+    unitTest = sn.unitTest;
+    protocolVersion = sn.protocolVersion;
+}
+
+bool CSystemnodeBroadcast::Create(std::string strService, std::string strKeySystemnode, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CSystemnodeBroadcast &snb, bool fOffline) {
+    CTxIn txin;
+    CPubKey pubKeyCollateralAddress;
+    CKey keyCollateralAddress;
+    CPubKey pubKeySystemnodeNew;
+    CKey keySystemnodeNew;
+
+    if (!gArgs.GetBoolArg("-jumpstart", false))
+    {
+        //need correct blocks to send ping
+        if(!fOffline && !systemnodeSync.IsBlockchainSynced()) {
+            strErrorMessage = "Sync in progress. Must wait until sync is complete to start Systemnode";
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+            return false;
+        }
+    }
+
+    if (!legacySigner.SetKey(strKeySystemnode, keySystemnodeNew, pubKeySystemnodeNew)) {
+        strErrorMessage = strprintf("Can't find keys for systemnode %s - %s", strService, strErrorMessage);
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        return false;
+    }
+
+    if(!GetWallets()[0]->GetSystemnodeVinAndKeys(txin, pubKeyCollateralAddress, keyCollateralAddress, strTxHash, strOutputIndex)) {
+        strErrorMessage = strprintf("Could not allocate txin %s:%s for systemnode %s", strTxHash, strOutputIndex, strService);
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        return false;
+    }
+
+    int age = GetUTXOConfirmations(txin.prevout);
+    if (age < SYSTEMNODE_MIN_CONFIRMATIONS)
+    {
+        strErrorMessage = strprintf("Input must have at least %d confirmations. Now it has %d",
+                                     SYSTEMNODE_MIN_CONFIRMATIONS, age);
+        LogPrint(BCLog::NET, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        return false;
+    }
+
+    CService service = CService(LookupNumeric(strService, Params().GetDefaultPort()));
+    if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        if(service.GetPort() != 9340) {
+            strErrorMessage = strprintf("Invalid port %u for systemnode %s - only 9340 is supported on mainnet.", service.GetPort(), strService);
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+            return false;
+        }
+    } else if(service.GetPort() == 9340) {
+        strErrorMessage = strprintf("Invalid port %u for systemnode %s - 9340 is only supported on mainnet.", service.GetPort(), strService);
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        return false;
+    }
+
+    bool fSignOver = true;
+    return Create(txin, service, keyCollateralAddress, pubKeyCollateralAddress, keySystemnodeNew, pubKeySystemnodeNew, fSignOver, strErrorMessage, snb);
+}
+
+bool CSystemnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddress, CPubKey pubKeyCollateralAddress, CKey keySystemnodeNew, CPubKey pubKeySystemnodeNew, bool fSignOver, std::string &strErrorMessage, CSystemnodeBroadcast &snb) {
+    // wait for reindex and/or import to finish
+    if (fImporting || fReindex) return false;
+
+    CSystemnodePing snp(txin);
+    if(!snp.Sign(keySystemnodeNew, pubKeySystemnodeNew)){
+        strErrorMessage = strprintf("Failed to sign ping, txin: %s", txin.ToString());
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create --  %s\n", strErrorMessage);
+        snb = CSystemnodeBroadcast();
+        return false;
+    }
+
+    snb = CSystemnodeBroadcast(service, txin, pubKeyCollateralAddress, pubKeySystemnodeNew, PROTOCOL_VERSION);
+
+    if(!snb.IsValidNetAddr()) {
+        strErrorMessage = strprintf("Invalid IP address, systemnode=%s", txin.prevout.ToStringShort());
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        snb = CSystemnodeBroadcast();
+        return false;
+    }
+
+    snb.lastPing = snp;
+    if(!snb.Sign(keyCollateralAddress)){
+        strErrorMessage = strprintf("Failed to sign broadcast, txin: %s", txin.ToString());
+        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
+        snb = CSystemnodeBroadcast();
+        return false;
+    }
+
+    //Additional signature for use in proof of stake
+    if (fSignOver) {
+        if (!keyCollateralAddress.Sign(pubKeySystemnodeNew.GetHash(), snb.vchSignover)) {
+            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create failed signover\n");
+            snb = CSystemnodeBroadcast();
+            return false;
+        }
+        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew)));
+    }
+
+    return true;
+}
 
 bool CSystemnodeBroadcast::CheckAndUpdate(int& nDos) const
 {
@@ -412,11 +553,12 @@ bool CSystemnodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     return true;
-
 }
 
 bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
 {
+    LogPrintf("%s - 1\n", __func__);
+
     // we are a systemnode with the same vin (i.e. already activated) and this snb is ours (matches our systemnode privkey)
     // so nothing to do here for us
     if(fSystemNode && vin.prevout == activeSystemnode.vin.prevout && pubkey2 == activeSystemnode.pubKeySystemnode)
@@ -425,6 +567,8 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // incorrect ping or its sigTime
     if(lastPing == CSystemnodePing() || !lastPing.CheckAndUpdate(nDoS, false, true))
         return false;
+        
+    LogPrintf("%s - 2\n", __func__);
 
     // search existing systemnode list
     CSystemnode* psn = snodeman.Find(vin);
@@ -461,7 +605,9 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         }
     }
 */
-//  LogPrint(BCLog::NET, "snb - Accepted systemnode entry\n");
+    LogPrintf("%s - 3\n", __func__);
+
+    LogPrint(BCLog::NET, "snb - Accepted systemnode entry\n");
 
     if(GetUTXOConfirmations(vin.prevout) < SYSTEMNODE_MIN_CONFIRMATIONS){
         LogPrint(BCLog::NET, "snb - Input must have at least %d confirmations\n", SYSTEMNODE_MIN_CONFIRMATIONS);
@@ -475,7 +621,6 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // should be at least not earlier than block when 10000 CRW tx got SYSTEMNODE_MIN_CONFIRMATIONS
     uint256 hashBlock = uint256();
     CTransactionRef tx2 = GetTransaction(nullptr, nullptr, vin.prevout.hash, Params().GetConsensus(), hashBlock);;
-    
     BlockMap::iterator mi = g_chainman.m_blockman.m_block_index.find(hashBlock);
     if (mi != g_chainman.m_blockman.m_block_index.end() && (*mi).second)
     {
@@ -506,7 +651,6 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         } else {
             LogPrint(BCLog::SYSTEMNODE, "%s: NOT SIGNOVER!\n", __func__);
         }
-
     }
 
     bool isLocal = addr.IsRFC1918() || addr.IsLocal();
@@ -515,155 +659,12 @@ bool CSystemnodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     if(!isLocal) Relay();
 
     return true;
-
 }
 
 void CSystemnodeBroadcast::Relay() const
 {
     CInv inv(MSG_SYSTEMNODE_ANNOUNCE, GetHash());
     g_connman->RelayInv(inv);
-}
-
-CSystemnodeBroadcast::CSystemnodeBroadcast()
-{
-    vin = CTxIn();
-    addr = CService();
-    pubkey = CPubKey();
-    pubkey2 = CPubKey();
-    sig = std::vector<unsigned char>();
-    vchSignover = std::vector<unsigned char>();
-    activeState = SYSTEMNODE_ENABLED;
-    sigTime = GetAdjustedTime();
-    lastPing = CSystemnodePing();
-    unitTest = false;
-    protocolVersion = PROTOCOL_VERSION;
-}
-
-CSystemnodeBroadcast::CSystemnodeBroadcast(CService newAddr, CTxIn newVin, CPubKey newPubkey, CPubKey newPubkey2, int protocolVersionIn)
-{
-    vin = newVin;
-    addr = newAddr;
-    pubkey = newPubkey;
-    pubkey2 = newPubkey2;
-    sig = std::vector<unsigned char>();
-    vchSignover = std::vector<unsigned char>();
-    activeState = SYSTEMNODE_ENABLED;
-    sigTime = GetAdjustedTime();
-    lastPing = CSystemnodePing();
-    unitTest = false;
-    protocolVersion = protocolVersionIn;
-}
-
-CSystemnodeBroadcast::CSystemnodeBroadcast(const CSystemnode& sn)
-{
-    vin = sn.vin;
-    addr = sn.addr;
-    pubkey = sn.pubkey;
-    pubkey2 = sn.pubkey2;
-    sig = sn.sig;
-    vchSignover = sn.vchSignover;
-    activeState = sn.activeState;
-    sigTime = sn.sigTime;
-    lastPing = sn.lastPing;
-    unitTest = sn.unitTest;
-    protocolVersion = sn.protocolVersion;
-}
-
-bool CSystemnodeBroadcast::Create(std::string strService, std::string strKeySystemnode, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CSystemnodeBroadcast &snb, bool fOffline) {
-    CTxIn txin;
-    CPubKey pubKeyCollateralAddress;
-    CKey keyCollateralAddress;
-    CPubKey pubKeySystemnodeNew;
-    CKey keySystemnodeNew;
-
-    if (!gArgs.GetBoolArg("-jumpstart", false))
-    {
-        //need correct blocks to send ping
-        if(!fOffline && !systemnodeSync.IsBlockchainSynced()) {
-            strErrorMessage = "Sync in progress. Must wait until sync is complete to start Systemnode";
-            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-            return false;
-        }
-    }
-
-    if (!legacySigner.SetKey(strKeySystemnode, keySystemnodeNew, pubKeySystemnodeNew)) {
-        strErrorMessage = strprintf("Can't find keys for systemnode %s - %s", strService, strErrorMessage);
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        return false;
-    }
-
-    if(!GetWallets()[0]->GetSystemnodeVinAndKeys(txin, pubKeyCollateralAddress, keyCollateralAddress, strTxHash, strOutputIndex)) {
-        strErrorMessage = strprintf("Could not allocate txin %s:%s for systemnode %s", strTxHash, strOutputIndex, strService);
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        return false;
-    }
-
-    int age = GetUTXOConfirmations(txin.prevout);
-    if (age < SYSTEMNODE_MIN_CONFIRMATIONS)
-    {
-        strErrorMessage = strprintf("Input must have at least %d confirmations. Now it has %d",
-                                     SYSTEMNODE_MIN_CONFIRMATIONS, age);
-        LogPrint(BCLog::NET, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        return false;
-    }
-
-    CService service = CService(LookupNumeric(strService, Params().GetDefaultPort())); 
-    if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if(service.GetPort() != 9340) {
-            strErrorMessage = strprintf("Invalid port %u for systemnode %s - only 9340 is supported on mainnet.", service.GetPort(), strService);
-            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-            return false;
-        }
-    } else if(service.GetPort() == 9340) {
-        strErrorMessage = strprintf("Invalid port %u for systemnode %s - 9340 is only supported on mainnet.", service.GetPort(), strService);
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        return false;
-    }
-
-    bool fSignOver = true;
-    return Create(txin, service, keyCollateralAddress, pubKeyCollateralAddress, keySystemnodeNew, pubKeySystemnodeNew, fSignOver, strErrorMessage, snb);
-}
-
-bool CSystemnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddress, CPubKey pubKeyCollateralAddress, CKey keySystemnodeNew, CPubKey pubKeySystemnodeNew, bool fSignOver, std::string &strErrorMessage, CSystemnodeBroadcast &snb) {
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
-    CSystemnodePing snp(txin);
-    if(!snp.Sign(keySystemnodeNew, pubKeySystemnodeNew)){
-        strErrorMessage = strprintf("Failed to sign ping, txin: %s", txin.ToString());
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create --  %s\n", strErrorMessage);
-        snb = CSystemnodeBroadcast();
-        return false;
-    }
-
-    snb = CSystemnodeBroadcast(service, txin, pubKeyCollateralAddress, pubKeySystemnodeNew, PROTOCOL_VERSION);
-
-    if(!snb.IsValidNetAddr()) {
-        strErrorMessage = strprintf("Invalid IP address, systemnode=%s", txin.prevout.ToStringShort());
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        snb = CSystemnodeBroadcast();
-        return false;
-    }
-
-    snb.lastPing = snp;
-    if(!snb.Sign(keyCollateralAddress)){
-        strErrorMessage = strprintf("Failed to sign broadcast, txin: %s", txin.ToString());
-        LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create -- %s\n", strErrorMessage);
-        snb = CSystemnodeBroadcast();
-        return false;
-    }
-
-    //Additional signature for use in proof of stake
-    if (fSignOver) {
-        if (!keyCollateralAddress.Sign(pubKeySystemnodeNew.GetHash(), snb.vchSignover)) {
-            LogPrint(BCLog::SYSTEMNODE, "CSystemnodeBroadcast::Create failed signover\n");
-            snb = CSystemnodeBroadcast();
-            return false;
-        }
-        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew)));
-    }
-
-    return true;
 }
 
 bool CSystemnodeBroadcast::Sign(const CKey& keyCollateralAddress)
@@ -817,8 +818,7 @@ bool CSystemnodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
             }
 
             psn->Check(true);
-            if (!psn->IsEnabled())
-                return false;
+            if(!psn->IsEnabled()) return false;
 
             LogPrint(BCLog::SYSTEMNODE, "CSystemnodePing::CheckAndUpdate - Systemnode ping accepted, vin: %s\n", vin.ToString());
 

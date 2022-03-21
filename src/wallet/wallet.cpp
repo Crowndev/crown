@@ -2566,7 +2566,7 @@ void CWallet::AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed,
             bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
-            LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
+            //LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
 
             if ((coin_type == ONLY_10000 && out.nValue == 10000*COIN ) || (coin_type == ONLY_500 && out.nValue == 500*COIN))
                 vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
@@ -2731,9 +2731,13 @@ bool CWallet::GetSystemnodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
     uint256 txHash = uint256S(strTxHash);
     int nOutputIndex = atoi(strOutputIndex.c_str());
 
-    for (const auto& out : vPossibleCoins)
+    for (const auto& out : vPossibleCoins){
+        LogPrintf("%s - %s %d %d\n", __func__, out.tx->GetHash().ToString(), out.i, out.Value());
+
         if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetVinAndKeysFromOutput(out, vinRet, pubKeyRet, keyRet);
+            
+	}
 
     LogPrintf("CWallet::GetSystemnodeVinAndKeys - Could not locate specified servicenode vin\n");
     return false;
