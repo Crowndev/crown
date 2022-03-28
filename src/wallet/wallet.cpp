@@ -2468,6 +2468,9 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
                 continue;
             }
 
+            if (out.nValue == 10000*COIN  ||  out.nValue == 500*COIN)
+                continue;
+
             std::unique_ptr<SigningProvider> provider = GetSolvingProvider(out.scriptPubKey);
 
             bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;

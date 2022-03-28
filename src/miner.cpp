@@ -183,11 +183,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
     }
 
-    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
-    pblocktemplate->vTxFees[0] = -nFees;
-
-
     if (fProofOfStake && ::ChainActive().Height() + 1 >= Params().PoSStartHeight()) {
         pblock->nTime = GetAdjustedTime();
         CBlockIndex* pindexPrev = ::ChainActive().Tip();
@@ -218,7 +213,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     // Masternode and general budget payments
-    if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS)) {
+    if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         FillBlockPayee(coinbaseTx, nFees);
         SNFillBlockPayee(coinbaseTx, nFees);
     }
@@ -251,6 +246,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if(coinbaseTx.vout.size() > 2)
            pblock->payeeSN = coinbaseTx.vout[SN_PMT_SLOT].scriptPubKey;
     }
+
+    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
+    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+    pblocktemplate->vTxFees[0] = -nFees;
 
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n %s\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost, pblock->ToString());
 

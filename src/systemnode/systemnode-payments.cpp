@@ -232,6 +232,7 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             // [0] is for miner, [1] masternode, [2] systemnode
             txNew.vpout[2].scriptPubKey = payee;
             txNew.vpout[2].nValue = systemnodePayment;
+            txNew.vpout[2].nAsset = txNew.vpout[0].nAsset;
             txNew.vpout[0].nValue -= systemnodePayment;
         }
         else{

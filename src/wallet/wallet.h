@@ -1360,7 +1360,6 @@ public:
     bool GetActiveSystemnode(CSystemnode*& activeStakingNode);
     uint256 GenerateStakeModifier(const CBlockIndex* prewardBlockIndex) const;
     bool CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer);
-    bool GetRecentStakePointers(std::vector<StakePointer>& vStakePointers);
 
     void Stake(bool fStake);
 };
