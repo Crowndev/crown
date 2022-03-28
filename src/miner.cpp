@@ -199,8 +199,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         StakePointer stakePointer;
 
         // Slow down blocks so that the testnet chain does not burn through the stakepointers too quick
-        if (Params().NetworkIDString() == "test" && GetAdjustedTime() - ::ChainActive().Tip()->nTime < 30)
-            UninterruptibleSleep(std::chrono::milliseconds(30000));
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && GetAdjustedTime() - ::ChainActive().Tip()->nTime < 30)
+            UninterruptibleSleep(std::chrono::milliseconds(3000));
 
         if (currentNode.CreateCoinStake(nHeight, nBits, nTime, txCoinStake, nTxNewTime, stakePointer)) {
             pblock->nTime = nTxNewTime;
@@ -538,4 +538,156 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 
     pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
+}
+
+bool CheckStake(std::shared_ptr<CBlock> pblock, CWallet& wallet)
+{
+    CAmountMap mapout = pblock->vtx[1]->GetValueOutMap();
+    LogPrintf("%s out %s \n", __func__, mapout);
+    LogPrintf("%s \n %s \n", __func__, pblock->ToString());
+
+    {
+        LOCK(cs_main);
+        if (pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash())
+            return error("CheckStake() : generated block is stale");
+    }
+
+    {
+        LOCK(wallet.cs_wallet);
+        for(const CTxIn& vin : pblock->vtx[1]->vin) {
+            if (wallet.IsSpent(vin.prevout.hash, vin.prevout.n)) {
+                return error("CheckStake() : generated block became invalid due to stake UTXO being spent");
+            }
+        }
+    }
+
+    // Process this block the same as if we had received it from another node
+    if (!g_chainman.ProcessNewBlock(Params(), pblock, true, nullptr))
+        return error("CheckStake() : ProcessBlock, block not accepted");
+
+    return true;
+}
+
+// stake minter thread
+void ThreadStakeMiner(CWallet *pwallet)
+{
+    LogPrintf("ThreadStakeMiner started\n");
+    unsigned int nExtraNonce = 0;
+    const CTxMemPool& mempool = pwallet->chain().getMempool();
+
+    CScript dummyscript;
+
+    bool fTryToSync = true;
+    UninterruptibleSleep(std::chrono::seconds{45});
+
+    try
+    {
+        while (true)
+        {
+            while (pwallet->IsLocked())
+            {
+                LogPrintf("%s : Not staking Wallet Locked \n", __func__);
+                UninterruptibleSleep(std::chrono::seconds{60});
+            }
+            //don't disable PoS mining for no connections if in regtest mode
+            if(!gArgs.GetBoolArg("-emergencystaking", false)) {
+                //LogPrint(BCLog::COINSTAKE, "Emergeny Staking Disabled \n");
+                while (g_connman->GetNodes().size() == 0 || ::ChainstateActive().IsInitialBlockDownload()) {
+                    fTryToSync = true;
+                    LogPrintf("%s : Trying to sync \n", __func__);
+                    UninterruptibleSleep(std::chrono::seconds{60});
+                }
+                if (fTryToSync) {
+                    fTryToSync = false;
+                    if (g_connman->GetNodes().size() < 3 || ::ChainActive().Tip()->GetBlockTime() < GetTime() - 10 * 60) {
+                        LogPrintf("%s : Insufficient nodes \n", __func__);
+                        UninterruptibleSleep(std::chrono::seconds{60});
+                        continue;
+                    }
+                }
+            }
+                if (::ChainActive().Height() + 1 < Params().PoSStartHeight() || (!fMasterNode && !fSystemNode) ||
+                    ::ChainActive().Tip()->GetBlockTime() > GetAdjustedTime())
+                {
+                    // 1. If the height is not reached to POS height
+                    // 2. If it is neither a masternode nor a systemnode
+                    // 3. If the block time is bigger then adjusted time
+                    UninterruptibleSleep(std::chrono::seconds{10});
+                    continue;
+                }
+                else
+                {
+                    //Check the state of the blockchain being synced before trying to stake
+                    if (!masternodeSync.IsBlockchainSynced()) {
+                        if (!gArgs.GetBoolArg("-jumpstart", false)) {
+                            UninterruptibleSleep(std::chrono::seconds{10});
+                            continue;
+                        }
+                    }
+                }
+            //
+            // Create new block
+            //
+            //LOCK(pwallet->cs_wallet);
+            if(pwallet->HaveAvailableCoinsForStaking())
+            {
+                // First just create an empty block. No need to process transactions until we know we can create a block
+                std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(dummyscript, pwallet, true));
+
+                if (!pblocktemplate.get())
+                {
+                    UninterruptibleSleep(std::chrono::milliseconds{500});
+                    //continue;
+                    
+                    LogPrintf("Error in ThreadStakeMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                    return;
+                }
+                CBlock *pblock = &pblocktemplate->block;
+                IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+
+                // if proof-of-stake block found then process block
+                if (pblock->IsProofOfStake())
+                {
+                    std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
+                    if (!SignBlock(pblock))
+                    {
+                        LogPrintf("%s: failed to sign PoS block", __func__);
+                        return;
+                    }
+
+                    LogPrintf("%s : proof-of-stake block found %s\n", __func__, pblock->GetHash().ToString());
+                    CheckStake(shared_pblock, *pwallet);
+                }
+            }
+            else {
+                LogPrintf("%s: no available coins\n", __func__);
+                UninterruptibleSleep(std::chrono::seconds{600});
+            }
+        }
+    }
+    catch (const std::runtime_error &e)
+    {
+        LogPrintf("ThreadStakeMiner runtime error: %s\n", e.what());
+        return;
+    }
+    catch (std::exception& e) {
+        PrintExceptionContinue(&e, "ThreadStakeMiner()");
+    } catch (...) {
+        PrintExceptionContinue(nullptr, "ThreadStakeMiner()");
+    }
+    LogPrintf("ThreadStakeMiner exiting\n");
+}
+
+void Stake(bool fStake, CWallet *pwallet, std::thread* stakeThread)
+{
+    if (stakeThread != nullptr)
+    {
+        if (stakeThread->joinable())
+            stakeThread->join();
+        stakeThread = nullptr;
+    }
+    if(fStake)
+    {
+        stakeThread = new std::thread([&, pwallet] { TraceThread("stake", [&, pwallet] { ThreadStakeMiner(pwallet); }); });
+    }
 }

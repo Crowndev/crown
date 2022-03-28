@@ -35,7 +35,7 @@ bool CLegacySigner::IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey, int n
     uint256 hash;
     CTransactionRef txVin;
     g_txindex->BlockUntilSyncedToCurrentChain();
-    CScript payee = GetScriptForDestination(PKHash(pubkey));
+    CScript payee = GetScriptForDestination(PKHash(pubkey.GetID()));
 
     //! get tx from disk
     if (!g_txindex->FindTx(vin.prevout.hash, hash, txVin)) {
@@ -87,7 +87,7 @@ bool CLegacySigner::SetKey(std::string strSecret, CKey& key, CPubKey& pubkey)
         return false;
     pubkey = key.GetPubKey();
 
-    //auto spk_man = m_wallet->GetScriptPubKeyMan(GetScriptForDestination(PKHash(pubkey)));
+    //auto spk_man = m_wallet->GetScriptPubKeyMan(GetScriptForDestination(PKHash(pubkey.GetID())));
 
     //if(!spk_man)
     //    return false;

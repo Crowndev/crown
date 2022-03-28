@@ -591,7 +591,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
             newWinner.nBlockHeight = nBlockHeight;
 
-            CScript payee = GetScriptForDestination(PKHash(pmn->pubkey));
+            CScript payee = GetScriptForDestination(PKHash(pmn->pubkey.GetID()));
             newWinner.AddPayee(payee);
 
             LogPrint(BCLog::MASTERNODE, "CMasternodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", payee.ToString(), newWinner.nBlockHeight);

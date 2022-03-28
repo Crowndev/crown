@@ -81,7 +81,7 @@ UniValue listsystemnodes(const JSONRPCRequest& request)
         CSystemnode* sn = snodeman.Find(s.second.vin);
 
         if (sn) {
-            if (strFilter != "" && strTxHash.find(strFilter) == std::string::npos && sn->Status().find(strFilter) == std::string::npos && EncodeDestination(PKHash(sn->pubkey)).find(strFilter) == std::string::npos)
+            if (strFilter != "" && strTxHash.find(strFilter) == std::string::npos && sn->Status().find(strFilter) == std::string::npos && EncodeDestination(PKHash(sn->pubkey.GetID())).find(strFilter) == std::string::npos)
                 continue;
 
             std::string strStatus = sn->Status();
@@ -94,7 +94,7 @@ UniValue listsystemnodes(const JSONRPCRequest& request)
             obj.pushKV("outidx", (uint64_t)oIdx);
             obj.pushKV("pubkey", HexStr(sn->pubkey2));
             obj.pushKV("status", strStatus);
-            obj.pushKV("addr", EncodeDestination(PKHash(sn->pubkey)));
+            obj.pushKV("addr", EncodeDestination(PKHash(sn->pubkey.GetID())));
             obj.pushKV("version", sn->protocolVersion);
             obj.pushKV("ipaddr", sn->addr.ToString());
             obj.pushKV("lastseen", (int64_t)sn->lastPing.sigTime);
@@ -173,7 +173,7 @@ UniValue systemnodecurrent(const JSONRPCRequest& request)
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("protocol", (int64_t)winner->protocolVersion);
         obj.pushKV("txhash", winner->vin.prevout.hash.ToString());
-        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey)));
+        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey.GetID())));
         obj.pushKV("lastseen", (winner->lastPing == CSystemnodePing() ? winner->sigTime : (int64_t)winner->lastPing.sigTime));
         obj.pushKV("activeseconds", (winner->lastPing == CSystemnodePing() ? 0 : (int64_t)(winner->lastPing.sigTime - winner->sigTime)));
         return obj;
@@ -517,7 +517,7 @@ UniValue getsystemnodestatus(const JSONRPCRequest& request)
         snObj.pushKV("txid", activeSystemnode.vin.prevout.hash.ToString());
         snObj.pushKV("outputidx", (uint64_t)activeSystemnode.vin.prevout.n);
         snObj.pushKV("netaddr", activeSystemnode.service.ToString());
-        snObj.pushKV("addr", EncodeDestination(PKHash(psn->pubkey)));
+        snObj.pushKV("addr", EncodeDestination(PKHash(psn->pubkey.GetID())));
         snObj.pushKV("status", activeSystemnode.GetStatus());
         return snObj;
     }
@@ -847,8 +847,8 @@ UniValue decodesystemnodebroadcast(const JSONRPCRequest& request)
 
     resultObj.pushKV("vin", snb.vin.prevout.ToString());
     resultObj.pushKV("addr", snb.addr.ToString());
-    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(snb.pubkey)));
-    resultObj.pushKV("pubkeysystemnode", EncodeDestination(PKHash(snb.pubkey2)));
+    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(snb.pubkey.GetID())));
+    resultObj.pushKV("pubkeysystemnode", EncodeDestination(PKHash(snb.pubkey2.GetID())));
     resultObj.pushKV("sigtime", snb.sigTime);
     resultObj.pushKV("sigvalid", snb.VerifySignature() ? "true" : "false");
     resultObj.pushKV("protocolversion", snb.protocolVersion);

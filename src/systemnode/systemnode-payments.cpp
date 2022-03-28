@@ -213,7 +213,7 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         //no systemnode detected
         CSystemnode* winningNode = snodeman.GetCurrentSystemNode(1);
         if (winningNode) {
-            payee = GetScriptForDestination(PKHash(winningNode->pubkey));
+            payee = GetScriptForDestination(PKHash(winningNode->pubkey.GetID()));
         } else {
             LogPrint(BCLog::SYSTEMNODE, "CreateNewBlock: Failed to detect systemnode to pay\n");
             hasPayment = false;
