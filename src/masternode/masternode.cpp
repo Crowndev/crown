@@ -151,7 +151,7 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
 //
 bool CMasternode::UpdateFromNewBroadcast(const CMasternodeBroadcast& mnb)
 {
-    if(mnb.sigTime > sigTime) {    
+    if(mnb.sigTime > sigTime) {
         pubkey2 = mnb.pubkey2;
         sigTime = mnb.sigTime;
         sig = mnb.sig;
@@ -273,7 +273,7 @@ bool CMasternode::IsValidNetAddr() const
 int64_t CMasternode::SecondsSincePayment() const
 {
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
 
     int64_t sec = (GetAdjustedTime() - GetLastPaid());
     int64_t month = 60 * 60 * 24 * 30;
@@ -303,7 +303,7 @@ int64_t CMasternode::GetLastPaid() const
     uint256 hash =  ss.GetHash();
 
     // use a deterministic offset to break a tie -- 2.5 minutes
-    int64_t nOffset = UintToArith256(hash).GetCompact(false) % 150; 
+    int64_t nOffset = UintToArith256(hash).GetCompact(false) % 150;
 
     if (::ChainActive().Tip() == NULL) return false;
 
@@ -319,7 +319,7 @@ int64_t CMasternode::GetLastPaid() const
 
         if(masternodePayments.mapMasternodeBlocks.count(BlockReading->nHeight)){
             /*
-                Search for this payee, with at least 2 votes. This will aid in consensus allowing the network 
+                Search for this payee, with at least 2 votes. This will aid in consensus allowing the network
                 to converge on the same payees quickly, then keep the same schedule.
             */
             if(masternodePayments.mapMasternodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)){
@@ -340,7 +340,6 @@ int64_t CMasternode::GetLastPaid() const
 bool CMasternode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPaymentBlocks, bool limitMostRecent) const
 {
     vPaymentBlocks.clear();
-
     int nMinimumValidBlockHeight = ::ChainActive().Height() - Params().ValidStakePointerDuration() + 1;
     if (nMinimumValidBlockHeight < 1)
         nMinimumValidBlockHeight = 1;
@@ -355,15 +354,17 @@ bool CMasternode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
             continue;
-        
-        CTxOutAsset out = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[1] : block.vtx[0]->vout[1]);
+
         int m = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size());
 
-        if (m > 1 && out.scriptPubKey == mnpayee) {
-            vPaymentBlocks.emplace_back(pindex);
-            fBlockFound = true;
-            if (limitMostRecent)
-                return fBlockFound;
+        if (m > 1) {
+            CTxOutAsset out = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[1] : block.vtx[0]->vout[1]);
+            if (out.scriptPubKey == mnpayee){
+                vPaymentBlocks.emplace_back(pindex);
+                fBlockFound = true;
+                if (limitMostRecent)
+                    return fBlockFound;
+            }
         }
         pindex = ::ChainActive().Next(pindex);
     }
@@ -651,7 +652,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // incorrect ping or its sigTime
     if(lastPing == CMasternodePing() || !lastPing.CheckAndUpdate(nDoS, false, true))
         return false;
-        
+
     LogPrintf("%s - 2\n", __func__);
 
     // search existing Masternode list
@@ -671,7 +672,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     if(tx.nVersion >= TX_ELE_VERSION)
         tx.vpout.push_back(vout);
     else
-        tx.vout.push_back(vout);    
+        tx.vout.push_back(vout);
 
     {
         TRY_LOCK(cs_main, lockMain);

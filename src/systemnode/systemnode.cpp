@@ -204,7 +204,7 @@ bool CSystemnode::IsValidNetAddr()
 int64_t CSystemnode::SecondsSincePayment() const
 {
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
 
     int64_t sec = (GetAdjustedTime() - GetLastPaid());
     int64_t month = 60 * 60 * 24 * 30;
@@ -226,7 +226,7 @@ int64_t CSystemnode::GetLastPaid() const
     if(pindexPrev == nullptr) return false;
 
     CScript snpayee;
-    snpayee = GetScriptForDestination(PKHash(pubkey));
+    snpayee = GetScriptForDestination(PKHash(pubkey.GetID()));
 
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << vin;
@@ -440,7 +440,7 @@ bool CSystemnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
             snb = CSystemnodeBroadcast();
             return false;
         }
-        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew)));
+        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew.GetID())));
     }
 
     return true;

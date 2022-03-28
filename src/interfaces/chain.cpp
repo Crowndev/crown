@@ -9,6 +9,7 @@
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
+#include <miner.h>
 #include <net.h>
 #include <net_processing.h>
 #include <node/coin.h>
@@ -216,6 +217,9 @@ public:
         return ::GetAllAssets();
     }
 
+    void startStake(bool fStake, CWallet *pwallet, std::thread* stakeThread)override{
+        ::Stake(fStake, pwallet, stakeThread);
+    }
 
     CContract getContract(std::string name) override
     {
@@ -243,6 +247,10 @@ public:
         return iequals(str1,str2);
     }
 
+    CTxMemPool& getMempool() override
+    {
+        return *m_node.mempool;
+    }
 
     bool findBlock(const uint256& hash, const FoundBlock& block) override
     {

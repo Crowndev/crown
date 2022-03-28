@@ -210,7 +210,7 @@ bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const
 
         //Add stake payment to coinstake tx
         CAmount nBlockReward = GetBlockValue(nHeight, 0); //Do not add fees until after they are packaged into the block
-        CScript scriptBlockReward = GetScriptForDestination(PKHash(*ppubkeyActiveNode));
+        CScript scriptBlockReward = GetScriptForDestination(PKHash(ppubkeyActiveNode->GetID()));
         CTxOutAsset out(Params().GetConsensus().subsidy_asset, nBlockReward, scriptBlockReward);
         if(txCoinStake.nVersion >= TX_ELE_VERSION)
             txCoinStake.vpout.emplace_back(out);
@@ -258,7 +258,7 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
         }
 
         CScript scriptMNPubKey;
-        scriptMNPubKey = GetScriptForDestination(PKHash(pstaker->pubkey));
+        scriptMNPubKey = GetScriptForDestination(PKHash(pstaker->pubkey.GetID()));
         for (auto& tx : blockLastPaid.vtx) {
             auto stakeSource = COutPoint(tx->GetHash(), nPaymentSlot);
             uint256 hashPointer = stakeSource.GetHash();

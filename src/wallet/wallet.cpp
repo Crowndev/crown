@@ -345,6 +345,8 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
     AddWallet(wallet);
     wallet->postInitProcess();
 
+        wallet->Stake(true);
+
     // Write the wallet settings
     UpdateWalletSetting(chain, name, load_on_start, warnings);
 
@@ -2488,6 +2490,31 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
             }
         }
     }
+}
+
+std::map<CTxDestination, std::vector<COutput> > CWallet::AvailableCoinsByAddress(bool fConfirmed, CAmount maxCoinValue)
+{
+    std::vector<COutput> vCoins;
+    // include cold
+    AvailableCoins(vCoins, true, nullptr, 1, MAX_MONEY, 0, 0);
+
+    std::map<CTxDestination, std::vector<COutput> > mapCoins;
+    for (COutput out : vCoins) {
+        if (maxCoinValue > 0 && out.tx->tx->vout[out.i].nValue > maxCoinValue)
+            continue;
+
+        CTxDestination address;
+
+        if (!ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, address))
+            continue;
+
+
+        //mapCoins[CHemisAddress(address, fColdStakeAddr ? CChainParams::STAKING_ADDRESS : CChainParams::PUBKEY_ADDRESS)].push_back(out);
+        mapCoins[address].push_back(out);
+
+    }
+
+    return mapCoins;
 }
 
 /**
@@ -5328,3 +5355,26 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
     return ret;
 }
 
+bool CWallet::HaveAvailableCoinsForStaking() const
+{
+    std::vector<COutput> vCoins;
+    CCoinControl coin_control;
+    LOCK(cs_wallet);
+
+    //To do , either map out or make calls for each stakable asset
+    AvailableCoins(vCoins, true, &coin_control, 1, MAX_MONEY, 0, MAX_MONEY, &Params().GetConsensus().subsidy_asset);
+
+    //CAmountMap reserved {{Params().GetConsensus().subsidy_asset,gArgs.GetArg("-reserve-balance", DEFAULT_RESERVE_BALANCE)}};
+    CAmountMap balance = GetAvailableBalance(&coin_control);
+
+    //balance -= reserved;
+    LogPrintf("Balance = %s, vCoins.size()= %d \n", balance, vCoins.size());
+    //return (balance > CAmountMap() && vCoins.size() > 0);
+    return (balance > CAmountMap());
+
+}
+
+void CWallet::Stake(bool fStake)
+{
+    m_chain->startStake(fStake, this, stakeThread);
+}

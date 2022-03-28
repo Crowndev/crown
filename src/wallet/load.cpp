@@ -124,6 +124,7 @@ void StartWallets(CScheduler& scheduler, const ArgsManager& args)
 {
     for (const std::shared_ptr<CWallet>& pwallet : GetWallets()) {
         pwallet->postInitProcess();
+            pwallet->Stake(true);
     }
 
     // Schedule periodic wallet flushes and tx rebroadcasts
@@ -143,6 +144,7 @@ void FlushWallets()
 void StopWallets()
 {
     for (const std::shared_ptr<CWallet>& pwallet : GetWallets()) {
+        pwallet->Stake(false);
         pwallet->Close();
     }
 }
