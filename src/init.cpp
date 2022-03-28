@@ -611,7 +611,8 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-systemnode", "Run as systemnode", false, OptionsCategory::RPC);
     argsman.AddArg("-systemnodeprivkey", "Systemnode private key", false, OptionsCategory::RPC);
     argsman.AddArg("-systemnodeaddr", strprintf(_("Set external address:port to get to this systemnode (example: %s)").translated, "1.2.3.4:12345"), false, OptionsCategory::RPC);
-
+    argsman.AddArg("-sporkkey", strprintf(_("Set spork key  (example: %s)").translated, "xxxxxxxxxxxxxxxxxxxxxx"), false, OptionsCategory::RPC);
+    
 #if HAVE_DECL_DAEMON
     argsman.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #else
@@ -1406,6 +1407,11 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 #if ENABLE_ZMQ
     RegisterZMQRPCCommands(tableRPC);
 #endif
+    if (args.IsArgSet("-sporkkey")) // spork priv key
+    {
+        if (!sporkManager.SetPrivKey(args.GetArg("-sporkkey", "")))
+            return InitError(_("Unable to sign spork message, wrong key?"));
+    }
 
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections

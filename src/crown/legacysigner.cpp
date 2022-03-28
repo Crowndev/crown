@@ -79,18 +79,12 @@ bool CLegacySigner::SetCollateralAddress(std::string strAddress)
 
 bool CLegacySigner::SetKey(std::string strSecret, CKey& key, CPubKey& pubkey)
 {
-    //auto m_wallet = GetMainWallet();
-    //EnsureLegacyScriptPubKeyMan(*m_wallet, true);
-
     key = DecodeSecret(strSecret);
-    if (!key.IsValid())
+    if (!key.IsValid()){
+        LogPrintf("CLegacySigner::SetKey - Failed Key is not valid\n");
         return false;
+    }
     pubkey = key.GetPubKey();
-
-    //auto spk_man = m_wallet->GetScriptPubKeyMan(GetScriptForDestination(PKHash(pubkey.GetID())));
-
-    //if(!spk_man)
-    //    return false;
 
     return true;
 }

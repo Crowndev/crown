@@ -233,8 +233,12 @@ bool CSporkManager::Sign(CSporkMessage& spork)
     CKey key2;
     CPubKey pubkey2;
     std::string errorMessage = "";
-
-    if (!legacySigner.SetKey(strMasterPrivKey, key2, pubkey2)) {
+    std::string privk = strMasterPrivKey;
+    
+    if (privk == "" && gArgs.IsArgSet("-sporkkey")) // spork priv key
+		privk = gArgs.GetArg("-sporkkey", "");
+  
+    if (!legacySigner.SetKey(privk, key2, pubkey2)) {
         LogPrintf("CMasternodePayments::Sign - ERROR: Invalid masternodeprivkey: '%s'\n", errorMessage);
         return false;
     }
@@ -280,12 +284,16 @@ void CSporkManager::Relay(CSporkMessage& msg)
 bool CSporkManager::SetPrivKey(std::string strPrivKey)
 {
     CSporkMessage msg;
+    LogPrintf("CSporkManager::SetPrivKey - setting private key %s\n", strPrivKey);
 
     // Test signing successful, proceed
     strMasterPrivKey = strPrivKey;
 
-    Sign(msg);
-
+    if(!Sign(msg)){
+        LogPrintf("CSporkManager::SetPrivKey - Failed to Sign\n");
+        return false;
+	}
+   
     if (CheckSignature(msg)) {
         LogPrintf("CSporkManager::SetPrivKey - Successfully initialized as spork signer\n");
         return true;

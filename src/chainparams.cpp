@@ -324,7 +324,7 @@ public:
         fRequireStandard = false;
         m_is_test_chain = true;
         m_is_mockable_chain = false;
-        strSporkKey = "04EA9AF53E4F12CE41F78B666EBDBE96C966ABDD8832979228BD3299E13089F117936EF97B7B9D4644B8B9D2BC7A30029BD7FDDCAC36E40AAC0E03891E493CF197";
+        strSporkKey = "04fb22e1ca5304b7dd1e36dfdd03b61b82454573a02a86d875d98da840a33e86dc4709baf8aa2c45ccfcf31027451f6831dd080978fc90dbf411bf12fb15b60d7b";
         strDevfundAddress = "mr59c3aniaN3qHXej5L8UBsssRZbiUUMnz";
         strLegacySignerDummyAddress = "mr59c3aniaN3qHXej5L8UBsssRZbiUUMnz";
         checkpointData = {
