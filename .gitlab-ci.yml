@@ -1,43 +1,87 @@
 variables:
   RELEASE_VERSION: "0.21.0.1"
   GIT_STRATEGY: "clone"
-  MAKEJOBS: "-j4"
-  CCACHE_SIZE: "100M"
-  CROWN_CONFIG_ALL: "--disable-tests --disable-bench --disable-reduced-exports --disable-dependency-tracking --prefix=$CI_PROJECT_DIR/depends/$HOST --bindir=$CI_PROJECT_DIR/$OUTDIR/bin --libdir=$CI_PROJECT_DIR/$OUTDIR/lib"
+  MAKEJOBS: "-j6"
+  CCACHE_SIZE: "400M"
+  CROWN_CONFIG_ALL: "--disable-tests --disable-bench --disable-reduced-exports --disable-dependency-tracking --disable-man --prefix=$CI_PROJECT_DIR/depends/$HOST --bindir=$CI_PROJECT_DIR/$OUTDIR/bin --libdir=$CI_PROJECT_DIR/$OUTDIR/lib"
   SDK_URL: "https://bitcoincore.org/depends-sources/sdks"
   XCODE_URL : "https://bitcoincore.org/depends-sources/sdks/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz"
   WINEDEBUG: "fixme-all"
-#Currently working for windows linux (both a ubuntu 20.04 and 16.04 compile happens for glibc compatibility) and RaspberryPi
+  APT_ARGS: "-y --no-install-recommends --no-upgrade"
+  BDB_PREFIX: "depend/bdb4/db4"
+  BDB4: 'BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include"'
+  TZ: 'Europe/Amsterdam'
+
+  #Crown runner specific variables
+  UPDATECERTS: "false"
+  PRIOGCC: "false"
+  SETUPBDB: "true"
+
+#Currently testing still
 cache:
+  key: $CI_COMMIT_REF_SLUG
   paths:
   - depends/built
   - depends/sdk-sources
+  - depends/bdb4/*
+  when: 'always'
 
 .job_template: &job_definition
   stage: build
   before_script:
-    - sudo apt update
-    - sudo apt install -yqq build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake
-    - if [ -n "$updatecerts" ]; then sudo update-ca-certificates; fi
-    - if [ -n "$PACKAGES" ]; then sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
+    - apt-get update
+    - ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+    - apt-get install $APT_ARGS make automake cmake curl g++-multilib libtool binutils-gold bsdmainutils pkg-config python3 patch bison byacc git autotools-dev build-essential libclang-dev
+    - apt-get install $APT_ARGS g++-mingw-w64-i686 
+    - apt-get install $APT_ARGS g++-mingw-w64-x86-64 gcc-mingw-w64-base
+    - apt-get install $APT_ARGS imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools 
+    - apt-get install $APT_ARGS libboost1.71-dev libgl1-mesa-dev libboost-atomic1.71-dev libevent-dev libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libboost-program-options-dev libminiupnpc-dev screen openjdk-8-jdk openjdk-8-jdk-headless openjdk-8-jre openjdk-8-jre-headless cmake libtinfo5 xorriso g++-9 gcc-10-base gcc-9-base gcc-9
+    - apt-get install $APT_ARGS m4 autoconf
+    - apt-get install $APT_ARGS zlib1g-dev libssl-dev ccache 
+
+    #GCC availibility, install 7 through to 9 and prioritise 9
+    - apt-get install -y software-properties-common && add-apt-repository ppa:ubuntu-toolchain-r/test && apt update
+    - apt-get install $APT_ARGS g++-7 gcc-7 gcc-8 g++-8 gcc-9 g++-9
+    ##GCC priorities
+    - if [ $PRIOGCC == 'true' ]; then update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7 --slave /usr/bin/gcov gcov /usr/bin/gcov-7; fi  
+    #python stuff
+    - apt-get install $APT_ARGS python python3-pip python3-setuptools
+    - apt-get install $APT_ARGS python3 python3-dev python3-zmq 
+    - pip3 install pyzmq && pip3 install jinja2
+    - dpkg --add-architecture i386
+    
+
+    #crown Gitlab runner specific issues
+    - if [ $UPDATECERTS == 'true' ]; then apt-get install apt-transport-https ca-certificates -y && update-ca-certificates; fi 
+    #Install the packages the specific build wants (later on defined in job template PACKAGES)
+    - if [ -n "$PACKAGES" ]; then apt-get install $APT_ARGS $PACKAGES; fi
+
+    - update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix && update-alternatives --set i686-w64-mingw32-g++  /usr/bin/i686-w64-mingw32-g++-posix && update-alternatives --set x86_64-w64-mingw32-gcc  /usr/bin/x86_64-w64-mingw32-gcc-posix && update-alternatives --set x86_64-w64-mingw32-g++  /usr/bin/x86_64-w64-mingw32-g++-posix
+    #Depends Make proces
     - unset CC; unset CXX
-    - mkdir -p depends/SDKs depends/sdk-sources out
-    - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
-    - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
+    - mkdir -p depends/SDKs depends/sdk-sources depends/bdb4 out
+    - if [ $SETUPBDB == 'true' ]; then ./contrib/install_db4.sh 'depends/bdb4'; fi
+    #OSX specifics
+   # - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
+   # - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
     - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz ]; then curl --location --fail $XCODE_URL -o depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz; fi
     - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/Xcode-12.1-12A7403-extracted-SDK-with-libcxx-headers.tar.gz; fi
-    - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
+    #Arm specifcs
+    - if [ $HACK_ARM = 'yes']; then ln -s x86_64-linux-gnu/asm /usr/include/asm; fi
+    - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS 
 
+#Start of the Actual compile
   script:
     - ./autogen.sh
     - mkdir build && cd build
     - ../configure --cache-file=config.cache $CROWN_CONFIG_ALL $CROWN_CONFIG
-    - make distdir VERSION=$HOST
+    - CXXFLAGS='-std=c++17' make distdir VERSION=$HOST
     - cd crown-$HOST
-    - ./configure --cache-file=../config.cache $CROWN_CONFIG_ALL $CROWN_CONFIG
-    - make $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL V=1 ; false )
+    - ./configure $BDB4 --cache-file=../config.cache $CROWN_CONFIG_ALL $CROWN_CONFIG
+    - CXXFLAGS='-std=c++17' make  $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL V=1 ; false )
     - if [ -n "$DMG" ]; then cp Crown-Qt.dmg ../../Crown-Qt.dmg; fi
-
+  after_script:
+    #- if []
 .job_template: &win64_definition
   tags:
     - windows
@@ -48,83 +92,76 @@ cache:
     OUTDIR: "Crown-${RELEASE_VERSION}-Win64"
     PACKAGES: "nsis gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 wine64 bc"
 
-.job_template: &win32_definition
-  tags:
-    - windows32
-  variables:
-    CROWN_CONFIG: ""
-    HOST: "i686-w64-mingw32"
-    GOAL: "install"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Win32"
-    PACKAGES: "nsis g++-mingw-w64-i686 gcc-mingw-w64-i686 binutils-mingw-w64-i686 wine64 bc"
+#.job_template: &win32_definition
+#  tags:
+#    - windows32
+#  variables:
+#    CROWN_CONFIG: ""
+#    HOST: "i686-w64-mingw32"
+#    GOAL: "install"
+#    OUTDIR: "Crown-${RELEASE_VERSION}-Win32"
+#    PACKAGES: "nsis g++-mingw-w64-i686 gcc-mingw-w64-i686 binutils-mingw-w64-i686 wine64 bc"
 
 .job_template: &linux642004_definition
   tags:
     - linux642004
   variables:
-    CROWN_CONFIG: "--enable-glibc-back-compat"
-    HOST: "x86_64-linux-gnu"
+    CROWN_CONFIG: "--enable-zmq --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces"
+    HOST: "x86_64-pc-linux-gnu"
     GOAL: "install"
     OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-2004"
-    DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
+    DEP_OPTS: "NO_UPNP=1 DEBUG=1"
+    PACKAGES: ""
+  
+#.job_template: &linux641604_definition
+#  tags:
+#    - linux641604
+#  variables:
+#    CROWN_CONFIG: "--enable-zmq --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces"
+#    HOST: "x86_64-pc-linux-gnu"
+#    GOAL: "install"
+#    OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-1604"
+#    DEP_OPTS: "NO_UPNP=1"
+#    OLDBUNTU: "true"
 
-.job_template: &linux641604_definition
-  tags:
-    - linux641604
-  variables:
-    CROWN_CONFIG: "--enable-glibc-back-compat"
-    HOST: "x86_64-linux-gnu"
-    GOAL: "install"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Linux64-1604"
-    DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
 
-.job_template: &linux32_definition
-  tags:
-    - linux32
-  variables:
-    CROWN_CONFIG: "--enable-glibc-back-compat"
-    HOST: "i686-pc-linux-gnu"
-    GOAL: "install"
-    DEP_OPTS: "USE_LINUX_STATIC_QT5=1"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Linux32"
-    PACKAGES: "g++-multilib bc"
 
-.job_template: &raspberrypi_definition
-  tags:
-    - raspi
-  variables:
-    CROWN_CONFIG: "--enable-glibc-back-compat"
-    HOST: "arm-linux-gnueabihf"
-    GOAL: "install"
-    OUTDIR: "Crown-${RELEASE_VERSION}-RaspberryPi"
-    PACKAGES: "g++-arm-linux-gnueabihf"
+#.job_template: &raspberrypi_definition
+#  tags:
+#    - raspi
+#  variables:
+#    CROWN_CONFIG: "--enable-glibc-back-compat"
+#    HOST: "arm-linux-gnueabihf"
+#    GOAL: "install"
+#    OUTDIR: "Crown-${RELEASE_VERSION}-RaspberryPi"
+#    PACKAGES: "g++-arm-linux-gnueabihf"
+#    HACK_ARM: "yes"
 
-.job_template: &osx_definition
-  tags:
-    - osx
-  variables:
-    CROWN_CONFIG: "--with-gui --with-boost-process"
+#.job_template: &osx_definition
+#  tags:
+#    - osx
+#  variables:
+#    CROWN_CONFIG: "--with-gui --with-boost-process"
 #    CROWN_CONFIG: "--with-gui --enable-werror --with-boost-process"
-    HOST: "x86_64-apple-darwin16"
-    OSX_SDK: "10.15.6"
-    GOAL: "install"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
-    PACKAGES: "cmake imagemagick librsvg2-bin libz-dev libtiff-tools libtinfo5 python3-setuptools xorriso"
-#    PACKAGES: "gcc-multilib g++-multilib librsvg2-bin libtiff-tools bsdmainutils cmake imagemagick libcap-dev libz-dev libbz2-dev python3-setuptools libtinfo5"
-    DEP_OPTS: ""
+#    HOST: "x86_64-apple-darwin19"
+#    OSX_SDK: "10.14"
+#    GOAL: "install"
+#    OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
+#    PACKAGES: "cmake imagemagick librsvg2-bin libz-dev libtiff-tools libtinfo5 python3-setuptools xorriso"
+#    DEP_OPTS: ""
 
-.job_template: &osx_dmg_definition
-  tags:
-    - osx
-  variables:
-    CROWN_CONFIG: ""
-    HOST: "x86_64-apple-darwin18"
-    OSX_SDK: "10.15.6"
-    DMG: "True"
-    GOAL: "deploy"
-    OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
-    PACKAGES: "gcc-multilib g++-multilib librsvg2-bin libtiff-tools bsdmainutils cmake imagemagick libcap-dev libz-dev libbz2-dev python3-setuptools libtinfo5 libc++-dev"
-    DEP_OPTS: "download-osx"
+#.job_template: &osx_dmg_definition
+#  tags:
+#    - osx
+#  variables:
+#    CROWN_CONFIG: ""
+#    HOST: "x86_64-apple-darwin18"
+#    OSX_SDK: "10.14"
+#    DMG: "True"
+#    GOAL: "deploy"
+#    OUTDIR: "Crown-${RELEASE_VERSION}-Osx"
+#    PACKAGES: "gcc-multilib g++-multilib librsvg2-bin libtiff-tools bsdmainutils cmake imagemagick libcap-dev libz-dev libbz2-dev python3-setuptools libtinfo5 libc++-dev"
+#    DEP_OPTS: "download-osx"
 
 # Artifact settings for releases and snapshots
 .job_template: &release_definition
@@ -146,112 +183,111 @@ cache:
     - master
     - tags
 
-.job_template: &dmg_release_definition
-  artifacts:
-    name: "$OUTDIR-dmg"
-    paths:
-    - Crown-Qt.dmg
-  only:
-    - master
-    - tags
+#.job_template: &dmg_release_definition
+#  artifacts:
+#    name: "$OUTDIR-dmg"
+#    paths:
+#    - Crown-Qt.dmg
+#  only:
+#    - master
+#    - tags
 
-.job_template: &dmg_snapshot_definition
-  artifacts:
-    name: "$OUTDIR-dmg"
-    paths:
-    - Crown-Qt.dmg
-    expire_in: 2 weeks
-  except:
-    - master
-    - tags
+#.job_template: &dmg_snapshot_definition
+#  artifacts:
+#    name: "$OUTDIR-dmg"
+#    paths:
+#    - Crown-Qt.dmg
+#    expire_in: 2 weeks
+#  except:
+#    - master
+#    - tags
 
 # Job definitions for releases
-Win64:
-  <<: *win64_definition
-  <<: *job_definition
-  <<: *release_definition
-
+#Win64:
+#  <<: *win64_definition 
+#  <<: *job_definition 
+#  <<: *release_definition 
+  
 #Win32:
-#  <<: *win32_definition
+#  <<: *win32_definition 
 #  <<: *job_definition
-#  <<: *release_definition
+#  <<: *release_definition 
 
 Linux642004:
-  <<: *linux642004_definition
+  <<: *linux642004_definition 
   <<: *job_definition
-  <<: *release_definition
+  <<: *release_definition 
 
-Linux641604:
-  <<: *linux641604_definition
-  <<: *job_definition
-  <<: *release_definition
-
-Linux32:
-  <<: *linux32_definition
-  <<: *job_definition
-  <<: *release_definition
-
-RaspberryPi:
-  <<: *raspberrypi_definition
-  <<: *job_definition
-  <<: *release_definition
-
-Osx:
-  <<: *osx_definition
-  <<: *job_definition
-  <<: *release_definition
-
-Osx-dmg:
-  <<: *osx_dmg_definition
-  <<: *job_definition
-  <<: *dmg_release_definition
-
-# Job definitions for temporary builds (snapshots)
-Win64-snapshot:
-  <<: *win64_definition
-  <<: *job_definition
-  <<: *snapshot_definition
-
-#Win32-snapshot:
-#  <<: *win32_definition
+#Linux641604:
+#  <<: *linux641604_definition 
 #  <<: *job_definition
-#  <<: *snapshot_definition
+#  <<: *release_definition 
+
+#Linux32:
+#  <<: *linux32_definition 
+#  <<: *job_definition 
+#  <<: *release_definition 
+
+#RaspberryPi:
+#  <<: *raspberrypi_definition
+#  <<: *job_definition
+#  <<: *release_definition 
+
+#Osx:
+#  <<: *osx_definition
+#  <<: *job_definition 
+#  <<: *release_definition
+
+#Osx-dmg:
+ # <<: *osx_dmg_definition
+ # <<: *job_definition 
+ # <<: *dmg_release_definition
+
+## Job definitions for temporary builds (snapshots)
+#Win64-snapshot:
+#  <<: *win64_definition 
+#  <<: *job_definition 
+#  <<: *snapshot_definition 
+  
+#Win32-snapshot:
+#  <<: *win32_definition 
+#  <<: *job_definition
+#  <<: *snapshot_definition 
 
 Linux642004-snapshot:
-  <<: *linux642004_definition
+  <<: *linux642004_definition 
   <<: *job_definition
-  <<: *snapshot_definition
+  <<: *snapshot_definition 
 
-Linux641604-snapshot:
-  <<: *linux641604_definition
-  <<: *job_definition
-  <<: *snapshot_definition
+#Linux641604-snapshot:
+#  <<: *linux641604_definition 
+#  <<: *job_definition
+#  <<: *snapshot_definition 
 
-Linux32-snapshot:
-  <<: *linux32_definition
-  <<: *job_definition
-  <<: *snapshot_definition
+#Linux32-snapshot:
+#  <<: *linux32_definition 
+#  <<: *job_definition 
+#  <<: *snapshot_definition 
 
-RaspberryPi-snapshot:
-  <<: *raspberrypi_definition
-  <<: *job_definition
-  <<: *snapshot_definition
+#RaspberryPi-snapshot:
+#  <<: *raspberrypi_definition
+#  <<: *job_definition
+#  <<: *snapshot_definition 
 
-Osx-snapshot:
-  <<: *osx_definition
-  <<: *job_definition
-  <<: *snapshot_definition
+#Osx-snapshot:
+#  <<: *osx_definition
+#  <<: *job_definition 
+#  <<: *snapshot_definition 
 
 #Osx-dmg-snapshot:
 #  <<: *osx_dmg_definition
-#  <<: *job_definition
+#  <<: *job_definition 
 #  <<: *dmg_snapshot_definition
 
-# Trigger the docker build and delivery
-trigger_docker_build:
-  stage: deploy
-  script:
-  - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master  --form "variables[VERSION_TAG]=$CI_COMMIT_TAG" https://gitlab.crownplatform.com/api/v4/projects/17/trigger/pipeline
-  only:
-  - tags
-
+## Trigger the docker build and delivery
+#trigger_docker_build:
+#  stage: deploy
+#  script:
+#  - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master  --form "variables[VERSION_TAG]=$CI_COMMIT_TAG" https://gitlab.crownplatform.com/api/v4/projects/17/trigger/pipeline
+#  only:
+#  - tags
