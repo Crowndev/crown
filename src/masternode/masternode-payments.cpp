@@ -169,14 +169,14 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         //no masternode detected
         CMasternode* winningNode = mnodeman.GetCurrentMasterNode(1);
         if(winningNode){
-            payee = GetScriptForDestination(PKHash(winningNode->pubkey.GetID()));
+            payee = GetScriptForDestination(PKHash(winningNode->pubkey));
         } else {
             LogPrint(BCLog::NET, "CreateNewBlock: Failed to detect masternode to pay\n");
             hasPayment = false;
         }
     }
 
-    CAmount blockValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+    CAmount blockValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
     CAmount masternodePayment = GetMasternodePayment(pindexPrev->nHeight+1, blockValue);
 
     if(hasPayment){
@@ -184,7 +184,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             txNew.vpout.resize(2);
             txNew.vpout[MN_PMT_SLOT].scriptPubKey = payee;
             txNew.vpout[MN_PMT_SLOT].nValue = masternodePayment;
-            txNew.vpout[MN_PMT_SLOT].nAsset = txNew.vpout[0].nAsset;
+            txNew.vpout[MN_PMT_SLOT].nAsset = Params().GetConsensus().subsidy_asset;
             txNew.vpout[0].nValue -= masternodePayment;
         }else{
             txNew.vout.resize(2);
@@ -326,7 +326,7 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
     }
 
     CScript mnpayee;
-    mnpayee = GetScriptForDestination(PKHash(mn.pubkey.GetID()));
+    mnpayee = GetScriptForDestination(PKHash(mn.pubkey));
 
     CScript payee;
     for(int64_t h = nHeight; h <= nHeight+8; h++){
@@ -586,7 +586,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
             newWinner.nBlockHeight = nBlockHeight;
 
-            CScript payee = GetScriptForDestination(PKHash(pmn->pubkey.GetID()));
+            CScript payee = GetScriptForDestination(PKHash(pmn->pubkey));
             newWinner.AddPayee(payee);
 
             LogPrint(BCLog::MASTERNODE, "CMasternodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", payee.ToString(), newWinner.nBlockHeight);

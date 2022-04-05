@@ -347,7 +347,7 @@ bool CMasternode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
     CBlockIndex* pindex = ::ChainActive()[nMinimumValidBlockHeight];
 
     CScript mnpayee;
-    mnpayee = GetScriptForDestination(PKHash(pubkey.GetID()));
+    mnpayee = GetScriptForDestination(PKHash(pubkey));
 
     bool fBlockFound = false;
     while (::ChainActive().Next(pindex)) {
@@ -549,7 +549,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
 
     if(pubkeyScript.size() != 25) {
         LogPrint(BCLog::MASTERNODE, "mnb - pubkey the wrong size\n");
@@ -558,7 +558,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     CScript pubkeyScript2;
-    pubkeyScript2 = GetScriptForDestination(PKHash(pubkey2.GetID()));
+    pubkeyScript2 = GetScriptForDestination(PKHash(pubkey2));
 
     if(pubkeyScript2.size() != 25) {
         LogPrint(BCLog::MASTERNODE, "mnb - pubkey2 the wrong size\n");

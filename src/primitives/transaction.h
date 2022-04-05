@@ -166,10 +166,10 @@ public:
         scriptPubKey.clear();
     }
 
-    bool IsNull() const
+    /*bool IsNull() const
     {
         return nValue==0 && scriptPubKey.empty();
-    }
+    }*/
 
     void SetEmpty()
     {

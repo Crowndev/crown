@@ -812,7 +812,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             indexed_transaction_set::const_iterator it2 = mapTx.find(txin.prevout.hash);
             if (it2 != mapTx.end()) {
                 const CTransaction& tx2 = it2->GetTx();
-                assert(tx2.vout.size() > txin.prevout.n && !tx2.vout[txin.prevout.n].IsNull());
+                CTxOutAsset outc = (tx2.nVersion >= TX_ELE_VERSION ? tx2.vpout[txin.prevout.n] : tx2.vout[txin.prevout.n]);
+                assert((tx2.nVersion >= TX_ELE_VERSION ? tx2.vpout.size() : tx2.vout.size()) > txin.prevout.n && !outc.IsNull());
                 fDependsWait = true;
                 setParentCheck.insert(*it2);
             } else {

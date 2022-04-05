@@ -204,7 +204,7 @@ bool CSystemnode::IsValidNetAddr()
 int64_t CSystemnode::SecondsSincePayment() const
 {
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
 
     int64_t sec = (GetAdjustedTime() - GetLastPaid());
     int64_t month = 60 * 60 * 24 * 30;
@@ -226,7 +226,7 @@ int64_t CSystemnode::GetLastPaid() const
     if(pindexPrev == nullptr) return false;
 
     CScript snpayee;
-    snpayee = GetScriptForDestination(PKHash(pubkey.GetID()));
+    snpayee = GetScriptForDestination(PKHash(pubkey));
 
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << vin;
@@ -278,7 +278,7 @@ bool CSystemnode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
     CBlockIndex* pindex = ::ChainActive()[nMinimumValidBlockHeight];
 
     CScript snpayee;
-    snpayee = GetScriptForDestination(PKHash(pubkey.GetID()));
+    snpayee = GetScriptForDestination(PKHash(pubkey));
 
     bool fBlockFound = false;
     while (::ChainActive().Next(pindex)) {
@@ -440,7 +440,7 @@ bool CSystemnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollater
             snb = CSystemnodeBroadcast();
             return false;
         }
-        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew.GetID())));
+        LogPrint(BCLog::SYSTEMNODE, "%s: Signed over to key %s\n", __func__, EncodeDestination(PKHash(pubKeySystemnodeNew)));
     }
 
     return true;
@@ -463,7 +463,7 @@ bool CSystemnodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
 
     if(pubkeyScript.size() != 25) {
         LogPrint(BCLog::NET, "snb - pubkey the wrong size\n");
@@ -472,7 +472,7 @@ bool CSystemnodeBroadcast::CheckAndUpdate(int& nDos) const
     }
 
     CScript pubkeyScript2;
-    pubkeyScript2 = GetScriptForDestination(PKHash(pubkey2.GetID()));
+    pubkeyScript2 = GetScriptForDestination(PKHash(pubkey2));
 
     if(pubkeyScript2.size() != 25) {
         LogPrint(BCLog::NET, "snb - pubkey2 the wrong size\n");

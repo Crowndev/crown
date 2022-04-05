@@ -2452,6 +2452,9 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
 
+            if (IsLockedCoin(entry.first, i) && (out.nValue == 10000*COIN  ||  out.nValue == 500*COIN))
+                continue;
+
             if (IsLockedCoin(entry.first, i))
                 continue;
 
@@ -2467,9 +2470,6 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
             if (!allow_used_addresses && IsSpentKey(wtxid, i)) {
                 continue;
             }
-
-            if (out.nValue == 10000*COIN  ||  out.nValue == 500*COIN)
-                continue;
 
             std::unique_ptr<SigningProvider> provider = GetSolvingProvider(out.scriptPubKey);
 

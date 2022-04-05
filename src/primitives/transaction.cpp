@@ -291,7 +291,7 @@ bool CTransaction::IsCoinBase() const
 
 bool CTransaction::IsCoinStake() const
 {
-    if (vin.size() != 1 || vout.size() != 1)
+    if (vin.size() != 1 || (nVersion == TX_ELE_VERSION ? vpout.size() != 1 : vout.size() != 1))
         return false;
 
     if (!vin[0].prevout.IsNull())

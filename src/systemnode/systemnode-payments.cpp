@@ -213,13 +213,13 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         //no systemnode detected
         CSystemnode* winningNode = snodeman.GetCurrentSystemNode(1);
         if (winningNode) {
-            payee = GetScriptForDestination(PKHash(winningNode->pubkey.GetID()));
+            payee = GetScriptForDestination(PKHash(winningNode->pubkey));
         } else {
             LogPrint(BCLog::SYSTEMNODE, "CreateNewBlock: Failed to detect systemnode to pay\n");
             hasPayment = false;
         }
     }
-    CAmount blockValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+    CAmount blockValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
 
     CAmount systemnodePayment = GetSystemnodePayment(pindexPrev->nHeight+1, blockValue);
 
@@ -232,7 +232,7 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             // [0] is for miner, [1] masternode, [2] systemnode
             txNew.vpout[2].scriptPubKey = payee;
             txNew.vpout[2].nValue = systemnodePayment;
-            txNew.vpout[2].nAsset = txNew.vpout[0].nAsset;
+            txNew.vpout[2].nAsset = Params().GetConsensus().subsidy_asset;
             txNew.vpout[0].nValue -= systemnodePayment;
         }
         else{
@@ -442,7 +442,7 @@ bool CSystemnodePayments::ProcessBlock(int nBlockHeight)
 
         newWinner.nBlockHeight = nBlockHeight;
 
-        CScript payee = GetScriptForDestination(PKHash(psn->pubkey.GetID()));
+        CScript payee = GetScriptForDestination(PKHash(psn->pubkey));
         newWinner.AddPayee(payee);
 
         LogPrint(BCLog::SYSTEMNODE, "CSystemnodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", payee.ToString(), newWinner.nBlockHeight);
@@ -575,7 +575,7 @@ bool CSystemnodePayments::IsScheduled(CSystemnode& sn, int nNotBlockHeight)
     }
 
     CScript snpayee;
-    snpayee = GetScriptForDestination(PKHash(sn.pubkey.GetID()));
+    snpayee = GetScriptForDestination(PKHash(sn.pubkey));
 
     CScript payee;
     for(int64_t h = nHeight; h <= nHeight+8; h++){
