@@ -233,6 +233,7 @@ bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const
 template <typename stakingnode>
 bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers, int nPaymentSlot)
 {
+    LogPrintf("%s: 1\n", __func__);
     bool found = false;
     // get block index of last mn payment
     std::vector<const CBlockIndex*> vBlocksLastPaid;
@@ -240,11 +241,12 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
         LogPrintf("GetRecentStakePointer -- Couldn't find last paid block\n");
         return false;
     }
-
+    LogPrintf("%s: 2\n", __func__);
     int nBestHeight = ::ChainActive().Height();
     for (auto pindex : vBlocksLastPaid) {
         if (budget.IsBudgetPaymentBlock(pindex->nHeight))
             continue;
+    LogPrintf("%s: 2.1\n", __func__);
 
         // Pointer has to be at least deeper than the max reorg depth
         const int nMaxReorganizationDepth = 100;
@@ -256,16 +258,23 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
             LogPrintf("GetRecentStakePointer -- Failed reading block from disk\n");
             return false;
         }
+    LogPrintf("%s: 2.2\n", __func__);
 
         CScript scriptMNPubKey;
         scriptMNPubKey = GetScriptForDestination(PKHash(pstaker->pubkey));
+    LogPrintf("%s: 2.3\n", __func__);
+
         for (auto& tx : blockLastPaid.vtx) {
+    LogPrintf("%s: 2.4.0\n", __func__);
+
             auto stakeSource = COutPoint(tx->GetHash(), nPaymentSlot);
             uint256 hashPointer = stakeSource.GetHash();
             if (mapUsedStakePointers.count(hashPointer))
                 continue;
+    LogPrintf("%s: %s\n", __func__, tx->ToString());
             
             CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[nPaymentSlot] : tx->vout[nPaymentSlot]);   
+    LogPrintf("%s: 2.4.1\n", __func__);
                 
             if (tx->IsCoinBase() && mout.scriptPubKey == scriptMNPubKey) {
                 StakePointer stakePointer;
@@ -277,9 +286,11 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
                 found = true;
                 continue;
             }
+    LogPrintf("%s: 2.4.2\n", __func__);
+
         }
     }
-
+    LogPrintf("%s: 3\n", __func__);
     return found;
 }
 
