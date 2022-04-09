@@ -255,11 +255,6 @@ bool CScript::IsPayToScriptHash() const
             (*this)[22] == OP_EQUAL);
 }
 
-bool CScript::IsProofOfStakeMarker() const
-{
-    return (this->size() > 1 && (*this)[0] == OP_PROOFOFSTAKE);
-}
-
 bool CScript::IsPayToWitnessScriptHash() const
 {
     // Extra-fast test for pay-to-witness-script-hash CScripts:
@@ -493,3 +488,9 @@ bool IsOpSuccess(const opcodetype& opcode)
            (opcode >= 141 && opcode <= 142) || (opcode >= 149 && opcode <= 153) ||
            (opcode >= 187 && opcode <= 254);
 }
+
+bool CScript::IsProofOfStakeMarker() const
+{
+    return (this->size() > 1 && (*this)[0] == OP_PROOFOFSTAKE);
+}
+

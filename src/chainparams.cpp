@@ -243,15 +243,15 @@ public:
         strNetworkID = CBaseChainParams::TESTNET;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = 210000;
-        consensus.BIP16Exception = uint256S("0x00000000dd30457c001f4095d208cc1296b0eed002427aa599874af7a432b105");
-        consensus.BIP34Height = 21111;
-        consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
-        consensus.BIP65Height = 581885; // 00000000007f6655f22f98e72ed80d8b06dc761d5da09df0fa1dc4be4f861eb6
-        consensus.BIP66Height = 330776; // 000000002104c8c45e99a8853285a3b592602a3ccde2b832481da85e9e4ba182
+        consensus.nSubsidyHalvingInterval = 130000;
+        consensus.BIP16Exception = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
+        consensus.BIP34Height = std::numeric_limits<int>::max();
+        consensus.BIP34Hash = uint256S("0x0000000000000000000000000000000000000000000000000000000000000000");
+        consensus.BIP65Height = std::numeric_limits<int>::max();
+        consensus.BIP66Height = std::numeric_limits<int>::max();
         consensus.CSVHeight = 1; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
         consensus.SegwitHeight = std::numeric_limits<int>::max(); // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
-        consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
+        consensus.MinBIP9WarningHeight = std::numeric_limits<int>::max();
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 60; // two weeks
         consensus.nPowTargetSpacing = 60;

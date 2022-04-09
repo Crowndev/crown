@@ -2265,7 +2265,6 @@ bool CheckBlockProofPointer(const CBlockIndex* pindex, const CBlock& block, CPub
                 return error("%s: Wrong pubkeys: Pubkey Collateral in proof pointer = %s, pubkey in reward payment = %s", __func__, EncodeDestination(addressCollateralCheck), EncodeDestination(addressReward));
 
             pubkeyMasternode = stakePointer.pubKeyCollateral;
-
             if (std::get<PKHash>(addressProof) != std::get<PKHash>(addressReward)) {
                 //Check if the key was signed over to another privkey
                 if (!stakePointer.VerifyCollateralSignOver())
@@ -2297,7 +2296,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
 
     AssertLockHeld(cs_main);
     //Coinbase has to be 0 value
-    CTxOutAsset rout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vout[0] : block.vtx[0]->vout[0]);
+    CTxOutAsset rout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[0] : block.vtx[0]->vout[0]);
 
     if (rout.nValue > 0){
         errormsg = "Coinbase output 0 must have 0 value";
@@ -2326,6 +2325,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
 
     //cs_main is locked and mapblockindex checks for hashblock in CheckBlockProofPointer. Fine to access directly.
     CBlockIndex* pindexFrom = g_chainman.m_blockman.m_block_index.at(block.stakePointer.hashBlock);
+
     return CheckProofOfStake(block, pindexFrom, outpointStakePointer, hashProofOfStake, errormsg);
 }
 
@@ -2503,7 +2503,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     assert(pindex->pprev);
     CBlockIndex *pindexBIP34height = pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
     //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
-    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
+    fEnforceBIP30 = false;
 
     // TODO: Remove BIP30 checking from block height 1,983,702 on, once we have a
     // consensus change that ensures coinbases at those heights can not

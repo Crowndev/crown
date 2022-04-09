@@ -374,7 +374,7 @@ CMasternode *CMasternodeMan::Find(const CScript &payee)
 
     for (auto& mn : vMasternodes)
     {
-        payee2 = GetScriptForDestination(PKHash(mn.pubkey.GetID()));
+        payee2 = GetScriptForDestination(PKHash(mn.pubkey));
         if(payee2 == payee)
             return &mn;
     }

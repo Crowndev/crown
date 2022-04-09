@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <consensus/tx_check.h>
+#include <logging.h>
 
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
