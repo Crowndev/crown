@@ -198,7 +198,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         // Slow down blocks so that the testnet chain does not burn through the stakepointers too quick
         if (Params().NetworkIDString() == CBaseChainParams::TESTNET && GetAdjustedTime() - ::ChainActive().Tip()->nTime < 30)
-            UninterruptibleSleep(std::chrono::milliseconds(3000));
+            UninterruptibleSleep(std::chrono::milliseconds(30000));
 
         if (currentNode.CreateCoinStake(nHeight, nBits, nTime, txCoinStake, nTxNewTime, stakePointer)) {
             pblock->nTime = nTxNewTime;

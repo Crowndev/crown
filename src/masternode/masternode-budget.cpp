@@ -479,7 +479,7 @@ void CBudgetManager::FillBlockPayee(CMutableTransaction& txNew, CAmount nFees) c
         LogPrintf("CBudgetManager::FillBlockPayee - Budget payment to %s for %lld; proposal %s\n",
             EncodeDestination(ScriptHash(CScriptID(payment.payee))), payment.nAmount, payment.nProposalHash.ToString());
         if(txNew.nVersion >= TX_ELE_VERSION)
-            txNew.vpout.push_back(CTxOut(payment.nAmount, payment.payee));
+            txNew.vpout.push_back(CTxOutAsset(Params().GetConsensus().subsidy_asset, payment.nAmount, payment.payee));
         else
             txNew.vout.push_back(CTxOut(payment.nAmount, payment.payee));
     }
