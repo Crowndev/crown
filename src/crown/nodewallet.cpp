@@ -49,7 +49,7 @@ bool NodeWallet::GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& p
         pubScript = out.tx->tx->vpout[out.i].scriptPubKey;
     else
         pubScript = out.tx->tx->vout[out.i].scriptPubKey;
-    
+
 
     CTxDestination address;
     ExtractDestination(pubScript, address);
@@ -271,20 +271,21 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
             uint256 hashPointer = stakeSource.GetHash();
             if (mapUsedStakePointers.count(hashPointer))
                 continue;
-    LogPrintf("%s: %s\n", __func__, tx->ToString());
-            
-            CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[nPaymentSlot] : tx->vout[nPaymentSlot]);   
+
     LogPrintf("%s: 2.4.1\n", __func__);
-                
-            if (tx->IsCoinBase() && mout.scriptPubKey == scriptMNPubKey) {
-                StakePointer stakePointer;
-                stakePointer.hashBlock = pindex->GetBlockHash();
-                stakePointer.txid = tx->GetHash();
-                stakePointer.nPos = nPaymentSlot;
-                stakePointer.pubKeyProofOfStake = pstaker->pubkey;
-                vStakePointers.emplace_back(stakePointer);
-                found = true;
-                continue;
+
+            if (tx->IsCoinBase()) {
+                CTxOutAsset mout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[nPaymentSlot] : tx->vout[nPaymentSlot]);
+                if(mout.scriptPubKey == scriptMNPubKey){
+                    StakePointer stakePointer;
+                    stakePointer.hashBlock = pindex->GetBlockHash();
+                    stakePointer.txid = tx->GetHash();
+                    stakePointer.nPos = nPaymentSlot;
+                    stakePointer.pubKeyProofOfStake = pstaker->pubkey;
+                    vStakePointers.emplace_back(stakePointer);
+                    found = true;
+                    continue;
+                }
             }
     LogPrintf("%s: 2.4.2\n", __func__);
 
