@@ -35,7 +35,7 @@ bool CLegacySigner::IsVinAssociatedWithPubkey(CTxIn& vin, CPubKey& pubkey, int n
     uint256 hash;
     CTransactionRef txVin;
     g_txindex->BlockUntilSyncedToCurrentChain();
-    CScript payee = GetScriptForDestination(PKHash(pubkey.GetID()));
+    CScript payee = GetScriptForDestination(PKHash(pubkey));
 
     //! get tx from disk
     if (!g_txindex->FindTx(vin.prevout.hash, hash, txVin)) {

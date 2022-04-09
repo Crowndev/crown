@@ -273,7 +273,7 @@ bool CMasternode::IsValidNetAddr() const
 int64_t CMasternode::SecondsSincePayment() const
 {
     CScript pubkeyScript;
-    pubkeyScript = GetScriptForDestination(PKHash(pubkey.GetID()));
+    pubkeyScript = GetScriptForDestination(PKHash(pubkey));
 
     int64_t sec = (GetAdjustedTime() - GetLastPaid());
     int64_t month = 60 * 60 * 24 * 30;
@@ -295,7 +295,7 @@ int64_t CMasternode::GetLastPaid() const
     if(pindexPrev == NULL) return false;
 
     CScript mnpayee;
-    mnpayee = GetScriptForDestination(PKHash(pubkey.GetID()));
+    mnpayee = GetScriptForDestination(PKHash(pubkey));
 
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << vin;
@@ -718,7 +718,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         }
     }
 
-    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %d \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
+    LogPrintf("%s: Got NEW Masternode entry  %s %s %s %d \n", __func__, GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
     CMasternode mn(*this);
     mnodeman.Add(mn);
 
@@ -859,7 +859,7 @@ bool CMasternodePing::VerifySignature(const CPubKey& pubKeyMasternode, int &nDos
         LogPrint(BCLog::MASTERNODE, "CMasternodePing::VerifySignature - Got bad Masternode ping signature %s Error: %s\n", vin.ToString(), errorMessage);
         return false;
     }
-
+/*
     //Also check signature of previous blockhashes
     if (nVersion > 1) {
         uint256 hash;
@@ -870,7 +870,7 @@ bool CMasternodePing::VerifySignature(const CPubKey& pubKeyMasternode, int &nDos
             return false;
         }
     }
-
+*/
     return true;
 }
 

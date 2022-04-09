@@ -36,9 +36,9 @@ bool CheckProofOfStake(const CBlock& block, const CBlockIndex* prevBlock, const 
     // Get the correct amount for the collateral
     CAmount nAmountCollateral = 0;
     if (outpointStakePointer.n == 1) {
-        nAmountCollateral = Params().MasternodeCollateral() / COIN;
+        nAmountCollateral = Params().MasternodeCollateral() ;
     } else if (outpointStakePointer.n == 2) {
-        nAmountCollateral = Params().SystemnodeCollateral() / COIN;
+        nAmountCollateral = Params().SystemnodeCollateral() ;
     } else {
         errormsg = "Stake pointer is neither pos 1 or 2";
         return false;

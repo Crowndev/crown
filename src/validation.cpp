@@ -2265,7 +2265,6 @@ bool CheckBlockProofPointer(const CBlockIndex* pindex, const CBlock& block, CPub
                 return error("%s: Wrong pubkeys: Pubkey Collateral in proof pointer = %s, pubkey in reward payment = %s", __func__, EncodeDestination(addressCollateralCheck), EncodeDestination(addressReward));
 
             pubkeyMasternode = stakePointer.pubKeyCollateral;
-
             if (std::get<PKHash>(addressProof) != std::get<PKHash>(addressReward)) {
                 //Check if the key was signed over to another privkey
                 if (!stakePointer.VerifyCollateralSignOver())
@@ -2326,6 +2325,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
 
     //cs_main is locked and mapblockindex checks for hashblock in CheckBlockProofPointer. Fine to access directly.
     CBlockIndex* pindexFrom = g_chainman.m_blockman.m_block_index.at(block.stakePointer.hashBlock);
+
     return CheckProofOfStake(block, pindexFrom, outpointStakePointer, hashProofOfStake, errormsg);
 }
 

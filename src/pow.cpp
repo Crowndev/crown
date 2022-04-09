@@ -179,6 +179,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         retarget = DIFF_BTC;
     }
 
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && pindexLast->nHeight >= Params().PoSStartHeight()) {
+        retarget = DIFF_DGW;
+    }
+
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         if (pindexLast->nHeight + 1 < Params().PoSStartHeight()) {
             return GetProofOfWorkLimit(true).GetCompact();

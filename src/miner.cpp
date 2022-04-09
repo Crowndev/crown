@@ -289,10 +289,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    if (!fProofOfStake) {
+        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    }
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
+    pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
 	// Sign Block
 	if (fProofOfStake) {
@@ -592,7 +595,7 @@ void ThreadStakeMiner(CWallet *pwallet)
     CScript dummyscript;
 
     bool fTryToSync = true;
-    UninterruptibleSleep(std::chrono::seconds{45});
+    UninterruptibleSleep(std::chrono::seconds{180});
 
     try
     {
@@ -635,17 +638,18 @@ void ThreadStakeMiner(CWallet *pwallet)
                 if (!pblocktemplate.get())
                 {
                     LogPrintf("Error in ThreadStakeMiner \n");
-                    return;
+                    continue;
+                    //return;
                 }
                 CBlock *pblock = &pblocktemplate->block;
-                IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+                //IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
 
                 // if proof-of-stake block found then process block
 				// Process this block the same as if we had received it from another node
                 std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
 
 				if (!g_chainman.ProcessNewBlock(Params(), shared_pblock, true, nullptr)){
-					LogPrintf("ThreadStakeMiner : ProcessBlock, block not accepted");
+					LogPrintf("ThreadStakeMiner : ProcessBlock, block not accepted \n");
 					return;
 				}
             }
