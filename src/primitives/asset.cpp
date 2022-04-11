@@ -237,7 +237,7 @@ CAmount valueFor(const CAmountMap& mapValue, const CAsset& asset) {
 
 bool AssetMetadata::IsEmpty() const
 {
-    return ( nVersion==0 && nFlags==0 && getAssetName() == "");
+    return ( nVersion==0 && nFlags==0 && nType==0 && getAssetName() == "");
 }
 
 void AssetMetadata::setName(const std::string& _sAssetName)

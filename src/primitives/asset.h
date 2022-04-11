@@ -52,7 +52,7 @@ public:
         ASSET_INFLATABLE = (1 << 5)
     };
 
-	enum AssetType : uint32_t 
+	enum AssetType : uint32_t
 	{
 		TOKEN = 1,
 		UNIQUE = 2,
@@ -89,13 +89,13 @@ public:
     bool isTransferable() const;
 
     bool isConvertable() const;
-    
+
     bool isLimited() const;
-    
+
     bool isRestricted() const;
-    
+
     bool isStakeable() const;
-    
+
     bool isInflatable() const;
 
     CAssetID getInputAssetID() const;
@@ -149,22 +149,11 @@ struct CAsset : public AssetMetadata
         READWRITE(obj.assetID);
     }
 
-    bool IsNull() const { return assetID.IsNull() && AssetMetadata::IsEmpty(); }
+    bool IsNull() const { return assetID.IsNull() && IsEmpty(); }
 
     void SetNull() {
         assetID.SetNull();
         AssetMetadata::SetEmpty();
-    }
-
-    void SetEmpty()
-    {
-        assetID.SetNull();
-        AssetMetadata::SetEmpty();
-    }
-
-    bool IsEmpty() const
-    {
-        return (assetID.IsNull() && AssetMetadata::IsEmpty());
     }
 
     const std::string getName() const;

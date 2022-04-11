@@ -291,7 +291,7 @@ bool CTransaction::IsCoinBase() const
 
 bool CTransaction::IsCoinStake() const
 {
-    if (vin.size() != 1 || (nVersion == TX_ELE_VERSION ? vpout.size() != 1 : vout.size() != 1))
+    if (vin.size() != 1 || (nVersion >= TX_ELE_VERSION ? vpout.size() != 1 : vout.size() != 1))
         return false;
 
     if (!vin[0].prevout.IsNull())
@@ -308,9 +308,9 @@ std::string CTransaction::ToString() const
         nVersion,
         nType,
         vin.size(),
-        (nVersion == TX_ELE_VERSION ? vpout.size() : vout.size()),
+        (nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size()),
         nLockTime,
-        extraPayload.size());
+        (nVersion >= TX_ELE_VERSION ? 0 : extraPayload.size()));
     for (const auto& tx_in : vin)
         str +=tx_in.ToString() + "\n";
     for (const auto& tx_in : witness.vtxinwit)
@@ -332,9 +332,9 @@ std::string CMutableTransaction::ToString() const
         nVersion,
         nType,
         vin.size(),
-        (nVersion == TX_ELE_VERSION ? vpout.size() : vout.size()),
+        (nVersion >= TX_ELE_VERSION ? vpout.size() : vout.size()),
         nLockTime,
-        extraPayload.size());
+        (nVersion >= TX_ELE_VERSION ? 0 : extraPayload.size()));
     for (const auto& tx_in : vin)
         str += tx_in.ToString() + "\n";
     for (const auto& tx_in : witness.vtxinwit)

@@ -1691,8 +1691,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState &state, const C
             const COutPoint& prevout = txin.prevout;
             const Coin& coin = inputs.AccessCoin(prevout);
             assert(!coin.IsSpent());
-
-                spent_outputs.emplace_back(coin.out);
+            spent_outputs.emplace_back(coin.out);
         }
         txdata.Init(tx, std::move(spent_outputs));
     }
@@ -1927,7 +1926,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 bool is_spent = view.SpendCoin(out, &coin);
                 if (!is_spent || bout != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
                     fClean = false; // transaction output mismatch
-                    LogPrintf("VPOUT %s , SPENT %s , OUT %s\n", fClean ? "true": "false", is_spent ? "true": "false", bout != coin.out ? "true": "false");
+                    LogPrintf("VPOUT %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", bout != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
                     LogPrintf("VOUT %s \n %s \n", bout.ToString(), coin.out.ToString());
                 }
             }

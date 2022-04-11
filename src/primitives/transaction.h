@@ -151,58 +151,13 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
 
-    CTxOut()
-    {
-        SetNull();
-    }
+    CTxOut(){}
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
 
     SERIALIZE_METHODS(CTxOut, obj) { READWRITE(obj.nValue, obj.scriptPubKey);}
 
-    void SetNull()
-    {
-        nValue=0;
-        scriptPubKey.clear();
-    }
-
-    /*bool IsNull() const
-    {
-        return nValue==0 && scriptPubKey.empty();
-    }*/
-
-    void SetEmpty()
-    {
-        nValue = 0;
-        scriptPubKey.clear();
-    }
-
-    bool IsFee() const {
-        return scriptPubKey == CScript() && !nValue==0;
-    }
-
-    bool IsEmpty() const
-    {
-        return (nValue == 0 && scriptPubKey.empty());
-    }
-
-    CAmount GetValue() const
-    {
-        return nValue;
-    }
-
     uint256 GetHash() const;
-
-    friend bool operator==(const CTxOut& a, const CTxOut& b)
-    {
-        return (a.nValue       == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey);
-    }
-
-    friend bool operator!=(const CTxOut& a, const CTxOut& b)
-    {
-        return !(a == b);
-    }
 
     std::string ToString() const;
 };
@@ -228,7 +183,8 @@ public:
 
     void SetNull()
     {
-        CTxOut::SetNull();
+        nValue=0;
+        scriptPubKey.clear();
         nAsset.SetNull();
         nVersion=0;
     }
@@ -240,13 +196,14 @@ public:
 
     void SetEmpty()
     {
-        CTxOut::SetEmpty();
+        nValue = 0;
+        scriptPubKey.clear();
         nAsset.SetNull();
         nVersion=0;
     }
 
     bool IsFee() const {
-        return scriptPubKey == CScript() && !nValue==0 && !nAsset.IsNull();
+        return scriptPubKey == CScript() && !nValue==0;
     }
 
     bool IsEmpty() const
