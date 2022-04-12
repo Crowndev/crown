@@ -40,9 +40,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
         //
         // Credit
         //
-        for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
-        {
-            const CTxOut& txout = wtx.tx->vout[i];
+        for (unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); i++) {
+             CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+
+            //const CTxOut& txout = wtx.tx->vout[i];
             const CAsset& asset = wtx.txout_assets[i];
             if (txout.IsFee()) {
                 // explicit fee; ignore
