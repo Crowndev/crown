@@ -189,6 +189,12 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getnodeaddresses", 0, "count"},
     { "addpeeraddress", 1, "port"},
     { "spork", 1, "value" },
+    { "mnbudget", 3, "value" },
+    { "mnbudget", 4, "value1" },
+    { "mnbudget", 6, "value2" },
+    { "mnbudget", 8, "value3" },
+    { "mnbudgetvoteraw", 1, "value" },
+    { "mnbudgetvoteraw", 4, "value1" },
     { "stop", 0, "wait" }
 };
 // clang-format on

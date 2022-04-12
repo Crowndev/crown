@@ -116,7 +116,7 @@ bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, s
     CTransactionRef txCollateral = GetTransaction(nullptr, nullptr, nTxCollateralHash, Params().GetConsensus(), nBlockHash);
 
     if(!txCollateral){
-        strError = strprintf("Can't find collateral tx %s", txCollateral->ToString());
+        strError = strprintf("Can't find collateral tx %s", nTxCollateralHash.ToString());
         LogPrintf ("CBudgetProposalBroadcast::IsBudgetCollateralValid - %s\n", strError);
         return false;
     }
