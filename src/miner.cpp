@@ -285,6 +285,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
+    LogPrintf("%s: %s\n",__func__, pblock->ToString());
+    
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
@@ -297,14 +299,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
-	// Sign Block
-	if (fProofOfStake) {
-		pblock->SetProofOfStake(true);
-		if (!SignBlock(pblock)) {
-			LogPrintf("%s: Failed to sign block\n", __func__);
-			return NULL;
-		}
-	}
+    // Sign Block
+    if (fProofOfStake) {
+        pblock->SetProofOfStake(true);
+        if (!SignBlock(pblock)) {
+            LogPrintf("%s: Failed to sign block\n", __func__);
+            return NULL;
+        }
+    }
 
     BlockValidationState state;
     if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
@@ -607,25 +609,25 @@ void ThreadStakeMiner(CWallet *pwallet)
                 UninterruptibleSleep(std::chrono::seconds{60});
             }
 
-			if (::ChainActive().Height() + 1 < Params().PoSStartHeight() || (!fMasterNode && !fSystemNode) ||
-				::ChainActive().Tip()->GetBlockTime() > GetAdjustedTime())
-			{
-				// 1. If the height is not reached to POS height
-				// 2. If it is neither a masternode nor a systemnode
-				// 3. If the block time is bigger then adjusted time
-				UninterruptibleSleep(std::chrono::seconds{10});
-				continue;
-			}
-			else
-			{
-				//Check the state of the blockchain being synced before trying to stake
-				if (!masternodeSync.IsBlockchainSynced()) {
-					if (!gArgs.GetBoolArg("-jumpstart", false)) {
-						UninterruptibleSleep(std::chrono::seconds{10});
-						continue;
-					}
-				}
-			}
+            if (::ChainActive().Height() + 1 < Params().PoSStartHeight() || (!fMasterNode && !fSystemNode) ||
+                ::ChainActive().Tip()->GetBlockTime() > GetAdjustedTime())
+            {
+                // 1. If the height is not reached to POS height
+                // 2. If it is neither a masternode nor a systemnode
+                // 3. If the block time is bigger then adjusted time
+                UninterruptibleSleep(std::chrono::seconds{10});
+                continue;
+            }
+            else
+            {
+                //Check the state of the blockchain being synced before trying to stake
+                if (!masternodeSync.IsBlockchainSynced()) {
+                    if (!gArgs.GetBoolArg("-jumpstart", false)) {
+                        UninterruptibleSleep(std::chrono::seconds{10});
+                        continue;
+                    }
+                }
+            }
             //
             // Create new block
             //
@@ -645,13 +647,13 @@ void ThreadStakeMiner(CWallet *pwallet)
                 //IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
 
                 // if proof-of-stake block found then process block
-				// Process this block the same as if we had received it from another node
+                // Process this block the same as if we had received it from another node
                 std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
 
-				if (!g_chainman.ProcessNewBlock(Params(), shared_pblock, true, nullptr)){
-					LogPrintf("ThreadStakeMiner : ProcessBlock, block not accepted \n");
-					return;
-				}
+                if (!g_chainman.ProcessNewBlock(Params(), shared_pblock, true, nullptr)){
+                    LogPrintf("ThreadStakeMiner : ProcessBlock, block not accepted \n");
+                    return;
+                }
             }
             else {
                 LogPrintf("%s: no available coins\n", __func__);

@@ -3234,7 +3234,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         const CScript& scriptPubKey = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey) ;
         bool fValidAddress = ExtractDestination(scriptPubKey, address);
 
-        if(std::get<WitnessV0KeyHash>(dest) != std::get<WitnessV0KeyHash>(address))
+        if(std::get<PKHash>(dest) != std::get<PKHash>(address))
             continue;
 
         if (!fValidAddress)
