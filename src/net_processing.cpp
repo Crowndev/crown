@@ -2024,7 +2024,7 @@ void PeerManager::ProcessOrphanTx(std::set<uint256>& orphan_work_set)
         if (AcceptToMemoryPool(m_mempool, state, porphanTx, &removed_txn, false /* bypass_limits */)) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
             RelayTransaction(orphanHash, porphanTx->GetWitnessHash(), m_connman);
-            for (unsigned int i = 0; i < porphanTx->vout.size(); i++) {
+            for (unsigned int i = 0; i < (porphanTx->nVersion >= TX_ELE_VERSION ? porphanTx->vpout.size() : porphanTx->vout.size()); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(orphanHash, i));
                 if (it_by_prev != mapOrphanTransactionsByPrev.end()) {
                     for (const auto& elem : it_by_prev->second) {
@@ -3080,7 +3080,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
             m_txrequest.ForgetTxHash(tx.GetHash());
             m_txrequest.ForgetTxHash(tx.GetWitnessHash());
             RelayTransaction(tx.GetHash(), tx.GetWitnessHash(), m_connman);
-            for (unsigned int i = 0; i < tx.vout.size(); i++) {
+            for (unsigned int i = 0; i < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); i++) {
                 auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(txid, i));
                 if (it_by_prev != mapOrphanTransactionsByPrev.end()) {
                     for (const auto& elem : it_by_prev->second) {
