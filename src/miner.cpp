@@ -282,6 +282,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
     }
+    LogPrintf("%s: \n", pblock.ToString());
 
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
