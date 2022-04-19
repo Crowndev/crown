@@ -1925,6 +1925,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 Coin coin;
                 bool is_spent = view.SpendCoin(out, &coin);
                 if (!is_spent || bout != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
+                    if(!bout.IsEmpty())
                     fClean = false; // transaction output mismatch
                     LogPrintf("VPOUT %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", bout != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
                     LogPrintf("VOUT %s \n %s \n", bout.ToString(), coin.out.ToString());
@@ -4049,7 +4050,6 @@ void UpdateUncommittedBlockStructures(CBlock& block, const CBlockIndex* pindexPr
     int commitpos = GetWitnessCommitmentIndex(block);
     static const std::vector<unsigned char> nonce(32, 0x00);
     if (commitpos != NO_WITNESS_COMMITMENT && IsWitnessEnabled(pindexPrev, consensusParams) && !block.vtx[0]->HasWitness()) {
-        LogPrintf("COMMIT POSE 3 %d\n", commitpos);
         CMutableTransaction tx(*block.vtx[0]);
         tx.witness.vtxinwit.resize(1);
         tx.witness.vtxinwit[0].scriptWitness.stack.resize(1);
@@ -4062,7 +4062,6 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 {
     std::vector<unsigned char> commitment;
     int commitpos = GetWitnessCommitmentIndex(block);
-    LogPrintf("COMMIT POSE %d\n", commitpos);
 
     std::vector<unsigned char> ret(32, 0x00);
     if (consensusParams.SegwitHeight != std::numeric_limits<int>::max()) {
