@@ -52,14 +52,14 @@ public:
         ASSET_INFLATABLE = (1 << 5)
     };
 
-	enum AssetType : uint32_t
-	{
-		TOKEN = 1,
-		UNIQUE = 2,
-		EQUITY = 3,
-		POINTS = 4,
-		CREDITS = 5,
-	};
+    enum AssetType : uint32_t
+    {
+        TOKEN = 1,
+        UNIQUE = 2,
+        EQUITY = 3,
+        POINTS = 4,
+        CREDITS = 5,
+    };
 
     AssetMetadata(){ SetEmpty();}
 

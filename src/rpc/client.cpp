@@ -195,6 +195,14 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "mnbudget", 8, "value3" },
     { "mnbudgetvoteraw", 1, "value" },
     { "mnbudgetvoteraw", 4, "value1" },
+    { "createasset", 2, "input amount"},
+    { "createasset", 3, "asset amount"},
+    { "createasset", 4, "expiry"},
+    { "createasset", 5, "type"},
+    { "createasset", 6, "transferable"},
+    { "createasset", 7, "convertable"},
+    { "createasset", 8, "restricted"},
+    { "createasset", 9, "limited"},
     { "stop", 0, "wait" }
 };
 // clang-format on

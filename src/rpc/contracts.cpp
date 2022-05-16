@@ -159,7 +159,7 @@ static RPCHelpMan createasset()
                     {"short_name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 4 characters"},
                     {"input_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "In put amount in Crown. (minimum 1)"},
                     {"asset_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "Amount of asset to generate. Note that the amount is Crown-like, with 8 decimal places."},
-                    {"expiry", RPCArg::Type::STR, RPCArg::Optional::NO, "Expiry date of asset"},
+                    {"expiry", RPCArg::Type::NUM, RPCArg::Optional::NO, "Expiry date of asset"},
                     {"type", RPCArg::Type::NUM, RPCArg::Optional::NO, "asset type TOKEN = 1, UNIQUE = 2, EQUITY = 3, POINTS = 4, CREDITS = 5"},
                     {"transferable", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can be transfered to other addresses after initial creation"},
                     {"convertable", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can be converted to another asset (set false for NFTs)"},
@@ -190,12 +190,12 @@ static RPCHelpMan createasset()
 
     std::string name = request.params[0].get_str();
     std::string shortname = request.params[1].get_str();
-    CAmount nAmount = AmountFromValue(request.params[2]);
+    CAmount nAmount = AmountFromValue(request.params[2].get_int());
 
     if(nAmount < 10 * COIN)
         throw JSONRPCError(RPC_MISC_ERROR, "Input error, input amount must be greater than 10 Crown for asset creation");
 
-    CAmount nAssetAmount = AmountFromValue(request.params[3]);
+    CAmount nAssetAmount = AmountFromValue(request.params[3].get_int());
     int64_t expiry = request.params[4].get_int();
     int type = request.params[5].get_int();
     bool transferable = request.params[6].get_bool();
