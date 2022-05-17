@@ -292,10 +292,10 @@ public:
         m_assumed_blockchain_size = 1;
         m_assumed_chain_state_size = 1;
 
-        genesis = CreateGenesisBlock(1651116245, 316558, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1652728167, 313229, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000ad6e0da774842dd60de74d5c061c0c4e88c3e9b5e4497404f443757e6b2"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000002e98cb578ba29508547f36cf87f8aee2e94d8fcdd873ac41aa7e8f95e9c"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();
