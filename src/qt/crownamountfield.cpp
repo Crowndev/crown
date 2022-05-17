@@ -122,7 +122,7 @@ public:
 
             const QFontMetrics fm(fontMetrics());
             int h = lineEdit()->minimumSizeHint().height();
-            int w = GUIUtil::TextWidth(fm, CrownUnits::format(CrownUnits::BTC, CrownUnits::maxMoney(), false, CrownUnits::SeparatorStyle::ALWAYS));
+            int w = GUIUtil::TextWidth(fm, CrownUnits::format(CrownUnits::CRW, CrownUnits::maxMoney(), false, CrownUnits::SeparatorStyle::ALWAYS));
             w += 2; // cursor blinking space
 
             QStyleOptionSpinBox opt;
@@ -148,7 +148,7 @@ public:
     }
 
 private:
-    int currentUnit{CrownUnits::BTC};
+    int currentUnit{CrownUnits::CRW};
     CAmount singleStep{CAmount(100000)}; // satoshis
     mutable QSize cachedMinimumSizeHint;
     bool m_allow_empty{true};

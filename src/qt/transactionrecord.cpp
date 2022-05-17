@@ -115,10 +115,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             // Debit
             //
             CAmountMap nTxFee = nDebit - wtx.tx->GetValueOutMap();
-
-            for (unsigned int nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
-            {
-                const CTxOut& txout = wtx.tx->vout[nOut];
+            for (unsigned int nOut = 0; nOut < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; nOut++){
+                CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[nOut] : wtx.tx->vout[nOut]);
+                
+            //for (unsigned int nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
+            //{
+                //const CTxOut& txout = wtx.tx->vout[nOut];
                 TransactionRecord sub(hash, nTime);
                 sub.idx = nOut;
                 sub.involvesWatchAddress = involvesWatchAddress;

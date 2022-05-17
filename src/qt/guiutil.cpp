@@ -150,7 +150,7 @@ bool parseCrownURI(const QUrl &uri, SendAssetsRecipient *out)
         {
             if(!i->second.isEmpty())
             {
-                if(!CrownUnits::parse(CrownUnits::BTC, i->second, &rv.amount))
+                if(!CrownUnits::parse(CrownUnits::CRW, i->second, &rv.amount))
                 {
                     return false;
                 }
@@ -183,7 +183,7 @@ QString formatCrownURI(const SendAssetsRecipient &info)
 
     if (info.amount)
     {
-        ret += QString("?amount=%1").arg(CrownUnits::format(CrownUnits::BTC, info.amount, false, CrownUnits::SeparatorStyle::NEVER));
+        ret += QString("?amount=%1").arg(CrownUnits::format(CrownUnits::CRW, info.amount, false, CrownUnits::SeparatorStyle::NEVER));
         paramCount++;
     }
 
