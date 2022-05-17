@@ -8,7 +8,7 @@
 
 #include <cassert>
 
-static constexpr auto MAX_DIGITS_BTC = 16;
+static constexpr auto MAX_DIGITS_CRW = 16;
 
 CrownUnits::CrownUnits(QObject *parent):
         QAbstractListModel(parent),
@@ -19,9 +19,9 @@ CrownUnits::CrownUnits(QObject *parent):
 QList<CrownUnits::Unit> CrownUnits::availableUnits()
 {
     QList<CrownUnits::Unit> unitlist;
-    unitlist.append(BTC);
-    unitlist.append(mBTC);
-    unitlist.append(uBTC);
+    unitlist.append(CRW);
+    unitlist.append(mCRW);
+    unitlist.append(uCRW);
     unitlist.append(SAT);
     return unitlist;
 }
@@ -30,9 +30,9 @@ bool CrownUnits::valid(int unit)
 {
     switch(unit)
     {
-    case BTC:
-    case mBTC:
-    case uBTC:
+    case CRW:
+    case mCRW:
+    case uCRW:
     case SAT:
         return true;
     default:
@@ -44,9 +44,9 @@ QString CrownUnits::longName(int unit)
 {
     switch(unit)
     {
-    case BTC: return QString("BTC");
-    case mBTC: return QString("mBTC");
-    case uBTC: return QString::fromUtf8("µBTC (bits)");
+    case CRW: return QString("CRW");
+    case mCRW: return QString("mCRW");
+    case uCRW: return QString::fromUtf8("µCRW (bits)");
     case SAT: return QString("Satoshi (sat)");
     default: return QString("???");
     }
@@ -56,7 +56,7 @@ QString CrownUnits::shortName(int unit)
 {
     switch(unit)
     {
-    case uBTC: return QString::fromUtf8("bits");
+    case uCRW: return QString::fromUtf8("bits");
     case SAT: return QString("sat");
     default: return longName(unit);
     }
@@ -66,9 +66,9 @@ QString CrownUnits::description(int unit)
 {
     switch(unit)
     {
-    case BTC: return QString("Crowns");
-    case mBTC: return QString("Milli-Crowns (1 / 1" THIN_SP_UTF8 "000)");
-    case uBTC: return QString("Micro-Crowns (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case CRW: return QString("Crowns");
+    case mCRW: return QString("Milli-Crowns (1 / 1" THIN_SP_UTF8 "000)");
+    case uCRW: return QString("Micro-Crowns (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     case SAT: return QString("Satoshi (sat) (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     default: return QString("???");
     }
@@ -78,9 +78,9 @@ qint64 CrownUnits::factor(int unit)
 {
     switch(unit)
     {
-    case BTC: return 100000000;
-    case mBTC: return 100000;
-    case uBTC: return 100;
+    case CRW: return 100000000;
+    case mCRW: return 100000;
+    case uCRW: return 100;
     case SAT: return 1;
     default: return 100000000;
     }
@@ -90,9 +90,9 @@ int CrownUnits::decimals(int unit)
 {
     switch(unit)
     {
-    case BTC: return 8;
-    case mBTC: return 5;
-    case uBTC: return 2;
+    case CRW: return 8;
+    case mCRW: return 5;
+    case uCRW: return 2;
     case SAT: return 0;
     default: return 0;
     }
@@ -111,7 +111,7 @@ QString CrownUnits::format(int unit, const CAmount& nIn, bool fPlus, SeparatorSt
     qint64 quotient = n_abs / coin;
     QString quotient_str = QString::number(quotient);
     if (justify) {
-        quotient_str = quotient_str.rightJustified(MAX_DIGITS_BTC - num_decimals, ' ');
+        quotient_str = quotient_str.rightJustified(MAX_DIGITS_CRW - num_decimals, ' ');
     }
 
     // Use SI-style thin space separators as these are locale independent and can't be
