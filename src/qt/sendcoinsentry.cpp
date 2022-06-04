@@ -18,6 +18,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QStringListModel>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -55,6 +56,26 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 SendCoinsEntry::~SendCoinsEntry()
 {
     delete ui;
+}
+
+
+void SendCoinsEntry::assetList(){
+    // Keep up to date with wallet
+    interfaces::Wallet& wallet = model->wallet();
+    m_balances = wallet.getBalances();
+    QStringList list;
+    list << "CRW";
+    
+    for(auto const& x : m_balances.balance){
+        //assetListModel.append();
+        list << QString::fromStdString(x.first.getName());
+    }
+
+    std::sort(list.begin(), list.end());
+    
+    QStringListModel *a_model = new QStringListModel();
+    a_model->setStringList(list);
+    ui->assetBox->setModel(a_model);
 }
 
 void SendCoinsEntry::on_pasteButton_clicked()

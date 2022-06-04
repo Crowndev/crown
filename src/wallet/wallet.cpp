@@ -1307,7 +1307,7 @@ CAmountMap CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) cons
                 CAmountMap amounts;
                 CTxOutAsset mout = (prev.tx->nVersion >= TX_ELE_VERSION ? prev.tx->vpout[txin.prevout.n] : prev.tx->vout[txin.prevout.n]);
                 if (IsMine(mout) & filter) {
-					if(prev.tx->nVersion >= TX_ELE_VERSION)
+                    if(prev.tx->nVersion >= TX_ELE_VERSION)
                         amounts[prev.tx->vpout[txin.prevout.n].nAsset] = prev.tx->vpout[txin.prevout.n].nValue;
                     else
                         amounts[Params().GetConsensus().subsidy_asset] = prev.tx->vout[txin.prevout.n].nValue;
@@ -2006,11 +2006,24 @@ CAmountMap CWalletTx::GetCredit(const isminefilter& filter) const
 
 CAmountMap CWalletTx::GetImmatureCredit(bool fUseCache) const
 {
+    CAmountMap nCredit;
+    uint256 hashTx = GetHash();
     if (IsImmatureCoinBase() && IsInMainChain()) {
-        return GetCachableAmount(IMMATURE_CREDIT, ISMINE_SPENDABLE, !fUseCache);
+
+        for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
+            //nCredit += pwallet->GetCredit(txout, filter);
+            CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
+            if (!MoneyRange(credit))
+                throw std::runtime_error(std::string(__func__) + " : value out of range");
+
+            if(tx->nVersion >= TX_ELE_VERSION)
+                nCredit[tx->vpout[i].nAsset] += credit;
+            else
+                nCredit[Params().GetConsensus().subsidy_asset] += credit;
+        }
     }
 
-    return CAmountMap();
+    return nCredit;
 }
 
 CAmountMap CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& filter) const
@@ -2039,7 +2052,7 @@ CAmountMap CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& fil
             CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
             if (!MoneyRange(credit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
-            
+
             if(tx->nVersion >= TX_ELE_VERSION)
                 nCredit[tx->vpout[i].nAsset] += credit;
             else
@@ -2734,7 +2747,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
         if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetVinAndKeysFromOutput(out, vinRet, pubKeyRet, keyRet);
-	}
+    }
 
     LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate specified masternode vin %s\n", strTxHash);
     return false;
@@ -2766,8 +2779,8 @@ bool CWallet::GetSystemnodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
         if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetVinAndKeysFromOutput(out, vinRet, pubKeyRet, keyRet);
-            
-	}
+
+    }
 
     LogPrintf("CWallet::GetSystemnodeVinAndKeys - Could not locate specified servicenode vin\n");
     return false;
@@ -3060,7 +3073,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     }
 
     if (nChangePosInOut != -1) {
-		if(tx.nVersion >= TX_ELE_VERSION)
+        if(tx.nVersion >= TX_ELE_VERSION)
             tx.vpout.insert(tx.vpout.begin() + nChangePosInOut, tx_new->vpout[nChangePosInOut]);
         else
             tx.vout.insert(tx.vout.begin() + nChangePosInOut, tx_new->vout[nChangePosInOut]);
@@ -3069,9 +3082,9 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     // Copy output sizes from new transaction; they may have had the fee
     // subtracted from them.
     for (unsigned int idx = 0; idx < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); idx++) {
-		if (tx.nVersion >= TX_ELE_VERSION)
-	        tx.vpout[idx].nValue = tx_new->vpout[idx].nValue;
-		else
+        if (tx.nVersion >= TX_ELE_VERSION)
+            tx.vpout[idx].nValue = tx_new->vpout[idx].nValue;
+        else
             tx.vout[idx].nValue = tx_new->vout[idx].nValue;
     }
 
@@ -3771,21 +3784,21 @@ bool CWallet::CreateTransactionInternal(
                     std::vector<CTxOutAsset>::iterator change_positionr = txNew.vpout.begin()+nChangePosInOut;
 
                     if(txNew.nVersion >= TX_ELE_VERSION){
-						// Only reduce change if remaining amount is still a large enough output.
-						if (change_positionr->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
-							change_positionr->nValue -= additionalFeeNeeded;
-							nFeeRet += additionalFeeNeeded;
-							break; // Done, able to increase fee from change
-						}
-					}
-					else {
-						// Only reduce change if remaining amount is still a large enough output.
-						if (change_position->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
-							change_position->nValue -= additionalFeeNeeded;
-							nFeeRet += additionalFeeNeeded;
-							break; // Done, able to increase fee from change
-						}
-					}
+                        // Only reduce change if remaining amount is still a large enough output.
+                        if (change_positionr->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
+                            change_positionr->nValue -= additionalFeeNeeded;
+                            nFeeRet += additionalFeeNeeded;
+                            break; // Done, able to increase fee from change
+                        }
+                    }
+                    else {
+                        // Only reduce change if remaining amount is still a large enough output.
+                        if (change_position->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
+                            change_position->nValue -= additionalFeeNeeded;
+                            nFeeRet += additionalFeeNeeded;
+                            break; // Done, able to increase fee from change
+                        }
+                    }
                 }
 
                 // If subtracting fee from recipients, we now know what fee we
@@ -4236,7 +4249,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
                            continue;
                        grouping.insert(txoutAddr);
                    }
-				}
+                }
             }
             if (grouping.size() > 0)
             {
@@ -4246,8 +4259,8 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
         }
         // group lone addrs by themselves
 
-		for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
-			CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+        for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
+            CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
             if (IsMine(txout))
             {
                 CTxDestination address;
@@ -4257,7 +4270,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
                 groupings.insert(grouping);
                 grouping.clear();
             }
-		}
+        }
 
     }
 

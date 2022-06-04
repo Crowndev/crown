@@ -6,6 +6,7 @@
 #define CROWN_QT_SENDCOINSENTRY_H
 
 #include <qt/sendcoinsrecipient.h>
+#include <interfaces/wallet.h>
 
 #include <QStackedWidget>
 
@@ -50,6 +51,7 @@ public:
     QWidget *setupTabChain(QWidget *prev);
 
     void setFocus();
+    QList<QString> assetListModel;
 
 public Q_SLOTS:
     void clear();
@@ -74,8 +76,11 @@ private:
     Ui::SendCoinsEntry *ui;
     WalletModel *model;
     const PlatformStyle *platformStyle;
+    interfaces::WalletBalances m_balances;
 
     bool updateLabel(const QString &address);
+    void assetList();
+    
 };
 
 #endif // CROWN_QT_SENDCOINSENTRY_H
