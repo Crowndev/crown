@@ -15,6 +15,7 @@
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
+#include <assetdb.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -64,10 +65,8 @@ void SendCoinsEntry::assetList(){
     interfaces::Wallet& wallet = model->wallet();
     m_balances = wallet.getBalances();
     QStringList list;
-    list << "CRW";
     
     for(auto const& x : m_balances.balance){
-        //assetListModel.append();
         list << QString::fromStdString(x.first.getName());
     }
 
@@ -76,6 +75,11 @@ void SendCoinsEntry::assetList(){
     QStringListModel *a_model = new QStringListModel();
     a_model->setStringList(list);
     ui->assetBox->setModel(a_model);
+}
+
+void SendCoinsEntry::setBalance(const interfaces::WalletBalances& balances)
+{
+    assetList();
 }
 
 void SendCoinsEntry::on_pasteButton_clicked()
@@ -108,6 +112,8 @@ void SendCoinsEntry::setModel(WalletModel *_model)
 
     if (_model && _model->getOptionsModel())
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
+
+    connect(model, &WalletModel::balanceChanged, this, &SendCoinsEntry::setBalance);
 
     clear();
 }
@@ -192,6 +198,11 @@ SendAssetsRecipient SendCoinsEntry::getValue()
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
     recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
+
+    for(auto const& x : passetsCache->GetItemsMap()){
+        if(QString::fromStdString(x.second->second.asset.getName()) == ui->assetBox->currentText())
+            recipient.asset = x.second->second.asset;     
+    }
 
     return recipient;
 }
