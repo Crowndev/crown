@@ -15,9 +15,11 @@
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
+#include <assetdb.h>
 
 #include <QApplication>
 #include <QClipboard>
+#include <QStringListModel>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -57,6 +59,29 @@ SendCoinsEntry::~SendCoinsEntry()
     delete ui;
 }
 
+
+void SendCoinsEntry::assetList(){
+    // Keep up to date with wallet
+    interfaces::Wallet& wallet = model->wallet();
+    m_balances = wallet.getBalances();
+    QStringList list;
+    
+    for(auto const& x : m_balances.balance){
+        list << QString::fromStdString(x.first.getName());
+    }
+
+    std::sort(list.begin(), list.end());
+    
+    QStringListModel *a_model = new QStringListModel();
+    a_model->setStringList(list);
+    ui->assetBox->setModel(a_model);
+}
+
+void SendCoinsEntry::setBalance(const interfaces::WalletBalances& balances)
+{
+    assetList();
+}
+
 void SendCoinsEntry::on_pasteButton_clicked()
 {
     // Paste text from clipboard into recipient field
@@ -87,6 +112,8 @@ void SendCoinsEntry::setModel(WalletModel *_model)
 
     if (_model && _model->getOptionsModel())
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
+
+    connect(model, &WalletModel::balanceChanged, this, &SendCoinsEntry::setBalance);
 
     clear();
 }
@@ -171,6 +198,11 @@ SendAssetsRecipient SendCoinsEntry::getValue()
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
     recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
+
+    for(auto const& x : passetsCache->GetItemsMap()){
+        if(QString::fromStdString(x.second->second.asset.getName()) == ui->assetBox->currentText())
+            recipient.asset = x.second->second.asset;     
+    }
 
     return recipient;
 }

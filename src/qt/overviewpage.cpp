@@ -213,7 +213,9 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
             ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
             ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
             ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelTotal->setText(formatMultiAssetAmount(balances.balance + balances.unconfirmed_balance + balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            CAmountMap nm = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+
+            ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
             ui->labelWatchAvailable->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
             ui->labelWatchPending->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
             ui->labelWatchImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
@@ -224,7 +226,8 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
         ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
         ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
         ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-        ui->labelTotal->setText(formatMultiAssetAmount(balances.balance + balances.unconfirmed_balance + balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        CAmountMap nm = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
+        ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
     }
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
