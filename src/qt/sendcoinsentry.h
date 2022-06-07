@@ -80,6 +80,7 @@ private:
 
     bool updateLabel(const QString &address);
     void assetList();
+    void setBalance(const interfaces::WalletBalances &balances);
     
 };
 
