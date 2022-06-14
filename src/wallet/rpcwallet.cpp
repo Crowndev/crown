@@ -492,15 +492,14 @@ static RPCHelpMan sendtoaddress()
     LOCK(pwallet->cs_wallet);
 
     CAsset asset;
-    if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {
+
+    if (request.params[2].get_str().empty() || request.params[2].isNull())
+        asset = Params().GetConsensus().subsidy_asset;
+    else
         asset = pwallet->chain().getAsset(request.params[2].get_str());
-    }
-    else if (request.params[2].get_str().empty()){
-		asset = Params().GetConsensus().subsidy_asset;
-	}
 
     if (asset.IsNull()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown label and invalid asset hex: %s %s", asset.GetHex(), asset.getName()));
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown or invalid asset: %s %s", asset.GetHex(), asset.getName()));
     }
 
     // Wallet comments

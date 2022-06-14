@@ -5,7 +5,7 @@
 #include <interfaces/chain.h>
 #include <chain.h>
 #include <contractdb.h>
-
+#include <assetdb.h>
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
