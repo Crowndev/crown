@@ -4,6 +4,7 @@
 #include <key_io.h>
 #include <logging.h>
 #include <contractdb.h>
+#include <assetdb.h>
 
 #include <rpc/rawtransaction_util.h>
 #include <rpc/util.h>
@@ -101,10 +102,10 @@ static RPCHelpMan createcontract()
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Issuing address"},
                     {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 10 characters"},
                     {"short_name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 4 characters"},
-					{"contract_url", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "contract location online"},
-					{"website_url", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Issuer website online"},
-					{"description", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "contract decription"},
-					{"scriptcode", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "contract script in hex"},
+                    {"contract_url", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "contract location online"},
+                    {"website_url", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Issuer website online"},
+                    {"description", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "contract decription"},
+                    {"scriptcode", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "contract script in hex"},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "signature", "The signature of the message encoded in base 64"
@@ -252,6 +253,79 @@ static RPCHelpMan getasset()
     };
 }
 
+static RPCHelpMan getassets()
+{
+    return RPCHelpMan{"getassets",
+                "\n  Get List of assets \n",
+                {
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "details", "The assets "
+                },
+                RPCExamples{
+            "\nRetrieve a asset\n"
+            + HelpExampleCli("getassets", "\"Asset Name\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("getassets", "\"Asset Name\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::vector<CAsset> allassets = ::GetAllAssets();
+
+    UniValue result(UniValue::VARR);
+    for(auto asset : allassets){
+
+        UniValue entry(UniValue::VOBJ);
+
+        entry.pushKV("version", (int)asset.nVersion);
+        uint32_t type = asset.GetType();
+        entry.pushKV("type", AssetTypeToString(type));
+        entry.pushKV("name", asset.getAssetName());
+        entry.pushKV("symbol", asset.getShortName());
+        entry.pushKV("id", asset.GetHex());
+        entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+        entry.pushKV("expiry", (int64_t)asset.GetExpiry());
+        entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
+        entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
+        entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
+        entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
+        entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
+        entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");
+
+        result.push_back(entry);
+    }
+
+    return result;
+},
+    };
+}
+
+static RPCHelpMan getnumassets()
+{
+    return RPCHelpMan{"getnumassets",
+                "\n  Get List of assets \n",
+                {
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "details", "The assets "
+                },
+                RPCExamples{
+            "\nRetrieve a asset\n"
+            + HelpExampleCli("getnumassets", "\"Asset Name\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("getnumassets", "\"Asset Name\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::vector<CAsset> allassets = ::GetAllAssets();
+    UniValue deets(UniValue::VOBJ);
+    deets.pushKV("Asset count", allassets.size());
+
+    return deets;
+},
+    };
+}
+
 void RegisterContractRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -263,6 +337,8 @@ static const CRPCCommand commands[] =
     { "contracts",  "createcontract",      &createcontract,         {}    },
     { "contracts",  "createasset",         &createasset,            {}    },
     { "contracts",  "getasset",            &getasset,               {}    },
+    { "contracts",  "getassets",           &getassets,              {}    },
+    { "contracts",  "getnumassets",        &getnumassets,           {}    },
 
 };
 

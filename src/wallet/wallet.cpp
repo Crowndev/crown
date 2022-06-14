@@ -2011,15 +2011,17 @@ CAmountMap CWalletTx::GetImmatureCredit(bool fUseCache) const
     if (IsImmatureCoinBase() && IsInMainChain()) {
 
         for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
+            if (pwallet->IsMine((tx->nVersion >= TX_ELE_VERSION ?  tx->vpout[i] :  tx->vout[i])) & ISMINE_SPENDABLE) {
             //nCredit += pwallet->GetCredit(txout, filter);
-            CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
-            if (!MoneyRange(credit))
-                throw std::runtime_error(std::string(__func__) + " : value out of range");
+                CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
+                if (!MoneyRange(credit))
+                    throw std::runtime_error(std::string(__func__) + " : value out of range");
 
-            if(tx->nVersion >= TX_ELE_VERSION)
-                nCredit[tx->vpout[i].nAsset] += credit;
-            else
-                nCredit[Params().GetConsensus().subsidy_asset] += credit;
+                if(tx->nVersion >= TX_ELE_VERSION)
+                    nCredit[tx->vpout[i].nAsset] += credit;
+                else
+                    nCredit[Params().GetConsensus().subsidy_asset] += credit;
+            }
         }
     }
 
@@ -2046,17 +2048,19 @@ CAmountMap CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& fil
     CAmountMap nCredit;
     uint256 hashTx = GetHash();
     for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
+        if (pwallet->IsMine((tx->nVersion >= TX_ELE_VERSION ?  tx->vpout[i] :  tx->vout[i])) & ISMINE_SPENDABLE) {
 
-        if (!pwallet->IsSpent(hashTx, i) && (allow_used_addresses || !pwallet->IsSpentKey(hashTx, i))) {
-            //nCredit += pwallet->GetCredit(txout, filter);
-            CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
-            if (!MoneyRange(credit))
-                throw std::runtime_error(std::string(__func__) + " : value out of range");
+            if (!pwallet->IsSpent(hashTx, i) && (allow_used_addresses || !pwallet->IsSpentKey(hashTx, i))) {
+                //nCredit += pwallet->GetCredit(txout, filter);
+                CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
+                if (!MoneyRange(credit))
+                    throw std::runtime_error(std::string(__func__) + " : value out of range");
 
-            if(tx->nVersion >= TX_ELE_VERSION)
-                nCredit[tx->vpout[i].nAsset] += credit;
-            else
-                nCredit[Params().GetConsensus().subsidy_asset] += credit;
+                if(tx->nVersion >= TX_ELE_VERSION)
+                    nCredit[tx->vpout[i].nAsset] += credit;
+                else
+                    nCredit[Params().GetConsensus().subsidy_asset] += credit;
+            }
         }
     }
 

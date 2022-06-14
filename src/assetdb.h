@@ -77,5 +77,5 @@ extern CLRUCache<std::string, CAssetData> *passetsCache;
 void DumpAssets();
 
 CAsset GetAsset(const std::string& name);
-
+std::vector<CAsset> GetAllAssets();
 #endif //CROWN_ASSETDB_H

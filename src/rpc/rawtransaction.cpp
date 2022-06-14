@@ -35,6 +35,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 
+#include <assetdb.h>
 
 #include <numeric>
 #include <stdint.h>

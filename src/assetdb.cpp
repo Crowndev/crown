@@ -23,7 +23,9 @@ CAssetData::CAssetData(const CAsset& _asset, const CTransactionRef& assetTx, con
     asset = _asset;
     nTime = _nTime;
     txhash = assetTx->GetHash();
-    CTxOutAsset txout = assetTx->vpout[nOut];
+    //CTxOutAsset txout = assetTx->vpout[nOut];
+    CTxOutAsset txout = (assetTx->nVersion >= TX_ELE_VERSION ? assetTx->vpout[nOut] : assetTx->vout[nOut]);
+
     issuingAddress = txout.scriptPubKey;
     if(txout.nValue)
        issuedAmount = txout.nValue;
@@ -187,4 +189,13 @@ CAsset GetAsset(const std::string& name)
 		}
     }	
 	return cCheck;
+}
+
+std::vector<CAsset> GetAllAssets(){
+    std::vector<CAsset> tmp;
+
+    for(auto const& x : passetsCache->GetItemsMap())
+       tmp.push_back(x.second->second.asset);
+
+    return tmp;
 }

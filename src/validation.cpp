@@ -2742,6 +2742,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
                 CAsset asset = out.nAsset;
                 bool exists = false;
+                LogPrintf("NOTIFICATION: %s: FOUND ASSET %s\n", __func__, asset.ToString());
 
                 for(auto const& x : passetsCache->GetItemsMap()){
                     CAsset checkasset = x.second->second.asset;
@@ -2750,10 +2751,12 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                             exists = true;
                 }
 
-                if (!exists && !passetsCache->Exists(asset.getName()))
-                    if(!fJustCheck)
+                if (!exists && !passetsCache->Exists(asset.getName())){
+                    if(!fJustCheck){
+                        LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getName());
                         passetsCache->Put(asset.getName(), CAssetData(asset, tx, j, view, block.nTime));
-
+                    }
+                }
             }
 
             for (unsigned int i = 0; i < tx->vdata.size(); i++){
@@ -5931,26 +5934,6 @@ double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex *pin
     }
 
     return std::min<double>(pindex->nChainTx / fTxTotal, 1.0);
-}
-
-CAsset GetAsset(std::string asset){
-    CAsset tmp;
-
-    for(auto const& x : passetsCache->GetItemsMap()){
-        if(x.second->second.asset.getName() == asset)
-            tmp = x.second->second.asset;
-    }
-
-    return tmp;
-}
-
-std::vector<CAsset> GetAllAssets(){
-    std::vector<CAsset> tmp;
-
-    for(auto const& x : passetsCache->GetItemsMap())
-       tmp.push_back(x.second->second.asset);
-
-    return tmp;
 }
 
 std::optional<uint256> ChainstateManager::SnapshotBlockhash() const {

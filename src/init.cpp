@@ -387,6 +387,28 @@ static void OnRPCStopped()
     LogPrint(BCLog::RPC, "RPC stopped.\n");
 }
 
+void checkAndAddDefaultAsset(){
+	bool exists = false, dummy = false;
+	CAsset asset = Params().GetConsensus().subsidy_asset;
+	for(auto const& x : passetsCache->GetItemsMap()){
+		CAsset checkasset = x.second->second.asset;
+		if(iequals(asset.getName(), checkasset.getName()) || iequals(asset.getName(), checkasset.getSymbol()))
+			exists = true;
+		if(iequals("", checkasset.getName()) || iequals("", checkasset.getSymbol()))
+		    dummy = true;
+	}
+    CCoinsViewCache view(&::ChainstateActive().CoinsTip());
+	if (!exists && !passetsCache->Exists(asset.getName())){
+		LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getName());
+		passetsCache->Put(asset.getName(), CAssetData(asset, Params().GenesisBlock().vtx[0], 0, view, Params().GenesisBlock().nTime));
+	}
+
+	if (dummy){
+		LogPrintf("NOTIFICATION: %s: REMOVING DUMMY ASSET \n", __func__);
+		passetsCache->Erase("");
+	}	
+}
+
 void SetupServerArgs(NodeContext& node)
 {
     assert(!node.args);
@@ -612,7 +634,7 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-systemnodeprivkey", "Systemnode private key", false, OptionsCategory::RPC);
     argsman.AddArg("-systemnodeaddr", strprintf(_("Set external address:port to get to this systemnode (example: %s)").translated, "1.2.3.4:12345"), false, OptionsCategory::RPC);
     argsman.AddArg("-sporkkey", strprintf(_("Set spork key  (example: %s)").translated, "xxxxxxxxxxxxxxxxxxxxxx"), false, OptionsCategory::RPC);
-    
+
 #if HAVE_DECL_DAEMON
     argsman.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #else
@@ -1381,7 +1403,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     LogPrintf("Script verification uses %d additional threads\n", script_threads);
     if (script_threads >= 1) {
         g_parallel_script_checks = true;
-        StartScriptCheckWorkerThreads(script_threads);       
+        StartScriptCheckWorkerThreads(script_threads);
     }
 
     assert(!node.scheduler);
@@ -2151,6 +2173,8 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     for (const auto& client : node.chain_clients) {
         client->start(*node.scheduler);
     }
+
+    checkAndAddDefaultAsset();
 
     BanMan* banman = node.banman.get();
     node.scheduler->scheduleEvery([banman]{
