@@ -2632,7 +2632,8 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
 
     for (const COutput& coin : availableCoins) {
         CTxDestination address;
-        if ((coin.fSpendable || (IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && coin.fSolvable)) &&
+        if (coin.fSpendable &&
+        //if ((coin.fSpendable || (IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && coin.fSolvable)) &&
             ExtractDestination(FindNonChangeParentOutput(*coin.tx->tx, coin.i).scriptPubKey, address)) {
             result[address].emplace_back(std::move(coin));
         }
@@ -2662,7 +2663,7 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
     return result;
 }
 
-const CTxOutAsset& CWallet::FindNonChangeParentOutput(const CTransaction& tx, int output) const
+const CTxOutAsset CWallet::FindNonChangeParentOutput(const CTransaction& tx, int output) const
 {
     AssertLockHeld(cs_wallet);
     const CTransaction* ptx = &tx;
@@ -2678,6 +2679,7 @@ const CTxOutAsset& CWallet::FindNonChangeParentOutput(const CTransaction& tx, in
         n = prevout.n;
     }
     return (ptx->nVersion >= TX_ELE_VERSION ? ptx->vpout[n] : ptx->vout[n]);
+
 }
 
 bool CWallet::SelectCoinsMinConf(const CAmountMap& mapTargetValue, const CoinEligibilityFilter& eligibility_filter, std::vector<OutputGroup> groups,
