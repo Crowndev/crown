@@ -137,8 +137,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 
     if(tx.nVersion >= TX_ELE_VERSION){
 		for (unsigned int k = 0; k < tx.vpout.size(); k++) {
-            if(tx.vpout[k].nAsset.IsEmpty())
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
+		    if(!tx.vpout[k].IsEmpty())
+                if(tx.vpout[k].nAsset.IsEmpty())
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
          }
      }
 
