@@ -625,22 +625,40 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     { //data checking is done here
         bool fHasFee = false;
-        for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+        for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
             CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
-            if(txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination && txout.nAsset == Params().GetConsensus().subsidy_asset && txout.nValue == 10.0001 * COIN)
+
+            bool sub_address = false;
+            sub_address = txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination;
+            if(sub_address)
+                LogPrintf("%s: Subsidy address found \n", __func__);
+
+            bool sub_asset = false;
+            sub_asset = txout.nAsset == Params().GetConsensus().subsidy_asset;
+            if(sub_asset)
+                LogPrintf("%s: Subsidy asset found \n", __func__);
+            else
+                LogPrintf("%s: Subsidy asset not found %s vs %s \n", __func__, txout.nAsset.assetID.ToString(), Params().GetConsensus().subsidy_asset.assetID.ToString());
+                
+            bool sub_fee = false;
+            sub_fee = txout.nValue == 10.0001 * COIN;
+            if(sub_fee)
+                LogPrintf("%s: Subsidy fee found \n", __func__);
+                        
+            if(sub_address /*&& sub_asset*/ && sub_fee)
                 fHasFee = true;
         }
 
         for (unsigned int i = 0; i < tx.vdata.size(); i++){
-        uint8_t vers = tx.vdata[i].get()->GetVersion();
-        switch(vers){
-            case OUTPUT_CONTRACT:{
-                CContract *contract = (CContract*)tx.vdata[i].get();
-                if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
-                }
-                if(!fHasFee)
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
+            uint8_t vers = tx.vdata[i].get()->GetVersion();
+            switch(vers){
+                case OUTPUT_CONTRACT:{
+                    CContract *contract = (CContract*)tx.vdata[i].get();
+                    if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
+                    }
+                    if(!fHasFee)
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
                 break;
             }
             case OUTPUT_DATA:{

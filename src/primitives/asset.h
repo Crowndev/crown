@@ -169,7 +169,7 @@ struct CAsset : public AssetMetadata
 
     friend bool operator==(const CAsset& a, const CAsset& b)
     {
-        return a.assetID == b.assetID && a.getName() == b.getName();
+        return a.assetID == b.assetID;
     }
 
     friend bool operator!=(const CAsset& a, const CAsset& b)
