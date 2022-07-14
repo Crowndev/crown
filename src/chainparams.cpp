@@ -162,6 +162,11 @@ public:
         nStakePointerValidityPeriod = 4320; //Stake pointers are valid to stake with for the next 3 day worth of blocks
         nMaxReorgDepth = 100;
         nKernelModifierOffset = 100;
+
+        std::vector<unsigned char> addrdata(ParseHex("0014848a4a37883c295bc1dc021941e0f185fafc1aae"));
+        CScript genscript(addrdata.begin(), addrdata.end());
+        consensus.mandatory_coinbase_destination = genscript; 
+
         genesis = CreateGenesisBlock(1412760826, 1612467894, 0x1d00ffff, 1, 10 * COIN, consensus);
 
         consensus.hashGenesisBlock = genesis.GetHash();
@@ -292,10 +297,14 @@ public:
         m_assumed_blockchain_size = 1;
         m_assumed_chain_state_size = 1;
 
-        genesis = CreateGenesisBlock(1657000537, 2343754, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        std::vector<unsigned char> addrdata(ParseHex("0014848a4a37883c295bc1dc021941e0f185fafc1aae"));
+        CScript genscript(addrdata.begin(), addrdata.end());
+        consensus.mandatory_coinbase_destination = genscript; 
+
+        genesis = CreateGenesisBlock(1657601221, 4207929, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000a145849947660e2a489b750c2cb779f5bc438597feb8f5c138a71313a62"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000a46c0fb9f9dfbe5029d8c9e5905f064a68e80bed7d36107ad01ac6fb10a"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();

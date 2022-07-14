@@ -3277,6 +3277,11 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
     }
 
+    if(coin_control.setSelected.size() < 1){
+        strFailReason ="No suitable output found";
+        return false;
+    }
+
     mapValue_t mapValue;
 
     //coin_control.m_add_inputs = false;

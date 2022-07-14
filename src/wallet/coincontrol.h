@@ -88,7 +88,7 @@ public:
         vOutpoints.assign(setSelected.begin(), setSelected.end());
     }
 
-private:
+//private:
     std::set<COutPoint> setSelected;
 };
 
