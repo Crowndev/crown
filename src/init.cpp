@@ -392,15 +392,15 @@ void checkAndAddDefaultAsset(){
 	CAsset asset = Params().GetConsensus().subsidy_asset;
 	for(auto const& x : passetsCache->GetItemsMap()){
 		CAsset checkasset = x.second->second.asset;
-		if(iequals(asset.getName(), checkasset.getName()) || iequals(asset.getName(), checkasset.getSymbol()))
+		if(iequals(asset.getAssetName(), checkasset.getAssetName()) || iequals(asset.getAssetName(), checkasset.getShortName()))
 			exists = true;
-		if(iequals("", checkasset.getName()) || iequals("", checkasset.getSymbol()))
+		if(iequals("", checkasset.getAssetName()) || iequals("", checkasset.getShortName()))
 		    dummy = true;
 	}
     CCoinsViewCache view(&::ChainstateActive().CoinsTip());
-	if (!exists && !passetsCache->Exists(asset.getName())){
-		LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getName());
-		passetsCache->Put(asset.getName(), CAssetData(asset, Params().GenesisBlock().vtx[0], 0, view, Params().GenesisBlock().nTime));
+	if (!exists && !passetsCache->Exists(asset.getAssetName())){
+		LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getAssetName());
+		passetsCache->Put(asset.getAssetName(), CAssetData(asset, Params().GenesisBlock().vtx[0], 0, view, Params().GenesisBlock().nTime));
 	}
 
 	if (dummy){

@@ -156,9 +156,6 @@ struct CAsset : public AssetMetadata
         AssetMetadata::SetEmpty();
     }
 
-    const std::string getName() const;
-    const std::string getSymbol() const;
-
     unsigned char* begin() { return assetID.begin(); }
     unsigned char* end() { return assetID.end(); }
     const unsigned char* begin() const { return assetID.begin(); }
@@ -272,7 +269,7 @@ inline std::string mapToString(CAmountMap& map)
 {
     std::string result = "";
     for (auto it = map.begin(); it != map.end(); it++) {
-        result += it->first.GetHex() + " " + it->first.getName() + " " + strprintf("%d", it->second)+ " ";
+        result += it->first.GetHex() + " " + it->first.getAssetName() + " " + strprintf("%d", it->second)+ " ";
     }
     return result;
 }

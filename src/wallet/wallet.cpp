@@ -3315,7 +3315,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     std::vector<CAsset> AllAssets = chain().getAllAssets();
 
     for(auto const& x : AllAssets){
-        if(chain().isequals(x.getName() , assetname)){
+        if(chain().isequals(x.getAssetName() , assetname)){
             strFailReason = "Asset name already reserved";
             return false;
         }
@@ -3325,7 +3325,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
             return false;
         }
 
-        if(chain().isequals(x.getName() , shortname)){
+        if(chain().isequals(x.getAssetName() , shortname)){
             strFailReason = "Code already reserved as another asset's name'";
             return false;
         }
@@ -3475,36 +3475,40 @@ bool CWallet::CreateTransactionInternal(
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), GetLastBlockHash(), GetLastBlockHeight());
     txNew.nVersion=chain().getTxVersion();
 
-    uint8_t vers = datar.GetVersion();
-    switch (vers) {
-        case OUTPUT_DATA:{
-            OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
-            CTxData *s = (CTxData*) &datar;
-            out0->nType = s->nType;
-            out0->vData = s->vData;
-            txNew.vdata.push_back(out0);
-            break;
-        }
-        case OUTPUT_CONTRACT:{
-            OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
-            CContract *s = (CContract*) &datar;
+    if(fNewAsset){
 
-            if(chain().existsContract(s->asset_name)){
-                error = _("Contract name already reserved");
-                return false;
+        uint8_t vers = datar.GetVersion();
+        switch (vers) {
+            case OUTPUT_DATA:{
+                OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
+                CTxData *s = (CTxData*) &datar;
+                out0->nType = s->nType;
+                out0->vData = s->vData;
+                txNew.vdata.push_back(out0);
+                break;
             }
+            case OUTPUT_CONTRACT:{
+                OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
+                CContract *s = (CContract*) &datar;
 
-            out0->contract_url = s->contract_url;
-            out0->website_url = s->website_url;
-            out0->description = s->description;
-            out0->scriptcode = s->scriptcode;
-            out0->asset_symbol = s->asset_symbol;
-            out0->asset_name = s->asset_name;
-            out0->sIssuingaddress = s->sIssuingaddress;
-            out0->vchContractSig = s->vchContractSig;
-            txNew.vdata.push_back(out0);
-            break;
+                if(chain().existsContract(s->asset_name)){
+                    error = _("Contract name already reserved");
+                    return false;
+                }
+
+                out0->contract_url = s->contract_url;
+                out0->website_url = s->website_url;
+                out0->description = s->description;
+                out0->scriptcode = s->scriptcode;
+                out0->asset_symbol = s->asset_symbol;
+                out0->asset_name = s->asset_name;
+                out0->sIssuingaddress = s->sIssuingaddress;
+                out0->vchContractSig = s->vchContractSig;
+                txNew.vdata.push_back(out0);
+                break;
+            }
         }
+
     }
     FeeCalculation feeCalc;
     CAmount nFeeNeeded;
@@ -3600,6 +3604,7 @@ bool CWallet::CreateTransactionInternal(
                 if (!coin_selection_params.m_subtract_fee_outputs) {
                     coin_selection_params.tx_noinputs_size = 11; // Static vsize overhead + outputs vsize. 4 nVersion, 4 nLocktime, 1 input count, 1 output count, 1 witness overhead (dummy, flag, stack size)
                 }
+
                 for (const auto& recipient : vecSend)
                 {
                     CTxOutAsset txout(fNewAsset ? recipient.OutAsset : recipient.asset, fNewAsset ? recipient.OutAmount : recipient.nAmount, recipient.scriptPubKey);

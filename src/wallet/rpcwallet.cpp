@@ -4,6 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <amount.h>
+#include <assetdb.h>
+
 #include <core_io.h>
 #include <interfaces/chain.h>
 #include <key_io.h>
@@ -496,10 +498,10 @@ static RPCHelpMan sendtoaddress()
     if (request.params[2].get_str().empty() || request.params[2].isNull())
         asset = Params().GetConsensus().subsidy_asset;
     else
-        asset = pwallet->chain().getAsset(request.params[2].get_str());
+        asset = GetAsset(request.params[2].get_str()); //pwallet->chain().getAsset(request.params[2].get_str());
 
     if (asset.IsNull()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown or invalid asset: %s %s", asset.GetHex(), asset.getName()));
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Unknown or invalid asset: %s %s", asset.GetHex(), asset.getAssetName()));
     }
 
     // Wallet comments
@@ -3213,7 +3215,7 @@ static RPCHelpMan listunspent()
 
         entry.pushKV("scriptPubKey", HexStr(scriptPubKey));
         entry.pushKV("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue));
-        entry.pushKV("asset", assetid.getName());
+        entry.pushKV("asset", assetid.getAssetName());
         entry.pushKV("confirmations", out.nDepth);
         entry.pushKV("spendable", out.fSpendable);
         entry.pushKV("solvable", out.fSolvable);

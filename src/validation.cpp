@@ -639,12 +639,12 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
                 LogPrintf("%s: Subsidy asset found \n", __func__);
             else
                 LogPrintf("%s: Subsidy asset not found %s vs %s \n", __func__, txout.nAsset.assetID.ToString(), Params().GetConsensus().subsidy_asset.assetID.ToString());
-                
+
             bool sub_fee = false;
             sub_fee = txout.nValue == 10.0001 * COIN;
             if(sub_fee)
                 LogPrintf("%s: Subsidy fee found \n", __func__);
-                        
+
             if(sub_address /*&& sub_asset*/ && sub_fee)
                 fHasFee = true;
         }
@@ -1917,7 +1917,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             uint160 hashBytes;
             for (unsigned int k = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); k-- > 0;) {
                 const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
-                std::string sAssetName = out.nAsset.getName();
+                std::string sAssetName = out.nAsset.getAssetName();
 
                 const CScript *pScript;
                 std::vector<unsigned char> hashBytes;
@@ -1980,7 +1980,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                     const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
                     const CTxOutAsset &prevout = coin.out; //(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
 
-                    std::string sAssetName = prevout.nAsset.getName();
+                    std::string sAssetName = prevout.nAsset.getAssetName();
 
                     const CScript *pScript = &prevout.scriptPubKey;
 
@@ -2624,7 +2624,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     const CTxIn input = tx.vin[j];
                     const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
                     const CTxOutAsset &prevout = coin.out; //(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
-                    std::string sAssetName = prevout.nAsset.getName();
+                    std::string sAssetName = prevout.nAsset.getAssetName();
 
                     const CScript *pScript = &prevout.scriptPubKey;
                     std::vector<uint8_t> hashBytes;
@@ -2679,7 +2679,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
                 const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
-                std::string sAssetName = out.nAsset.getName();
+                std::string sAssetName = out.nAsset.getAssetName();
 
                 const CScript *pScript;
                 std::vector<unsigned char> hashBytes;
@@ -2754,29 +2754,32 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     //Asset DB
     {
         for(unsigned int i = 0; i < block.vtx.size(); i++){
-            const CTransactionRef &tx = block.vtx[i];
-            for(unsigned int j = 0; j < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; j++){
-                const CTxOutAsset &out = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[j] : tx->vout[j]);
+            LogPrintf("TRANSACTION: \n %s\n", block.vtx[i]->ToString());
+            if(block.vtx[i]->nVersion >= TX_ELE_VERSION ){
+                for(unsigned int j = 0; j < block.vtx[i]->vpout.size(); j++){
+                    CAsset out = block.vtx[i]->vpout[j].nAsset;
 
-                CAsset asset = out.nAsset;
-                bool exists = false;
-                LogPrintf("NOTIFICATION: %s: FOUND ASSET %s\n", __func__, asset.ToString());
+                    bool exists = false;
+                    LogPrintf("%s: FOUND ASSET %s \n", __func__, out.ToString());
 
-                for(auto const& x : passetsCache->GetItemsMap()){
-                    CAsset checkasset = x.second->second.asset;
-                    if(iequals(asset.getName(), checkasset.getName()) || iequals(asset.getName(), checkasset.getSymbol()))
-                        if(!fJustCheck)
+                    for(auto const& x : passetsCache->GetItemsMap()){
+                        CAsset checkasset = x.second->second.asset;
+                        if(iequals(out.getAssetName(), checkasset.getAssetName()) || iequals(out.getAssetName(), checkasset.getShortName()))
                             exists = true;
-                }
+                    }
 
-                if (!exists && !passetsCache->Exists(asset.getName())){
-                    if(!fJustCheck){
-                        LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getName());
-                        passetsCache->Put(asset.getName(), CAssetData(asset, tx, j, view, block.nTime));
+                    if (exists)
+                        LogPrintf("%s: EXISTS ASSET %s.\n", __func__, out.getAssetName());
+
+                    if (!exists && !passetsCache->Exists(out.getAssetName())){
+                        if(!fJustCheck){
+                            LogPrintf("%s: ADDING ASSET %s\n", __func__, out.getAssetName());
+                            passetsCache->Put(out.getAssetName(), CAssetData(out, block.vtx[i], j, view, block.nTime));
+                        }
                     }
                 }
             }
-
+            const CTransactionRef &tx = block.vtx[i];
             for (unsigned int i = 0; i < tx->vdata.size(); i++){
                 uint8_t vers = tx->vdata[i].get()->GetVersion();
                 switch (vers) {

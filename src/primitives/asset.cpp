@@ -323,16 +323,6 @@ uint256 CAsset::GetHash() const
     return SerializeHash(*this);
 }
 
-const std::string CAsset::getName() const
-{
-    return getAssetName();
-}
-
-const std::string CAsset::getSymbol() const
-{
-    return getShortName();
-}
-
 const std::string CAsset::getSignature() const
 {
     //std::string data (vchAssetSig.begin(),vchAssetSig.end());
