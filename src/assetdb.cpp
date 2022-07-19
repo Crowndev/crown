@@ -54,7 +54,7 @@ bool CAssetsDB::WriteAssetData(const CAsset &asset, const CTransactionRef& asset
 {
 	CCoinsViewCache view(&::ChainstateActive().CoinsTip());
     CAssetData data(asset, assetTx, nOut, view, _nTime);
-    return Write(std::make_pair(ASSET_FLAG, asset.getName()), data);
+    return Write(std::make_pair(ASSET_FLAG, asset.getAssetName()), data);
 }
 
 bool CAssetsDB::ReadAssetData(const std::string& strName, CAssetData &data)
@@ -91,7 +91,7 @@ bool CAssetsDB::LoadAssets()
         if (pcursor->GetKey(key) && key.first == ASSET_FLAG) {
             CAssetData data;
             if (pcursor->GetValue(data)) {
-                passetsCache->Put(data.asset.getName(), data);
+                passetsCache->Put(data.asset.getAssetName(), data);
                 pcursor->Next();
             } else {
                 return error("%s: failed to read asset", __func__);

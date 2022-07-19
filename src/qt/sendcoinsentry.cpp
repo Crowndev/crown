@@ -67,7 +67,7 @@ void SendCoinsEntry::assetList(){
     QStringList list;
     
     for(auto const& x : m_balances.balance){
-        list << QString::fromStdString(x.first.getName());
+        list << QString::fromStdString(x.first.getAssetName());
     }
 
     std::sort(list.begin(), list.end());
@@ -200,7 +200,7 @@ SendAssetsRecipient SendCoinsEntry::getValue()
     recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
 
     for(auto const& x : passetsCache->GetItemsMap()){
-        if(QString::fromStdString(x.second->second.asset.getName()) == ui->assetBox->currentText())
+        if(QString::fromStdString(x.second->second.asset.getAssetName()) == ui->assetBox->currentText())
             recipient.asset = x.second->second.asset;     
     }
 
