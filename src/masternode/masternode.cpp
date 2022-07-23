@@ -704,7 +704,8 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // verify that sig time is legit in past
     // should be at least not earlier than block when 10000 CRW tx got MASTERNODE_MIN_CONFIRMATIONS
     uint256 hashBlock = uint256();
-    CTransactionRef tx2 = GetTransaction(nullptr, nullptr, vin.prevout.hash, Params().GetConsensus(), hashBlock);
+    CBlockIndex* blockindex = nullptr;
+    CTransactionRef tx2 = GetTransaction(blockindex, nullptr, vin.prevout.hash, Params().GetConsensus(), hashBlock);
     BlockMap::iterator mi = g_chainman.m_blockman.m_block_index.find(hashBlock);
     if (mi != g_chainman.m_blockman.m_block_index.end() && (*mi).second)
     {

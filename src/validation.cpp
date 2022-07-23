@@ -2754,13 +2754,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     //Asset DB
     {
         for(unsigned int i = 0; i < block.vtx.size(); i++){
-            LogPrintf("TRANSACTION: \n %s\n", block.vtx[i]->ToString());
+            //LogPrintf("TRANSACTION: \n %s\n", block.vtx[i]->ToString());
             if(block.vtx[i]->nVersion >= TX_ELE_VERSION ){
                 for(unsigned int j = 0; j < block.vtx[i]->vpout.size(); j++){
                     CAsset out = block.vtx[i]->vpout[j].nAsset;
 
                     bool exists = false;
-                    LogPrintf("%s: FOUND ASSET %s \n", __func__, out.ToString());
+                    //LogPrintf("%s: FOUND ASSET %s \n", __func__, out.ToString());
 
                     for(auto const& x : passetsCache->GetItemsMap()){
                         CAsset checkasset = x.second->second.asset;
@@ -2768,8 +2768,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                             exists = true;
                     }
 
-                    if (exists)
-                        LogPrintf("%s: EXISTS ASSET %s.\n", __func__, out.getAssetName());
+                    //if (exists)
+                    //    LogPrintf("%s: EXISTS ASSET %s.\n", __func__, out.getAssetName());
 
                     if (!exists && !passetsCache->Exists(out.getAssetName())){
                         if(!fJustCheck){

@@ -113,19 +113,15 @@ int GetNextSuperblock(int height)
 bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, std::string& strError, int64_t& nTime, int& nConf)
 {
     uint256 nBlockHash;
-    CTransactionRef txCollateral = GetTransaction(nullptr, nullptr, nTxCollateralHash, Params().GetConsensus(), nBlockHash);
+    CBlockIndex* blockindex = nullptr;
+
+    CTransactionRef txCollateral = GetTransaction(blockindex, g_mempool, nTxCollateralHash, Params().GetConsensus(), nBlockHash);
 
     if(!txCollateral){
         strError = strprintf("Can't find collateral tx %s", nTxCollateralHash.ToString());
         LogPrintf ("CBudgetProposalBroadcast::IsBudgetCollateralValid - %s\n", strError);
         return false;
     }
-    if(txCollateral->nVersion >= TX_ELE_VERSION)
-        if(txCollateral->vpout.size() < 1) return false;
-    else
-        if(txCollateral->vout.size() < 1) return false;
-
-    if(txCollateral->nLockTime != 0) return false;
 
     CScript findScript;
     findScript << OP_RETURN << ToByteVector(nExpectedHash);
@@ -138,7 +134,8 @@ bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, s
             LogPrintf ("CBudgetProposalBroadcast::IsBudgetCollateralValid - %s\n", strError);
             return false;
         }
-        if(o.scriptPubKey == findScript && o.nValue >= BUDGET_FEE_TX) foundOpReturn = true;
+
+        if(o.scriptPubKey[0] == OP_RETURN && o.nValue >= BUDGET_FEE_TX) foundOpReturn = true;
 
     }
     if(!foundOpReturn){
@@ -307,8 +304,8 @@ void CBudgetManager::SubmitBudgetDraft()
 
         int conf = GetIXConfirmations(tx->GetHash());
         uint256 nBlockHash;
-
-        CTransactionRef txCollateral = GetTransaction(nullptr, nullptr, txidCollateral, Params().GetConsensus(), nBlockHash);
+        CBlockIndex* blockindex = nullptr;
+        CTransactionRef txCollateral = GetTransaction(blockindex, nullptr, txidCollateral, Params().GetConsensus(), nBlockHash);
 
         if(!txCollateral) {
             LogPrintf ("CBudgetManager::SubmitBudgetDraft - Can't find collateral tx %s", txidCollateral.ToString());
@@ -464,7 +461,7 @@ void CBudgetManager::FillBlockPayee(CMutableTransaction& txNew, CAmount nFees) c
         txNew.vpout[0].nValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
     else
         txNew.vout[0].nValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
-    
+
 
     // Find finalized budgets with the most votes
 
