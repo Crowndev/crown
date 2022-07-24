@@ -301,10 +301,10 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1658230992, 101888, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1658666109, 919334, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000aa9bebd66a90abc3128e76295782707f2119f0beba0447b9693c682403a"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000ff89c2e1ed18e7b6ce593ecd3cefd1fc8f252369e192bae05301b3e992d"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();
