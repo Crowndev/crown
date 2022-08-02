@@ -283,7 +283,7 @@ public:
         pchMessageStart[2] = 0x09;
         pchMessageStart[3] = 0x07;
         nDefaultPort = 18333;
-        nBlockPoSStart = 8000;
+        nBlockPoSStart = 5000;
         nPruneAfterHeight = 100000;
         nAuxpowChainId = 20;
         nChainStallDuration = 60*60;
@@ -301,10 +301,10 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1658666109, 919334, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1659429370, 551064, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000ff89c2e1ed18e7b6ce593ecd3cefd1fc8f252369e192bae05301b3e992d"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000003e4d706ae2480a9b269042d8c9c493a216a328103a4bdb9656b93818307"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();

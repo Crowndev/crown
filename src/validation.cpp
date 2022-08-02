@@ -1365,7 +1365,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 8000)
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 5000)
         nSubsidy = 100 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
@@ -1379,7 +1379,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight >= 8000)
+        if (nHeight >= 5000)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
