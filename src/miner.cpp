@@ -293,7 +293,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             LogPrintf("%s\n", a->ToString());
     }
     catch (const std::exception& e) {
-        return error("%s: %s", __func__, e.what());
+        LogPrintf("%s: %s", __func__, e.what());
     }
 
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
