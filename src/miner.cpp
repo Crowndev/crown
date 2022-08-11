@@ -282,18 +282,23 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
     }
-    
+
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
 
     if(fProofOfStake && pblock->vtx.size() > 2)
         pblock->vtx.pop_back();
-    
-    for (auto a: pblock->vtx)
-        LogPrintf("%s\n", a->ToString());
+
+    try {
+        for (auto a: pblock->vtx)
+            LogPrintf("%s\n", a->ToString());
+    }
+    catch (const std::exception& e) {
+        return error("%s: %s", __func__, e.what());
+    }
 
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
-    
+
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
