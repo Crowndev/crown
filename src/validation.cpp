@@ -1956,8 +1956,8 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         // restore inputs
         if (i > 0 && !tx.IsCoinStake()) { // not coinbases
             int nOffSet = 1;
-            if (pindex->nHeight >= Params().PoSStartHeight())
-                nOffSet = 2;
+            //if (pindex->nHeight >= Params().PoSStartHeight())
+            //    nOffSet = 2;
             CTxUndo &txundo = blockUndo.vtxundo[i-nOffSet];
             if (txundo.vprevout.size() != tx.vin.size()) {
                 error("DisconnectBlock(): transaction and undo data inconsistent %d vs %d i=%d, nOffSet=%d", txundo.vprevout.size(), tx.vin.size(), i, nOffSet);

@@ -270,7 +270,6 @@ int64_t CSystemnode::GetLastPaid() const
 bool CSystemnode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPaymentBlocks, bool limitMostRecent) const
 {
     vPaymentBlocks.clear();
-
     int nMinimumValidBlockHeight = ::ChainActive().Height() - Params().ValidStakePointerDuration();
     if (nMinimumValidBlockHeight < 1)
         nMinimumValidBlockHeight = 1;
@@ -285,14 +284,17 @@ bool CSystemnode::GetRecentPaymentBlocks(std::vector<const CBlockIndex*>& vPayme
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
             continue;
-        CTxOutAsset out = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[2] : block.vtx[0]->vout[2]);
+
         int m = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout.size() : block.vtx[0]->vout.size());
- 
-        if (m > 2 && out.scriptPubKey == snpayee) {
-            vPaymentBlocks.emplace_back(pindex);
-            fBlockFound = true;
-            if (limitMostRecent)
-                return fBlockFound;
+
+        if (m > 2) {
+            CTxOutAsset out = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[2] : block.vtx[0]->vout[2]);
+            if (out.scriptPubKey == snpayee){
+                vPaymentBlocks.emplace_back(pindex);
+                fBlockFound = true;
+                if (limitMostRecent)
+                    return fBlockFound;
+            }
         }
         pindex = ::ChainActive().Next(pindex);
     }
