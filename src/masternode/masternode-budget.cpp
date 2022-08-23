@@ -137,6 +137,9 @@ bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, s
 
         if(o.scriptPubKey[0] == OP_RETURN && o.nValue >= BUDGET_FEE_TX) foundOpReturn = true;
 
+        LogPrintf ("%s : %s vs %s\n", __func__, o.scriptPubKey.ToString(), findScript.ToString());
+
+
     }
     if(!foundOpReturn){
         strError = strprintf("Couldn't find opReturn %s in %s", nExpectedHash.ToString(), txCollateral->ToString());

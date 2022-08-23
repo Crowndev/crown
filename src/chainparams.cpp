@@ -301,17 +301,15 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1659953647, 265873, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1661231017, 510037, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000cc30b3ddef3ebaca9315510176a7e2ea849094d391d11faff36f520a3de"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0000063c20f684c07ab552306ad5eda6f271425696d62be6eecbb651fd0361b5"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        vSeeds.emplace_back("92.60.46.24");
-        vSeeds.emplace_back("92.60.46.25");
         vSeeds.emplace_back("92.60.46.26");
         vSeeds.emplace_back("92.60.46.27");
         vSeeds.emplace_back("92.60.46.28");
