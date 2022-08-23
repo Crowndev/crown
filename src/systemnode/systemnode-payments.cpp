@@ -35,7 +35,7 @@ bool SNIsBlockPayeeValid(const CAmount& nValueCreated, const CTransaction& txNew
     }
 
     //check if it's a budget block
-    if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS)) {
+    if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         if (budget.IsBudgetPaymentBlock(nBlockHeight)) {
             if (budget.IsTransactionValid(txNew, nBlockHeight)) {
                 return true;
@@ -183,8 +183,9 @@ void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if (!pindexPrev)
         return;
-
-    if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)) {
+    if(Params().NetworkIDString() == CBaseChainParams::TESTNET && budget.IsBudgetPaymentBlock(pindexPrev->nHeight+1)){
+        // Doesn't pay systemnode, miners get the full amount on these blocks
+    } else if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)) {
         // Doesn't pay systemnode, miners get the full amount on these blocks
     } else {
         systemnodePayments.FillBlockPayee(txNew, nFees);
@@ -193,6 +194,9 @@ void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
 
 std::string SNGetRequiredPaymentsString(int nBlockHeight)
 {
+    if(Params().NetworkIDString() == CBaseChainParams::TESTNET && budget.IsBudgetPaymentBlock(nBlockHeight)){
+        return budget.GetRequiredPaymentsString(nBlockHeight);    
+    }
     if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nBlockHeight)) {
         return budget.GetRequiredPaymentsString(nBlockHeight);
     } else {
@@ -243,7 +247,10 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             txNew.vout[0].nValue -= systemnodePayment;
         }
 
-        LogPrint(BCLog::NET, "Systemnode payment to %s\n", EncodeDestination(ScriptHash(CScriptID(payee))).c_str());
+        CTxDestination address1;
+        ExtractDestination(payee, address1);
+        
+        LogPrint(BCLog::NET, "Systemnode payment to %s\n", EncodeDestination(address1));
     }
 }
 
