@@ -183,7 +183,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
     CAmount blockValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
     CAmount masternodePayment = GetMasternodePayment(pindexPrev->nHeight+1, blockValue);
 
-    txNew.vout[0].nValue = blockValue;
+    txNew.vpout[0].nValue = blockValue;
 
     if(hasPayment){
         if(txNew.nVersion >= TX_ELE_VERSION){
