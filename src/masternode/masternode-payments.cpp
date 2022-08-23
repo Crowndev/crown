@@ -85,7 +85,7 @@ bool IsBlockPayeeValid(const CAmount& nAmountCreated, const CTransaction& txNew,
     }
 
     //check if it's a budget block
-    if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS)){
+    if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) || Params().NetworkIDString() == CBaseChainParams::TESTNET ){
         if(budget.IsBudgetPaymentBlock(nBlockHeight)){
             if(budget.IsTransactionValid(txNew, nBlockHeight)){
                 return true;
@@ -139,8 +139,10 @@ void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if(!pindexPrev) return;
-
-    if(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight+1)){
+    
+    if(Params().NetworkIDString() == CBaseChainParams::TESTNET && budget.IsBudgetPaymentBlock(pindexPrev->nHeight+1)){
+        budget.FillBlockPayee(txNew, nFees);
+    } else if(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight+1)){
         budget.FillBlockPayee(txNew, nFees);
     } else {
         masternodePayments.FillBlockPayee(txNew, nFees);
@@ -149,7 +151,9 @@ void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
 
 std::string GetRequiredPaymentsString(int nBlockHeight)
 {
-    if(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nBlockHeight)){
+    if(Params().NetworkIDString() == CBaseChainParams::TESTNET && budget.IsBudgetPaymentBlock(nBlockHeight)){
+        return budget.GetRequiredPaymentsString(nBlockHeight);
+    } else if(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nBlockHeight)){
         return budget.GetRequiredPaymentsString(nBlockHeight);
     } else {
         return masternodePayments.GetRequiredPaymentsString(nBlockHeight);
@@ -179,6 +183,8 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
     CAmount blockValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
     CAmount masternodePayment = GetMasternodePayment(pindexPrev->nHeight+1, blockValue);
 
+    txNew.vpout[0].nValue = blockValue;
+
     if(hasPayment){
         if(txNew.nVersion >= TX_ELE_VERSION){
             txNew.vpout.resize(2);
@@ -192,8 +198,12 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             txNew.vout[MN_PMT_SLOT].nValue = masternodePayment;
             txNew.vout[0].nValue -= masternodePayment;
         }
-
-        LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(ScriptHash(payee)).c_str());
+        
+        CTxDestination address1;
+        ExtractDestination(payee, address1);
+        
+        //LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(ScriptHash(payee)).c_str());
+        LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(address1));
     }
 }
 

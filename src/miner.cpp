@@ -169,23 +169,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         coinbaseTx.nVersion = TX_ELE_VERSION;
         txCoinStake.nVersion = TX_ELE_VERSION;
     }
+
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
-
-    if (!fProofOfStake){
-        if(Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 1){
-            coinbaseTx.vout.resize(1);
-            coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-            coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-        }
-        else {
-            coinbaseTx.vpout.resize(1);
-            coinbaseTx.vpout[0].scriptPubKey = scriptPubKeyIn;
-            coinbaseTx.vpout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-            coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
-        }
-    }
+    coinbaseTx.vpout.resize(1);
+    coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
+    coinbaseTx.vpout[0].scriptPubKey = scriptPubKeyIn;
 
     if (fProofOfStake && nHeight >= Params().PoSStartHeight()) {
         pblock->nTime = GetAdjustedTime();
@@ -215,6 +205,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         FillBlockPayee(coinbaseTx, nFees);
         SNFillBlockPayee(coinbaseTx, nFees);
     }
+    else
+    {
+        coinbaseTx.vpout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
+    }
     // Proof of stake blocks pay the mining reward in the coinstake transaction
     if (fProofOfStake) {
         CAmount nValueNodeRewards = 0;
@@ -229,6 +223,22 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 nValueNodeRewards += coinbaseTx.vout[MN_PMT_SLOT].nValue;
             if (coinbaseTx.vout.size() > 2)
                 nValueNodeRewards += coinbaseTx.vout[SN_PMT_SLOT].nValue;
+        }
+
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET ){
+            if (!budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)) {
+                //Reduce PoS reward by the node rewards
+                if(txCoinStake.nVersion >= TX_ELE_VERSION)
+                    txCoinStake.vpout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
+                else
+                    txCoinStake.vout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
+            } else {
+                // Miner gets full block value in case of superblock
+                if(txCoinStake.nVersion >= TX_ELE_VERSION)
+                    txCoinStake.vpout[0].nValue = GetBlockValue(nHeight, nFees);
+                else
+                    txCoinStake.vout[0].nValue = GetBlockValue(nHeight, nFees);
+            }
         }
 
         if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1))) {
@@ -249,13 +259,34 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if(txCoinStake.nVersion >= TX_ELE_VERSION){
             coinbaseTx.vpout[0].scriptPubKey = CScript();
             coinbaseTx.vpout[0].nValue = 0;
-            coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
         }
         else {
             coinbaseTx.vout[0].scriptPubKey = CScript();
             coinbaseTx.vout[0].nValue = 0;
         }
     }
+
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET ){
+        if (!budget.IsBudgetPaymentBlock(nHeight)) {
+            if(txCoinStake.nVersion >= TX_ELE_VERSION){
+                // Make payee
+                if(coinbaseTx.vpout.size() > 1)
+                    pblock->payee = coinbaseTx.vpout[MN_PMT_SLOT].scriptPubKey;
+                // Make SNpayee
+                if(coinbaseTx.vpout.size() > 2)
+                   pblock->payeeSN = coinbaseTx.vpout[SN_PMT_SLOT].scriptPubKey;
+            }
+            else {
+                // Make payee
+                if(coinbaseTx.vout.size() > 1)
+                    pblock->payee = coinbaseTx.vout[MN_PMT_SLOT].scriptPubKey;
+                // Make SNpayee
+                if(coinbaseTx.vout.size() > 2)
+                   pblock->payeeSN = coinbaseTx.vout[SN_PMT_SLOT].scriptPubKey;
+            }
+        }
+    }
+
 
     if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nHeight))) {
 
