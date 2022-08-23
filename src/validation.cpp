@@ -630,20 +630,12 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
             bool sub_address = false;
             sub_address = txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination;
-            if(sub_address)
-                LogPrintf("%s: Subsidy address found \n", __func__);
 
             bool sub_asset = false;
             sub_asset = txout.nAsset == Params().GetConsensus().subsidy_asset;
-            if(sub_asset)
-                LogPrintf("%s: Subsidy asset found \n", __func__);
-            else
-                LogPrintf("%s: Subsidy asset not found %s vs %s \n", __func__, txout.nAsset.assetID.ToString(), Params().GetConsensus().subsidy_asset.assetID.ToString());
 
             bool sub_fee = false;
             sub_fee = txout.nValue == 10.0001 * COIN;
-            if(sub_fee)
-                LogPrintf("%s: Subsidy fee found \n", __func__);
 
             if(sub_address /*&& sub_asset*/ && sub_fee)
                 fHasFee = true;
@@ -1365,8 +1357,8 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     }
 
     int halvings = nHeight / Params().GetConsensus().nSubsidyHalvingInterval;
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight < 5000)
-        nSubsidy = 100 * COIN;
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET && nHeight == 1)
+        nSubsidy = 1000000 * COIN;
 
     // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
@@ -1379,7 +1371,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 
     int64_t budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight >= 5000)
+        if (nHeight >= 1)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)

@@ -697,11 +697,20 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
         if (wtx.IsCoinBase() || !wallet.chain().checkFinalTx(*wtx.tx) || wtx.GetDepthInMainChain() < min_depth) {
             continue;
         }
-
-        for (const CTxOut& txout : wtx.tx->vout) {
-            CTxDestination address;
-            if (ExtractDestination(txout.scriptPubKey, address) && wallet.IsMine(address) && address_set.count(address)) {
-                amount += txout.nValue;
+        if(wtx.tx->nVersion >= TX_ELE_VERSION){
+            for (const CTxOutAsset& txout : wtx.tx->vpout) {
+                CTxDestination address;
+                if (ExtractDestination(txout.scriptPubKey, address) && wallet.IsMine(address) && address_set.count(address)) {
+                    amount += txout.nValue;
+                }
+            }                       
+        }
+        else {
+            for (const CTxOut& txout : wtx.tx->vout) {
+                CTxDestination address;
+                if (ExtractDestination(txout.scriptPubKey, address) && wallet.IsMine(address) && address_set.count(address)) {
+                    amount += txout.nValue;
+                }
             }
         }
     }
@@ -2385,7 +2394,10 @@ static RPCHelpMan lockunspent()
 
         const CWalletTx& trans = it->second;
 
-        if (outpt.n >= trans.tx->vout.size()) {
+        if (trans.tx->nVersion >= TX_ELE_VERSION && outpt.n >= trans.tx->vpout.size()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout index out of bounds");
+        }
+        else if (outpt.n >= trans.tx->vout.size()){
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout index out of bounds");
         }
 
@@ -3150,7 +3162,7 @@ static RPCHelpMan listunspent()
 
     for (const COutput& out : vecOutputs) {
         CTxDestination address;
-        const CScript& scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
+        const CScript& scriptPubKey = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey);
         bool fValidAddress = ExtractDestination(scriptPubKey, address);
         bool reused = avoid_reuse && pwallet->IsSpentKey(out.tx->GetHash(), out.i);
 
@@ -3214,7 +3226,7 @@ static RPCHelpMan listunspent()
         }
 
         entry.pushKV("scriptPubKey", HexStr(scriptPubKey));
-        entry.pushKV("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue));
+        entry.pushKV("amount", ValueFromAmount((out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue)));
         entry.pushKV("asset", assetid.getAssetName());
         entry.pushKV("confirmations", out.nDepth);
         entry.pushKV("spendable", out.fSpendable);
@@ -3344,10 +3356,14 @@ void FundTransaction(CWallet* const pwallet, CMutableTransaction& tx, CAmount& f
         coinControl.fAllowWatchOnly = ParseIncludeWatchonly(NullUniValue, *pwallet);
     }
 
-    if (tx.vout.size() == 0)
+    if (tx.nVersion >= TX_ELE_VERSION && tx.vpout.size() == 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "TX must have at least one output");
+    else if (tx.vout.size() == 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "TX must have at least one output");
 
-    if (change_position != -1 && (change_position < 0 || (unsigned int)change_position > tx.vout.size()))
+    if (change_position != -1 && (change_position < 0 || (tx.nVersion >= TX_ELE_VERSION && (unsigned int)change_position > tx.vpout.size())))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "changePosition out of bounds");
+    else if (change_position != -1 && (change_position < 0 || (unsigned int)change_position > tx.vout.size()))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "changePosition out of bounds");
 
     for (unsigned int idx = 0; idx < subtractFeeFromOutputs.size(); idx++) {
@@ -3356,7 +3372,9 @@ void FundTransaction(CWallet* const pwallet, CMutableTransaction& tx, CAmount& f
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid parameter, duplicated position: %d", pos));
         if (pos < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid parameter, negative position: %d", pos));
-        if (pos >= int(tx.vout.size()))
+        if (tx.nVersion >= TX_ELE_VERSION && pos >= int(tx.vpout.size()))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid parameter, position too large: %d", pos));
+        else if (pos >= int(tx.vout.size()))
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid parameter, position too large: %d", pos));
         setSubtractFeeFromOutputs.insert(pos);
     }
