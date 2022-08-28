@@ -461,10 +461,9 @@ void CBudgetManager::FillBlockPayee(CMutableTransaction& txNew, CAmount nFees) c
 
     // Pay the miner
     if(txNew.nVersion >= TX_ELE_VERSION)
-        txNew.vpout[0].nValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
+        txNew.vpout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
     else
-        txNew.vout[0].nValue = GetBlockSubsidy(pindexPrev->nHeight, Params().GetConsensus());
-
+        txNew.vout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
 
     // Find finalized budgets with the most votes
 
@@ -476,8 +475,11 @@ void CBudgetManager::FillBlockPayee(CMutableTransaction& txNew, CAmount nFees) c
 
     for (const auto& payment : budgetToPay->GetBudgetPayments())
     {
+        CTxDestination address1;
+        ExtractDestination(payment.payee, address1);
+
         LogPrintf("CBudgetManager::FillBlockPayee - Budget payment to %s for %lld; proposal %s\n",
-            EncodeDestination(ScriptHash(CScriptID(payment.payee))), payment.nAmount, payment.nProposalHash.ToString());
+            EncodeDestination(address1), payment.nAmount, payment.nProposalHash.ToString());
         if(txNew.nVersion >= TX_ELE_VERSION)
             txNew.vpout.push_back(CTxOutAsset(Params().GetConsensus().subsidy_asset, payment.nAmount, payment.payee));
         else
@@ -2116,7 +2118,10 @@ bool BudgetDraft::IsTransactionValid(const CTransaction& txNew, int nBlockHeight
         }
         if(!found)
         {
-            LogPrintf("BudgetDraft::IsTransactionValid - Missing required payment - %s: %d\n", EncodeDestination(ScriptHash(CScriptID(payment.payee))), payment.nAmount);
+            CTxDestination address1;
+            ExtractDestination(payment.payee, address1);
+
+            LogPrintf("BudgetDraft::IsTransactionValid - Missing required payment - %s: %d\n", EncodeDestination(address1), payment.nAmount);
             return false;
         }
     }

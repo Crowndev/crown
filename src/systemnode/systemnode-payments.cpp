@@ -262,10 +262,13 @@ std::string CSystemnodeBlockPayees::GetRequiredPaymentsString()
 
     for (auto& payee : vecPayments)
     {
+        CTxDestination address1;
+        ExtractDestination(payee.scriptPubKey, address1);
+
         if(ret != "Unknown") {
-            ret += ", " + EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey))) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            ret += ", " + EncodeDestination(address1) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
         } else {
-            ret = EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey))) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            ret = EncodeDestination(address1) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
         }
     }
 
@@ -321,15 +324,16 @@ bool CSystemnodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
                     return error("%s: Systemnode payment is not in coinbase.vout[%d]", __func__, SN_PMT_SLOT);
                 return true;
             }
+            CTxDestination address1;
+            ExtractDestination(payee.scriptPubKey, address1);
 
             if(strPayeesPossible == ""){
-                strPayeesPossible += EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey)));
+                strPayeesPossible += EncodeDestination(address1);
             } else {
-                strPayeesPossible += "," + EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey)));
+                strPayeesPossible += "," + EncodeDestination(address1);
             }
         }
     }
-
 
     LogPrint(BCLog::NET, "CSystemnodePayments::IsTransactionValid - Missing required payment - %s\n", strPayeesPossible.c_str());
     return false;

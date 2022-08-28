@@ -202,7 +202,6 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         CTxDestination address1;
         ExtractDestination(payee, address1);
         
-        //LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(ScriptHash(payee)).c_str());
         LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(address1));
     }
 }
@@ -283,8 +282,11 @@ void CMasternodePayments::ProcessMessageMasternodePayments(CNode* pfrom, const s
             mnodeman.AskForMN(pfrom, winner.vinMasternode);
             return;
         }
+        
+        CTxDestination address1;
+        ExtractDestination(winner.payee, address1);
 
-        LogPrint(BCLog::MASTERNODE, "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", EncodeDestination(ScriptHash(CScriptID(winner.payee))).c_str(), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
+        LogPrint(BCLog::MASTERNODE, "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", EncodeDestination(address1), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
 
         if(masternodePayments.AddWinningMasternode(winner)){
             winner.Relay();
@@ -422,10 +424,13 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew, const
                 return true;
             }
 
+            CTxDestination address1;
+            ExtractDestination(payee.scriptPubKey, address1);
+
             if(strPayeesPossible == ""){
-                strPayeesPossible += EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey)));
+                strPayeesPossible += EncodeDestination(address1);
             } else {
-                strPayeesPossible += "," + EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey)));
+                strPayeesPossible += "," + EncodeDestination(address1);
             }
         }
     }
@@ -444,10 +449,13 @@ std::string CMasternodeBlockPayees::GetRequiredPaymentsString()
 
     for (const auto& payee : vecPayments)
     {
+        CTxDestination address1;
+        ExtractDestination(payee.scriptPubKey, address1);
+
         if(ret != "Unknown"){
-            ret += ", " + EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey))) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            ret += ", " + EncodeDestination(address1) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
         } else {
-            ret = EncodeDestination(ScriptHash(CScriptID(payee.scriptPubKey))) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            ret = EncodeDestination(address1) + ":" + boost::lexical_cast<std::string>(payee.nVotes);
         }
     }
 
