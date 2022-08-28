@@ -1351,7 +1351,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-    int64_t nSubsidy = 12 * COIN;
+    CAmount nSubsidy = 12 * COIN;
     if (nHeight >= Params().PoSStartHeight()) {
         nSubsidy = 10 * COIN;
     }
@@ -1367,9 +1367,9 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
 CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 {
-    int64_t nSubsidy = GetBlockSubsidy(nHeight, Params().GetConsensus());
+    CAmount nSubsidy = GetBlockSubsidy(nHeight, Params().GetConsensus());
 
-    int64_t budgetValue = nSubsidy * 0.25;
+    CAmount budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         if (nHeight >= 1)
             nSubsidy -= budgetValue;
@@ -1384,7 +1384,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
     // 25% percent is already taken for budget
-    int64_t ret = (blockValue * 37.5) / 75; // 37.5%
+    CAmount ret = (blockValue * 37.5) / 75; // 37.5%
     if (nHeight >= Params().PoSStartHeight()) {
         ret = (blockValue * 37) / 75; // 37%
     }
@@ -1394,7 +1394,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 CAmount GetSystemnodePayment(int nHeight, CAmount blockValue)
 {
     // 25% percent is already taken for budget
-    int64_t ret = (blockValue * 7.5) / 75; // 7.5%
+    CAmount ret = (blockValue * 7.5) / 75; // 7.5%
     if (nHeight >= Params().PoSStartHeight())
     {
         ret = (blockValue * 8) / 75; // 8%
