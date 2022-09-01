@@ -269,12 +269,9 @@ CAmountMap CTransaction::GetValueOutMap() const {
 
     CAmountMap values;
     for (const auto& tx_out : vpout) {
-        CAmountMap m;
-        m[tx_out.nAsset] = tx_out.nValue;
-        values += m;
+        values[tx_out.nAsset] += tx_out.nValue;
         if (!MoneyRange(tx_out.nValue) || !MoneyRange(values[tx_out.nAsset]))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
-
     }
     return values;
 }

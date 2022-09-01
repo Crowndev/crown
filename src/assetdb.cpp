@@ -199,3 +199,42 @@ std::vector<CAsset> GetAllAssets(){
 
     return tmp;
 }
+
+bool assetExists(CAsset assetToCheck){
+	
+    for(auto const& x : passetsCache->GetItemsMap()){
+        CAsset checkasset = x.second->second.asset;
+        
+        if(checkasset == assetToCheck)
+            return true;
+        
+        if(iequals(assetToCheck.getAssetName(), checkasset.getAssetName()) || iequals(assetToCheck.getAssetName(), checkasset.getShortName()))
+            return true;
+    }
+	
+	return false;
+}
+
+bool assetNameExists(std::string assetName){
+	
+    for(auto const& x : passetsCache->GetItemsMap()){
+        CAsset checkasset = x.second->second.asset;
+        
+        if(iequals(assetName, checkasset.getAssetName()) || iequals(assetName, checkasset.getShortName()))
+            return true;
+    }
+	
+	return false;
+}
+
+bool isSubsidy(CAsset assetToCheck){
+    if(assetToCheck == Params().GetConsensus().subsidy_asset)
+	    return true;
+	    
+	return false;	
+}
+
+CAsset GetSubsidyAsset(){
+	
+	return Params().GetConsensus().subsidy_asset;
+}

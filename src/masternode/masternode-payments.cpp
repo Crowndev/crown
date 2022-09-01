@@ -184,6 +184,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
     CAmount masternodePayment = GetMasternodePayment(pindexPrev->nHeight+1, blockValue);
 
     txNew.vpout[0].nValue = blockValue;
+    txNew.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
 
     if(hasPayment){
         if(txNew.nVersion >= TX_ELE_VERSION){
@@ -192,6 +193,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
             txNew.vpout[MN_PMT_SLOT].nValue = masternodePayment;
             txNew.vpout[MN_PMT_SLOT].nAsset = Params().GetConsensus().subsidy_asset;
             txNew.vpout[0].nValue -= masternodePayment;
+            txNew.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
         }else{
             txNew.vout.resize(2);
             txNew.vout[MN_PMT_SLOT].scriptPubKey = payee;

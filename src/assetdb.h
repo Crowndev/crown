@@ -78,4 +78,9 @@ void DumpAssets();
 
 CAsset GetAsset(const std::string& name);
 std::vector<CAsset> GetAllAssets();
+bool assetExists(CAsset assetToCheck);
+bool assetNameExists(std::string assetName);
+bool isSubsidy(CAsset assetToCheck);
+CAsset GetSubsidyAsset();
+
 #endif //CROWN_ASSETDB_H

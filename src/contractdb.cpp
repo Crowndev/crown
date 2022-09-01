@@ -96,6 +96,16 @@ CContract GetContract(const std::string& name)
 	return cCheck;
 }
 
+CContract GetContractByHash(uint256 & hash)
+{
+	CContract cCheck;
+    for(auto const& x : pcontractCache->GetItemsMap()){
+		if(x.second->second.contract.GetHash() == hash)
+		    cCheck = x.second->second.contract;
+    }	
+	return cCheck;
+}
+
 void DumpContracts()
 {
     int64_t n_start = GetTimeMillis();

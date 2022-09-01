@@ -59,6 +59,7 @@ public:
 };
 
 CContract GetContract(const std::string& name);
+CContract GetContractByHash(uint256 & hash);
 /** Global variable that point to the active assets database (protected by cs_main) */
 extern std::unique_ptr<CContractDB> pcontractdb;
 

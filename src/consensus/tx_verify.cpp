@@ -8,11 +8,15 @@
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <consensus/validation.h>
+#include <assetdb.h>
+#include <contractdb.h>
+#include <key_io.h>
 
 // TODO remove the following dependencies
 #include <chain.h>
 #include <coins.h>
 #include <util/moneystr.h>
+#include <logging.h>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -111,8 +115,9 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx)
     {
         nSigOps += txin.scriptSig.GetSigOpCount(false);
     }
-    for (const auto& txout : tx.vout)
-    {
+
+    for(unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+        CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
         nSigOps += txout.scriptPubKey.GetSigOpCount(false);
     }
     return nSigOps;
@@ -169,11 +174,15 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     CAmountMap outputAssets;
 
     std::vector<CTxOutAsset> spent_inputs;
+    std::vector<CScript> input_addresses;
     CAmount nValueIn = 0;
+
     for (unsigned int i = 0; i < tx.vin.size(); ++i) {
         const COutPoint &prevout = tx.vin[i].prevout;
         const Coin& coin = inputs.AccessCoin(prevout);
         assert(!coin.IsSpent());
+
+        input_addresses.push_back(coin.out.scriptPubKey);
 
         // If prev is coinbase, check that it's matured
         if ((coin.IsCoinBase() || coin.IsCoinStake()) && nSpendHeight - coin.nHeight < COINBASE_MATURITY) {
@@ -183,51 +192,138 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         spent_inputs.push_back(coin.out);
         if(tx.nVersion >= TX_ELE_VERSION)
-            inputAssets.insert(std::make_pair(coin.out.nAsset, coin.out.nValue));
+            inputAssets[coin.out.nAsset] += coin.out.nValue;
+            //inputAssets.insert(std::make_pair(coin.out.nAsset, coin.out.nValue));
+
+        //LogPrintf("Asset : %s\nAmount : %d", coin.out.nAsset.ToString(false), coin.out.nValue);
+
 
         // Check for negative or overflow input values
-        nValueIn += coin.out.nValue; //tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue;
-        if (!MoneyRange(coin.out.nValue /*(tx.nVersion >= TX_ELE_VERSION ? coin.out2.nValue : coin.out.nValue)*/) || !MoneyRange(nValueIn)) {
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
+        nValueIn += coin.out.nValue;
+        if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-out-of-range");
         }
+    }
+
+    if(tx.nVersion >= TX_ELE_VERSION){
+        outputAssets = tx.GetValueOutMap();
     }
     
-    if(tx.nVersion >= TX_ELE_VERSION){
-        for (unsigned int i = 0; i < tx.vpout.size(); ++i) {
-            outputAssets.insert(std::make_pair(tx.vpout[i].nAsset, tx.vpout[i].nValue));
-        }
-    }
+    //LogPrintf("Input assets size : %d  outputs assets size : %d", inputAssets.size(), outputAssets.size());
+
+    if(tx.nVersion >= TX_ELE_VERSION && inputAssets.size() < 1)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-size");
 
     // enforce asset rules
     {
+		CAsset subsidy_asset = GetSubsidyAsset();
         //prevent asset merging
         if(inputAssets.size() > 1)
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset", strprintf("found (%d) , expected 1", inputAssets.size()));
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-multiple", strprintf("found (%d) , expected 1", inputAssets.size()));
 
+        // only two outputs assets, at most new/converted asset plus fee in input asset
         if(outputAssets.size() > 2)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset", strprintf("found (%d) , expected 2", outputAssets.size()));
 
-        //
-
         //check asset conversion
+        if (outputAssets.size() == 2 && !inputAssets.begin()->first.isConvertable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-not-convertable ");
 
-        //
+        //check asset transfer
+        if(!inputAssets.begin()->first.isTransferable())
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-not-transferable ", strprintf("Asset : (%s)", inputAssets.begin()->first.ToString(false)));
 
+        for(auto & a : outputAssets){
+            CAsset asset = a.first;
+			bool exists = assetExists(asset);
+
+            //Asset exists , check for output rules
+            if (exists && asset != subsidy_asset) {
+                // check asset limited
+                if(asset.isLimited() && inputAssets.begin()->first != asset)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset-is-limited", strprintf("cannot convert other assets to (%s)", asset.getAssetName()));
+
+                // check asset restricted
+                // get contract hash, retrieve contract, get issuer , compare input address to issueraddress
+                CContract contract = GetContractByHash(asset.contract_hash);
+                CTxDestination address1;
+                ExtractDestination(input_addresses.front(), address1);
+                if(asset.isRestricted()){
+                    if(input_addresses.size() != 1)
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer", strprintf("Inputs for this restricted asset must come from (%s) only", contract.sIssuingaddress));
+
+                    if(contract.sIssuingaddress != EncodeDestination(address1))
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
+			    }
+
+			    // check asset inflation
+			    if(asset.isInflatable()){
+                    if(contract.sIssuingaddress != EncodeDestination(address1))
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inflation-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
+
+			    }
+			    else
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-ouput-asset-not-inflatable");
+
+			}
+
+            //check asset creation
+			if(!exists) {
+				//Prevent stakable assets from non dev address
+				if(asset.isStakeable())
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "new-asset-stakable");
+
+                if(inputAssets.begin()->first != subsidy_asset)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset", strprintf("found (%s) , expected (%s)", asset.getAssetName(), subsidy_asset.getAssetName()));
+
+                if(inputAssets.begin()->second < 10 * COIN)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-amount", strprintf("found (%d) CRW, min (%d) CRW", inputAssets.begin()->second/COIN, 10));
+
+                if(assetNameExists(asset.getAssetName()) || assetNameExists(asset.getShortName())) 
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-name", strprintf("asset name/shortname %s / %s  already in use", asset.getAssetName(), asset.getShortName()));
+
+               // if(asset.nExpiry != 0 && asset.nExpiry < tx.nTime + 84000)// TODO (Why on earth do transactions not have time ?
+               //     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-expiry");
+                    
+                if(asset.nType == 2){
+					if(asset.isConvertable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-convertable");
+					if(asset.isInflatable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-inflatable");					
+				}
+
+			}
+		}
     }
 
+    if(tx.nVersion >= TX_ELE_VERSION){
+        if(outputAssets.size() == 1)
+		    if(inputAssets.begin()->second < outputAssets.begin()->second)
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-below-out", strprintf("value in (%s) < value out (%s)", FormatMoney(inputAssets.begin()->second), FormatMoney(outputAssets.begin()->second)));
 
-    const CAmount value_out = tx.GetValueOut();
-    if (nValueIn < value_out) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
+        // Tally transaction fees
+        CAmountMap txfee_aux = inputAssets - outputAssets;
+        
+        //identify the fee asset
+        CAmount mfee = txfee_aux[inputAssets.begin()->first];
+        if (!MoneyRange(mfee)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-out-of-range");
+        }
+        txfee = mfee;
+	}
+	else{
+        const CAmount value_out = tx.GetValueOut();
+        if (nValueIn < value_out)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-below-out",
             strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
+
+        // Tally transaction fees
+        const CAmount txfee_aux = nValueIn - value_out;
+        if (!MoneyRange(txfee_aux)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-out-of-range");
+        }
+        txfee = txfee_aux;
     }
 
-    // Tally transaction fees
-    const CAmount txfee_aux = nValueIn - value_out;
-    if (!MoneyRange(txfee_aux)) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange");
-    }
-
-    txfee = txfee_aux;
     return true;
 }

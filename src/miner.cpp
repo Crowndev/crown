@@ -165,9 +165,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     CMutableTransaction txCoinStake;
-    if(nHeight >= 1){
+    if(Params().NetworkIDString() == CBaseChainParams::TESTNET){
         coinbaseTx.nVersion = TX_ELE_VERSION;
         txCoinStake.nVersion = TX_ELE_VERSION;
+    }
+    else{
+        if (nHeight >= 5000000){
+            coinbaseTx.nVersion = TX_ELE_VERSION;
+            txCoinStake.nVersion = TX_ELE_VERSION;
+        }
     }
 
     coinbaseTx.vin.resize(1);
@@ -209,6 +215,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     else
     {
         coinbaseTx.vpout[0].nValue = GetBlockValue(pindexPrev->nHeight, nFees);
+        coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
     }
 
     // Proof of stake blocks pay the mining reward in the coinstake transaction
@@ -246,6 +253,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if(txCoinStake.nVersion >= TX_ELE_VERSION){
             coinbaseTx.vpout[0].scriptPubKey = CScript();
             coinbaseTx.vpout[0].nValue = 0;
+            coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
         }
         else {
             coinbaseTx.vout[0].scriptPubKey = CScript();
@@ -281,10 +289,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
+    //LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
 
     if(fProofOfStake && pblock->vtx.size() > 2)
         pblock->vtx.pop_back();
-
+/*
     try {
         for (auto a: pblock->vtx)
             LogPrintf("%s\n", a->ToString());
@@ -292,8 +301,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     catch (const std::exception& e) {
         LogPrintf("%s: %s", __func__, e.what());
     }
-
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+*/
+    //pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
 
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);

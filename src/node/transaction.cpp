@@ -42,7 +42,7 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
     // If the transaction is already confirmed in the chain, don't do anything
     // and return early.
     CCoinsViewCache &view = ::ChainstateActive().CoinsTip();
-    for (size_t o = 0; o < tx->vout.size(); o++) {
+    for (unsigned int o = 0; o < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; o++){
         const Coin& existingCoin = view.AccessCoin(COutPoint(hashTx, o));
         // IsSpent doesn't mean the coin is spent, it means the output doesn't exist.
         // So if the output does exist, then this transaction exists in the chain.
@@ -58,9 +58,9 @@ TransactionError BroadcastTransaction(NodeContext& node, const CTransactionRef t
             if (!AcceptToMemoryPool(*node.mempool, state, tx,
                 nullptr /* plTxnReplaced */, false /* bypass_limits */, /* test_accept */ true, &fee)) {
                 return HandleATMPError(state, err_string);
-            }/* else if (fee > max_tx_fee) {
+            } else if (fee > max_tx_fee) {
                 return TransactionError::MAX_FEE_EXCEEDED;
-            }*/
+            }
         }
         // Try to submit the transaction to the mempool.
         if (!AcceptToMemoryPool(*node.mempool, state, tx,
