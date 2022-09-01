@@ -104,15 +104,26 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinbase = tx.IsCoinBase();
     bool fCoinstake = tx.IsCoinStake();
     const uint256& txid = tx.GetHash();
-    for (size_t i = 0; i < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); ++i) {
-        CTxOutAsset outc = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[i] : tx.vout[i]);
-        bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
-        // Coinbase transactions can always be overwritten, in order to correctly
-        // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
-        //LogPrintf("%s: %s\n", __func__, outc.ToString());
-        if(!outc.IsEmpty())
-        cache.AddCoin(COutPoint(txid, i), Coin(outc, nHeight, fCoinbase, fCoinstake), overwrite);
-    }
+    //LogPrintf("%s: TX %s\n",__func__, tx.ToString());
+
+    if(tx.nVersion >= TX_ELE_VERSION){
+		for (size_t i = 0; i < tx.vpout.size() ; i++) {
+			bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
+			// Coinbase transactions can always be overwritten, in order to correctly
+			// deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
+			//LogPrintf("%s: %s\n", __func__, tx.vpout[i].ToString());
+			if(!tx.vpout[i].IsEmpty())
+			cache.AddCoin(COutPoint(txid, i), Coin(tx.vpout[i], nHeight, fCoinbase, fCoinstake), overwrite);
+		}
+	}
+	else{
+		for (size_t i = 0; i < tx.vout.size(); ++i) {
+			bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
+			// Always set the possible_overwrite flag to AddCoin for coinbase txn, in order to correctly
+			// deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
+			cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, fCoinstake), overwrite);
+		}
+	}
 }
 
 bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {

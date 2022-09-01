@@ -626,7 +626,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     { //data checking is done here
         bool fHasFee = false;
         for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
-            CTxOutAsset txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+            const CTxOutAsset &txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
             bool sub_address = false;
             sub_address = txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination;
@@ -1351,7 +1351,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-    int64_t nSubsidy = 12 * COIN;
+    CAmount nSubsidy = 12 * COIN;
     if (nHeight >= Params().PoSStartHeight()) {
         nSubsidy = 10 * COIN;
     }
@@ -1367,11 +1367,11 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
 CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 {
-    int64_t nSubsidy = GetBlockSubsidy(nHeight, Params().GetConsensus());
+    CAmount nSubsidy = GetBlockSubsidy(nHeight, Params().GetConsensus());
 
-    int64_t budgetValue = nSubsidy * 0.25;
+    CAmount budgetValue = nSubsidy * 0.25;
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (nHeight >= 1)
+        if (nHeight > 1)
             nSubsidy -= budgetValue;
     } else {
         if (nHeight > 1265000)
@@ -1384,7 +1384,7 @@ CAmount GetBlockValue(int nHeight, const CAmount &nFees)
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
     // 25% percent is already taken for budget
-    int64_t ret = (blockValue * 37.5) / 75; // 37.5%
+    CAmount ret = (blockValue * 37.5) / 75; // 37.5%
     if (nHeight >= Params().PoSStartHeight()) {
         ret = (blockValue * 37) / 75; // 37%
     }
@@ -1394,7 +1394,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 CAmount GetSystemnodePayment(int nHeight, CAmount blockValue)
 {
     // 25% percent is already taken for budget
-    int64_t ret = (blockValue * 7.5) / 75; // 7.5%
+    CAmount ret = (blockValue * 7.5) / 75; // 7.5%
     if (nHeight >= Params().PoSStartHeight())
     {
         ret = (blockValue * 8) / 75; // 8%
@@ -1901,7 +1901,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
         bool is_coinstake = tx.IsCoinStake();
-        LogPrintf("0 %s \n", fClean ? "true": "false");
+        //LogPrintf("0 %s \n", fClean ? "true": "false");
 
         if (g_txindex) {
 
@@ -1927,23 +1927,36 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             }
         }
 
-        for (size_t o = 0; o < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); o++) {
-            CTxOutAsset bout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[o] : tx.vout[o]);
 
-            if (!bout.scriptPubKey.IsUnspendable()) {
-                COutPoint out(hash, o);
-                Coin coin;
-                bool is_spent = view.SpendCoin(out, &coin);
-                if (!is_spent || bout != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
-                    if(!bout.IsEmpty())
-                    fClean = false; // transaction output mismatch
-                    LogPrintf("VPOUT %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", bout != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
-                    LogPrintf("VOUT %s \n %s \n", bout.ToString(), coin.out.ToString());
+        if(tx.nVersion >= TX_ELE_VERSION){
+            for (size_t o = 0; o < tx.vpout.size(); o++) {
+                if (!tx.vpout[o].scriptPubKey.IsUnspendable()) {
+                    COutPoint out(hash, o);
+                    Coin coin;
+                    bool is_spent = view.SpendCoin(out, &coin);
+                    if (!is_spent || tx.vpout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
+                        if(!tx.vpout[o].IsEmpty())
+                        fClean = false; // transaction output mismatch
+                        //LogPrintf("fClean %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", tx.vpout[o] != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
+                        //LogPrintf("VOUT %s \n %s \n", tx.vpout[o].ToString(), coin.out.ToString());
+                    }
+                }
+            }
+        }
+        else {
+            for (size_t o = 0; o < tx.vout.size(); o++) {
+                if (!tx.vout[o].scriptPubKey.IsUnspendable()) {
+                    COutPoint out(hash, o);
+                    Coin coin;
+                    bool is_spent = view.SpendCoin(out, &coin);
+                    if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
+                        fClean = false; // transaction output mismatch
+                    }
                 }
             }
         }
 
-        LogPrintf("1 %s \n", fClean ? "true": "false");
+        //LogPrintf("1 %s \n", fClean ? "true": "false");
 
         // restore inputs
         if (i > 0 && !tx.IsCoinStake()) { // not coinbases
@@ -1991,7 +2004,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             // At this point, all of txundo.vprevout should have been moved out.
         }
     }
-    LogPrintf("2 %s \n", fClean ? "true": "false");
+    //LogPrintf("2 %s \n", fClean ? "true": "false");
 
 
     if (g_txindex) {
@@ -2262,7 +2275,7 @@ bool CheckBlockProofPointer(const CBlockIndex* pindex, const CBlock& block, CPub
                 return error("%s: vout too small", __func__);
 
             CTxDestination dest;
-            CTxOutAsset rout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[stakePointer.nPos] : tx->vout[stakePointer.nPos]);
+            const CTxOutAsset &rout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[stakePointer.nPos] : tx->vout[stakePointer.nPos]);
             if (!ExtractDestination(rout.scriptPubKey, dest))
                 return error("%s: failed to get destination from scriptPubKey", __func__);
 
@@ -2306,7 +2319,7 @@ bool CheckStake(const CBlockIndex* pindex, const CBlock& block, uint256& hashPro
 
     AssertLockHeld(cs_main);
     //Coinbase has to be 0 value
-    CTxOutAsset rout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[0] : block.vtx[0]->vout[0]);
+    const CTxOutAsset &rout = (block.vtx[0]->nVersion >= TX_ELE_VERSION ? block.vtx[0]->vpout[0] : block.vtx[0]->vout[0]);
 
     if (rout.nValue > 0){
         errormsg = "Coinbase output 0 must have 0 value";
