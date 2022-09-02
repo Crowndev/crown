@@ -593,6 +593,31 @@ void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid)
     SyncMetaData(range);
 }
 
+CAmountMap CWallet::GetStake() const
+{
+    CAmountMap nTotal;
+    LOCK(cs_wallet);
+    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+    {
+       const CWalletTx* pcoin = &(*it).second;
+       if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
+            nTotal += CWallet::GetCredit(*pcoin->tx, ISMINE_SPENDABLE);
+    }
+    return nTotal;
+}
+
+CAmountMap CWallet::GetWatchOnlyStake() const
+{
+    CAmountMap nTotal;
+    LOCK(cs_wallet);
+    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+    {
+        const CWalletTx* pcoin = &(*it).second;
+        if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
+            nTotal += CWallet::GetCredit(*pcoin->tx, ISMINE_WATCH_ONLY);
+    }
+    return nTotal;
+}
 
 void CWallet::AddToSpends(const uint256& wtxid)
 {
@@ -927,6 +952,10 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const CWalletTx::Confirmatio
         if (tx->HasWitness() && !wtx.tx->HasWitness()) {
             wtx.SetTx(tx);
             fUpdated = true;
+        }
+        if(fUpdated && wtx.IsCoinStake())
+        {
+            AddToSpends(hash);
         }
     }
 
@@ -1895,7 +1924,7 @@ void CWallet::ReacceptWalletTransactions()
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if (!wtx.IsCoinBase() && (nDepth == 0 && !wtx.isAbandoned())) {
+        if (!wtx.IsCoinBase() && !wtx.IsCoinStake() && (nDepth == 0 && !wtx.isAbandoned())) {
             mapSorted.insert(std::make_pair(wtx.nOrderPos, &wtx));
         }
     }
@@ -2016,6 +2045,7 @@ CAmountMap CWalletTx::GetImmatureCredit(bool fUseCache) const
                 CAmount credit = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[i].nValue : tx->vout[i].nValue);
                 if (!MoneyRange(credit))
                     throw std::runtime_error(std::string(__func__) + " : value out of range");
+                //if (!IsCoinBase()) continue;
 
                 if(tx->nVersion >= TX_ELE_VERSION)
                     nCredit[tx->vpout[i].nAsset] += credit;
@@ -2316,6 +2346,8 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
     isminefilter reuse_filter = avoid_reuse ? ISMINE_NO : ISMINE_USED;
     {
         LOCK(cs_wallet);
+        const CAmountMap tx_credit_stake = GetStake();
+        ret.m_mine_stake += tx_credit_stake;
 
         const CAmountMap tx_credit_locked = GetLockedCoins();
         const CAmountMap tx_credit_unlocked = GetUnlockedCoins();
@@ -3512,6 +3544,7 @@ bool CWallet::CreateTransactionInternal(
     }
     FeeCalculation feeCalc;
     CAmount nFeeNeeded;
+
     int nBytes;
     {
         std::set<CInputCoin> setCoins;
@@ -3937,7 +3970,7 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
     bool fUseInstantX = UseInstantSend();
 
     LOCK(cs_wallet);
-    WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
+    //WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
 
     // Add tx to wallet, because if it has change it's also ours,
     // otherwise just for transaction history.
@@ -4997,7 +5030,7 @@ int CWalletTx::GetDepthInMainChain() const
 
 int CWalletTx::GetBlocksToMaturity() const
 {
-    if (!IsCoinBase())
+    if (!(IsCoinBase() || IsCoinStake()))
         return 0;
     int chain_depth = GetDepthInMainChain();
     assert(chain_depth >= 0); // coinbase tx should not be conflicted

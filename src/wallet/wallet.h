@@ -348,7 +348,7 @@ public:
     std::multimap<int64_t, CWalletTx*>::const_iterator m_it_wtxOrdered;
 
     // memory only
-    enum AmountType { DEBIT, CREDIT, IMMATURE_CREDIT, AVAILABLE_CREDIT, LOCKED, UNLOCKED, AMOUNTTYPE_ENUM_ELEMENTS };
+    enum AmountType { DEBIT, CREDIT, IMMATURE_CREDIT, AVAILABLE_CREDIT, LOCKED, UNLOCKED, STAKE, AMOUNTTYPE_ENUM_ELEMENTS };
     CAmountMap GetCachableAmount(AmountType type, const isminefilter& filter, bool recalculate = false) const;
     mutable CachableAmount m_amounts[AMOUNTTYPE_ENUM_ELEMENTS];
     /**
@@ -485,6 +485,7 @@ public:
         m_amounts[AVAILABLE_CREDIT].Reset();
         m_amounts[LOCKED].Reset();
         m_amounts[UNLOCKED].Reset();
+        m_amounts[STAKE].Reset();
         fChangeCached = false;
         m_is_cache_empty = true;
     }
@@ -501,6 +502,8 @@ public:
     // Return sum of locked coins
     CAmountMap GetLockedCredit(const isminefilter& filter) const;
     // annotation "NO_THREAD_SAFETY_ANALYSIS" was temporarily added to avoid
+    // Return sum of staked coins
+    CAmountMap GetStakeCredit(const isminefilter& filter) const;
     // having to resolve the issue of member access into incomplete type CWallet.
     CAmountMap GetAvailableCredit(bool fUseCache = true, const isminefilter& filter = ISMINE_SPENDABLE) const NO_THREAD_SAFETY_ANALYSIS;
     CAmountMap GetImmatureWatchOnlyCredit(const bool fUseCache = true) const;
@@ -996,16 +999,20 @@ public:
         CAmountMap m_mine_trusted{CAmountMap()};           //!< Trusted, at depth=GetBalance.min_depth or more
         CAmountMap m_mine_untrusted_pending{CAmountMap()}; //!< Untrusted, but in mempool (pending)
         CAmountMap m_mine_immature{CAmountMap()};          //!< Immature coinbases in the main chain
+        CAmountMap m_mine_stake{CAmountMap()};
         CAmountMap m_mine_locked{CAmountMap()};
         CAmountMap m_mine_unlocked{CAmountMap()};
         CAmountMap m_watchonly_trusted{CAmountMap()};
         CAmountMap m_watchonly_untrusted_pending{CAmountMap()};
         CAmountMap m_watchonly_immature{CAmountMap()};
+        CAmountMap m_watchonly_stake{CAmountMap()};
     };
     Balance GetBalance(int min_depth = 0, bool avoid_reuse = true) const;
     CAmountMap GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
     CAmountMap GetLockedCoins() const;
     CAmountMap GetUnlockedCoins() const;
+    CAmountMap GetStake() const;
+    CAmountMap GetWatchOnlyStake() const;
     OutputType TransactionChangeType(const std::optional<OutputType>& change_type, const std::vector<CRecipient>& vecSend);
 
     /**

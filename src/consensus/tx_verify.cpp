@@ -276,8 +276,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 if(inputAssets.begin()->first != subsidy_asset)
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset", strprintf("found (%s) , expected (%s)", asset.getAssetName(), subsidy_asset.getAssetName()));
 
-                if(inputAssets.begin()->second < 10 * COIN)
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-amount", strprintf("found (%d) CRW, min (%d) CRW", inputAssets.begin()->second/COIN, 10));
+                //if(inputAssets[subsidy_asset] < 10 * COIN)
+                //    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-amount", strprintf("found (%d) (%s), min (%d) CRW", inputAssets[subsidy_asset], inputAssets.begin()->first.getShortName(), 10));
 
                 if(assetNameExists(asset.getAssetName()) || assetNameExists(asset.getShortName())) 
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-name", strprintf("asset name/shortname %s / %s  already in use", asset.getAssetName(), asset.getShortName()));
