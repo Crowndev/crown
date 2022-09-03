@@ -2346,8 +2346,8 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
     isminefilter reuse_filter = avoid_reuse ? ISMINE_NO : ISMINE_USED;
     {
         LOCK(cs_wallet);
-        const CAmountMap tx_credit_stake = GetStake();
-        ret.m_mine_stake += tx_credit_stake;
+        //const CAmountMap tx_credit_stake = GetStake();
+        //ret.m_mine_stake += tx_credit_stake;
 
         const CAmountMap tx_credit_locked = GetLockedCoins();
         const CAmountMap tx_credit_unlocked = GetUnlockedCoins();
