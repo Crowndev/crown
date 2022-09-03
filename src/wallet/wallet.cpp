@@ -600,7 +600,7 @@ CAmountMap CWallet::GetStake() const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
     {
        const CWalletTx* pcoin = &(*it).second;
-       if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
+       if (pcoin->IsCoinStake() && pcoin->GetDepthInMainChain() > 0)
             nTotal += CWallet::GetCredit(*pcoin->tx, ISMINE_SPENDABLE);
     }
     return nTotal;
@@ -613,7 +613,7 @@ CAmountMap CWallet::GetWatchOnlyStake() const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
     {
         const CWalletTx* pcoin = &(*it).second;
-        if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
+        if (pcoin->IsCoinStake() && pcoin->GetDepthInMainChain() > 0)
             nTotal += CWallet::GetCredit(*pcoin->tx, ISMINE_WATCH_ONLY);
     }
     return nTotal;
@@ -5030,7 +5030,7 @@ int CWalletTx::GetDepthInMainChain() const
 
 int CWalletTx::GetBlocksToMaturity() const
 {
-    if (!(IsCoinBase() || IsCoinStake()))
+    if (!IsCoinBase())
         return 0;
     int chain_depth = GetDepthInMainChain();
     assert(chain_depth >= 0); // coinbase tx should not be conflicted
