@@ -2571,6 +2571,7 @@ static RPCHelpMan getbalances()
         balances_mine.pushKV("trusted", AmountMapToUniv(bal.m_mine_trusted));
         balances_mine.pushKV("untrusted_pending", AmountMapToUniv(bal.m_mine_untrusted_pending));
         balances_mine.pushKV("immature", AmountMapToUniv(bal.m_mine_immature));
+        balances_mine.pushKV("stake", AmountMapToUniv(bal.m_mine_stake));
         balances_mine.pushKV("locked", AmountMapToUniv(bal.m_mine_locked));
         if (wallet.IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE)) {
             // If the AVOID_REUSE flag is set, bal has been set to just the un-reused address balance. Get
@@ -2650,6 +2651,7 @@ static RPCHelpMan getwalletinfo()
     obj.pushKV("walletversion", pwallet->GetVersion());
     obj.pushKV("format", pwallet->GetDatabase().Format());
     obj.pushKV("balance", AmountMapToUniv(bal.m_mine_trusted));
+    obj.pushKV("stake", AmountMapToUniv(bal.m_mine_stake));
     obj.pushKV("unconfirmed_balance", AmountMapToUniv(bal.m_mine_untrusted_pending));
     obj.pushKV("immature_balance", AmountMapToUniv(bal.m_mine_immature));
     obj.pushKV("txcount",       (int)pwallet->mapWallet.size());
