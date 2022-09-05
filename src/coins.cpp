@@ -112,7 +112,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
 			// Coinbase transactions can always be overwritten, in order to correctly
 			// deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
 			//LogPrintf("%s: %s\n", __func__, tx.vpout[i].ToString());
-			if(!tx.vpout[i].IsEmpty())
+			//if(!tx.vpout[i].IsEmpty())
 			cache.AddCoin(COutPoint(txid, i), Coin(tx.vpout[i], nHeight, fCoinbase, fCoinstake), overwrite);
 		}
 	}
