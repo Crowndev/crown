@@ -153,15 +153,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = false;// IsWitnessEnabled(pindexPrev, chainparams.GetConsensus());
 
-    int nPackagesSelected = 0;
-    int nDescendantsUpdated = 0;
-    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
-
-    int64_t nTime1 = GetTimeMicros();
-
-    m_last_block_num_txs = nBlockTx;
-    m_last_block_weight = nBlockWeight;
-
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     CMutableTransaction txCoinStake;
@@ -286,18 +277,17 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (fProofOfStake){
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
-
-        if(pblock->vtx.size() > 2){
-LogPrintf("00 \n");
-            CMutableTransaction lntx(*pblocktemplate->block.vtx[pblocktemplate->block.vtx.size()]);
-LogPrintf("01 \n");            
-            pblocktemplate->block.vtx.pop_back();
-LogPrintf("02 \n");
-            pblocktemplate->block.vtx.emplace_back(MakeTransactionRef(std::move(lntx)));
-LogPrintf("03 \n");
-		}
-        LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
+        LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
     }
+
+    int nPackagesSelected = 0;
+    int nDescendantsUpdated = 0;
+    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+
+    int64_t nTime1 = GetTimeMicros();
+
+    m_last_block_num_txs = nBlockTx;
+    m_last_block_weight = nBlockWeight;
 
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
 
