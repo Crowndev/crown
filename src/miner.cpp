@@ -288,10 +288,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
 
         if(pblock->vtx.size() > 2){
-            CMutableTransaction lntx(*pblock->vtx.back());
+LogPrintf("00 \n");
+            CTransaction lntx(*pblock->vtx.back());
+LogPrintf("01 \n");            
             pblock->vtx.pop_back();
+LogPrintf("02 \n");
             pblock->vtx.emplace_back();
+LogPrintf("03 \n");
             pblock->vtx.back() = MakeTransactionRef(std::move(lntx));
+LogPrintf("04 \n");
 		}
         LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
     }
