@@ -286,25 +286,23 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (fProofOfStake){
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
+
+        if(pblock->vtx.size() > 2){
+            CMutableTransaction lntx(*pblock->vtx.back());
+            pblock->vtx.pop_back();
+            pblock->vtx.emplace_back();
+            pblock->vtx.back() = MakeTransactionRef(std::move(lntx));
+		}
+        LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
     }
 
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
-    //LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
 
-    if(fProofOfStake && pblock->vtx.size() > 2)
-        pblock->vtx.pop_back();
-/*
-    try {
-        for (auto a: pblock->vtx)
-            LogPrintf("%s\n", a->ToString());
-    }
-    catch (const std::exception& e) {
-        LogPrintf("%s: %s", __func__, e.what());
-    }
-*/
+
     //pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
-
+    
+    //LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
