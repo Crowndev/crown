@@ -289,20 +289,17 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         if(pblock->vtx.size() > 2){
 LogPrintf("00 \n");
-            CTransaction lntx(*pblock->vtx.back());
+            CMutableTransaction lntx(*pblocktemplate->block.vtx[pblocktemplate->block.vtx.size()]);
 LogPrintf("01 \n");            
-            pblock->vtx.pop_back();
+            pblocktemplate->block.vtx.pop_back();
 LogPrintf("02 \n");
-            pblock->vtx.emplace_back();
+            pblocktemplate->block.vtx.emplace_back(MakeTransactionRef(std::move(lntx)));
 LogPrintf("03 \n");
-            pblock->vtx.back() = MakeTransactionRef(std::move(lntx));
-LogPrintf("04 \n");
 		}
         LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
     }
 
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
-
 
     //pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
