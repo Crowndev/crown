@@ -289,11 +289,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         if(pblock->vtx.size() > 2){
 LogPrintf("00 \n");
-            CMutableTransaction lntx(*pblock->vtx[pblock->vtx.size()]);
+            CMutableTransaction lntx(*pblocktemplate->block.vtx[pblocktemplate->block.vtx.size()]);
 LogPrintf("01 \n");            
-            pblock->vtx.pop_back();
+            pblocktemplate->block.vtx.pop_back();
 LogPrintf("02 \n");
-            pblock->vtx.emplace_back(MakeTransactionRef(std::move(lntx)));
+            pblocktemplate->block.vtx.emplace_back(MakeTransactionRef(std::move(lntx)));
 LogPrintf("03 \n");
 		}
         LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
