@@ -1360,6 +1360,18 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     // Only log conf file usage message if conf file actually exists.
     fs::path config_file_path = GetConfigFile(args.GetArg("-conf", CROWN_CONF_FILENAME));
+
+    if (!fs::exists(config_file_path)) {
+		std::string sentence = "daemon=1\nserver=1\ntxindex=1\n[test]\naddnode=92.60.46.27\naddnode=92.60.46.28\naddnode=92.60.46.29\naddnode=92.60.46.26\naddnode=92.60.46.30\naddnode=92.60.46.31";
+        FILE *fp;
+        if (!(fp = fopen(config_file_path.string().c_str(), "w")))
+            InitWarning(strprintf(_("Failed to create %s \n"), config_file_path.string()));
+        else 
+            fputs (sentence.c_str(),fp);
+
+        fclose(fp);
+    }
+
     if (fs::exists(config_file_path)) {
         LogPrintf("Config file: %s\n", config_file_path.string());
     } else if (args.IsArgSet("-conf")) {
