@@ -170,8 +170,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             //
             // Mixed debit transaction, can't break down payees
             //
+            TransactionRecord sub(hash, nTime);
+            sub.idx = 0;
+            sub.involvesWatchAddress = involvesWatchAddress;
+            sub.type = TransactionRecord::Other;
+            //sub.address = address;
+            //sub.credit = nNet;
+
             //parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet, 0));
-            parts.last().involvesWatchAddress = involvesWatchAddress;
+            //parts.last().involvesWatchAddress = involvesWatchAddress;
+            parts.append(sub);
+
         }
     }
 
