@@ -94,7 +94,7 @@ public:
     virtual CAsset getAsset(std::string sAssetName) = 0;
     virtual std::vector<CAsset> getAllAssets() =0;
     virtual CTxMemPool& getMempool() = 0;
-    virtual void startStake(bool fStake, CWallet *pwallet, std::thread* stakeThread) = 0;
+    virtual void startStake(bool fStake, CWallet *pwallet) = 0;
     //! Get block height above genesis block. Returns 0 for genesis block,
     //! 1 for following block, and so on. Returns nullopt for a block not
     //! included in the current chain.

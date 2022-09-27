@@ -198,7 +198,7 @@ private:
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set& mapModifiedTx) EXCLUSIVE_LOCKS_REQUIRED(m_mempool.cs);
 };
 /** Generate a new block, without valid proof-of-work */
-void Stake(bool fStake, CWallet *pwallet, std::thread* stakeThread);
+void Stake(bool fStake, CWallet *pwallet);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
