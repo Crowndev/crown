@@ -124,6 +124,7 @@ void StartWallets(CScheduler& scheduler, const ArgsManager& args)
 {
     for (const std::shared_ptr<CWallet>& pwallet : GetWallets()) {
         pwallet->postInitProcess();
+        if (args.GetBoolArg("-stake", true))
             pwallet->Stake(true);
     }
 

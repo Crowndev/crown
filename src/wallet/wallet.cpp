@@ -345,8 +345,6 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
     AddWallet(wallet);
     wallet->postInitProcess();
 
-        wallet->Stake(true);
-
     // Write the wallet settings
     UpdateWalletSetting(chain, name, load_on_start, warnings);
 

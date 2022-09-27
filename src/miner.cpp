@@ -682,16 +682,24 @@ void ThreadStakeMiner(CWallet *pwallet)
     LogPrintf("ThreadStakeMiner exiting\n");
 }
 
-void Stake(bool fStake, CWallet *pwallet, std::thread* stakeThread)
+std::thread* stakeThread = nullptr;
+
+void Stake(bool fStake, CWallet *pwallet)
 {
     if (stakeThread != nullptr)
     {
+        LogPrintf("%s: Destroying Stake thread\n", __func__);
+
         if (stakeThread->joinable())
             stakeThread->join();
         stakeThread = nullptr;
+        LogPrintf("%s: Stake thread destroyed \n", __func__);
+
     }
     if(fStake)
     {
+        LogPrintf("%s: Creating Stake thread\n", __func__);
+
         stakeThread = new std::thread([&, pwallet] { TraceThread("stake", [&, pwallet] { ThreadStakeMiner(pwallet); }); });
     }
 }

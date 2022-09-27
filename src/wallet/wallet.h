@@ -772,8 +772,6 @@ private:
      */
     uint256 m_last_block_processed GUARDED_BY(cs_wallet);
 
-    std::thread* stakeThread = nullptr;
-
     /* Height of last block processed is used by wallet to know depth of transactions
      * without relying on Chain interface beyond asynchronous updates. For safety, we
      * initialize it to -1. Height is a pointer on node's tip and doesn't imply
