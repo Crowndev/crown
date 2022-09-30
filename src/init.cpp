@@ -15,6 +15,7 @@
 #include <banman.h>
 #include <blockfilter.h>
 #include <crown/cache.h>
+#include <crown/nodewallet.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <compat/sanity.h>
@@ -2196,6 +2197,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }, DUMP_BANS_INTERVAL);
 
     node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::milliseconds{1000});
+    node.scheduler->scheduleEvery(std::bind(&NodeMinter, std::ref(Params()), std::ref(*node.connman)), std::chrono::milliseconds{5000});
 
 #if HAVE_SYSTEM
     StartupNotify(args);

@@ -874,7 +874,6 @@ public:
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const CAsset* asset_filter=nullptr) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, AvailableCoinsType coin_type=ALL_COINS, bool useIX = false) const;
-    bool HaveAvailableCoinsForStaking() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     std::map<CTxDestination, std::vector<COutput> > AvailableCoinsByAddress(bool fConfirmed = true, CAmount maxCoinValue = 0);
     /**
      * Return list of available coins and locked coins grouped by non-change output address.
@@ -1364,9 +1363,9 @@ public:
     bool GetActiveMasternode(CMasternode*& activeStakingNode);
     bool GetActiveSystemnode(CSystemnode*& activeStakingNode);
     uint256 GenerateStakeModifier(const CBlockIndex* prewardBlockIndex) const;
-    bool CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer);
+    //bool CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer);
 
-    void Stake(bool fStake);
+    //void Stake(bool fStake);
 };
 
 /**

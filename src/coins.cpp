@@ -155,6 +155,9 @@ const Coin& CCoinsViewCache::AccessCoin(const COutPoint &outpoint) const {
 
 bool CCoinsViewCache::HaveCoin(const COutPoint &outpoint) const {
     CCoinsMap::const_iterator it = FetchCoin(outpoint);
+
+    LogPrintf("%s: %s\n", __func__, it->second.coin.IsSpent() ? "true": "false");
+
     return (it != cacheCoins.end() && !it->second.coin.IsSpent());
 }
 
@@ -277,8 +280,8 @@ CAmountMap CCoinsViewCache::GetValueInMap(const CTransaction& tx) const
     	}else{
     	    asset = Params().GetConsensus().subsidy_asset;
 		    amount = AccessCoin(prevout).out.nValue;
-		}	
-		
+		}
+
         nResult[asset] += amount;
 	}
 

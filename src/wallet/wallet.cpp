@@ -5417,27 +5417,3 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
 
     return ret;
 }
-
-bool CWallet::HaveAvailableCoinsForStaking() const
-{
-    std::vector<COutput> vCoins;
-    CCoinControl coin_control;
-    LOCK(cs_wallet);
-
-    //To do , either map out or make calls for each stakable asset
-    AvailableCoins(vCoins, true, &coin_control, 1, MAX_MONEY, 0, MAX_MONEY, &Params().GetConsensus().subsidy_asset);
-
-    //CAmountMap reserved {{Params().GetConsensus().subsidy_asset,gArgs.GetArg("-reserve-balance", DEFAULT_RESERVE_BALANCE)}};
-    CAmountMap balance = GetAvailableBalance(&coin_control);
-
-    //balance -= reserved;
-    LogPrintf("Balance = %s, vCoins.size()= %d \n", balance, vCoins.size());
-    //return (balance > CAmountMap() && vCoins.size() > 0);
-    return (balance > CAmountMap());
-
-}
-
-void CWallet::Stake(bool fStake)
-{
-    m_chain->startStake(fStake, this, stakeThread);
-}

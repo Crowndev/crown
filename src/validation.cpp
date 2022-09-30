@@ -1847,7 +1847,9 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
 
     if (view.HaveCoin(out)){
         fClean = false; // overwriting transaction output
-        //LogPrintf("%s %s \n", __func__, fClean ? "true": "false");
+        
+        if(!fClean)
+            LogPrintf("%s PROBLEM %s\n", __func__, !fClean ? "true": "false");
     }
 
     if (undo.nHeight == 0) {
@@ -1940,8 +1942,8 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                     if (!is_spent || tx.vpout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase || is_coinstake != coin.fCoinStake) {
                         if(!tx.vpout[o].IsEmpty())
                             fClean = false; // transaction output mismatch
-                        //LogPrintf("fClean %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", tx.vpout[o] != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
-                        //LogPrintf("VOUT %s \n %s \n", tx.vpout[o].ToString(), coin.out.ToString());
+                        LogPrintf("fClean %s , SPENT %s , OUT %s, CB %s, CS %s\n", fClean ? "true": "false", is_spent ? "true": "false", tx.vpout[o] != coin.out ? "true": "false", is_coinbase != coin.fCoinBase ? "true": "false",is_coinstake != coin.fCoinStake ? "true": "false");
+                        LogPrintf("VOUT %s \n %s \n", tx.vpout[o].ToString(), coin.out.ToString());
                     }
                 }
             }

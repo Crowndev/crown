@@ -217,10 +217,6 @@ public:
         return ::GetAllAssets();
     }
 
-    void startStake(bool fStake, CWallet *pwallet)override{
-        ::Stake(fStake, pwallet);
-    }
-
     CContract getContract(std::string name) override
     {
         return ::GetContract(name);
