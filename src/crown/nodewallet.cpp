@@ -126,6 +126,100 @@ uint256 NodeWallet::GenerateStakeModifier(const CBlockIndex* prewardBlockIndex) 
     return pstakeModBlockIndex->GetBlockHash();
 }
 
+void GetScriptForMining(CScript& script, std::shared_ptr<CWallet> wallet)
+{
+    auto pwallet = wallet.get();
+    ReserveDestination reservedest(pwallet, OutputType::LEGACY);
+
+    //! this requires a lock, yet cannot fail; so just remove it altogether
+
+    CTxDestination dest;
+    bool ret = reservedest.GetReservedDestination(dest, true);
+    if (!ret) {
+        LogPrintf("%s: keypool ran out, please call keypoolrefill first", __func__);
+        return;
+    }
+
+    script = GetScriptForDestination(dest);
+}
+
+void NodeMinter(const CChainParams& chainparams, CConnman& connman)
+{
+    util::ThreadRename("crown-minter");
+
+    auto pwallet = GetMainWallet();
+    if (!pwallet)
+        return;
+
+    if (!fMasterNode && !fSystemNode)
+        return;
+    if (fReindex || fImporting || pwallet->IsLocked())
+        return;
+    if (!gArgs.GetBoolArg("-jumpstart", false)) {
+        if (connman.GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 ||
+            ::ChainActive().Tip()->nHeight+1 < Params().PoSStartHeight() ||
+            ::ChainstateActive().IsInitialBlockDownload() ||
+            !masternodeSync.IsSynced() || !systemnodeSync.IsSynced()) {
+                return;
+        }
+    }
+
+    LogPrintf("%s: Attempting to stake..\n", __func__);
+
+    unsigned int nExtraNonce = 0;
+
+    CScript coinbaseScript;
+    GetScriptForMining(coinbaseScript, pwallet);
+    if (coinbaseScript.empty()) return;
+
+    //
+    // Create new block
+    //
+    CBlockIndex* pindexPrev = ::ChainActive().Tip();
+    if (!pindexPrev) return;
+
+    const CTxMemPool& mempool = pwallet->chain().getMempool();
+
+    BlockAssembler assembler(mempool, chainparams);
+    auto pblocktemplate = assembler.CreateNewBlock(coinbaseScript, pwallet.get(), true);
+    if (!pblocktemplate.get()) {
+        LogPrintf("%s: Stake not found..\n", __func__);
+        return;
+    }
+
+    auto pblock = std::make_shared<CBlock>(pblocktemplate->block);
+    IncrementExtraNonce(pblock.get(), pindexPrev, nExtraNonce);
+
+    // sign block
+    LogPrintf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString());
+    if (!SignBlock(pblock.get())) {
+        LogPrintf("%s: SignBlock failed", __func__);
+        return;
+    }
+    LogPrintf("%s : proof-of-stake block was signed %s\n", __func__, pblock->GetHash().ToString());
+
+    // check if block is valid
+    BlockValidationState state;
+    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+        LogPrintf("%s: TestBlockValidity failed: %s", __func__, state.ToString());
+        return;
+    }
+
+    //! guts of ProcessBlockFound()
+    if (pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
+        LogPrintf("%s - generated block is stale\n", __func__);
+        return;
+    } else {
+        LOCK(cs_main);
+        if (!g_chainman.ProcessNewBlock(chainparams, pblock, true, nullptr)) {
+            LogPrintf("%s - ProcessNewBlock() failed, block not accepted\n", __func__);
+            return;
+        }
+    }
+
+    return;
+}
+
 #define STAKE_SEARCH_INTERVAL 30
 bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer, std::shared_ptr<CWallet> pwallet)
 {
