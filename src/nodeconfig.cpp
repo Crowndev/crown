@@ -62,39 +62,20 @@ bool CNodeConfig::read(std::string& strErr)
                 return false;
             }
         }
+        /*std::remove(ip.begin(), ip.end(), ' ');
+        std::size_t pos = ip.find(":");
+        std::string sport = ip.substr(pos);
+        int port = stoi(sport);
 
-        if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
-            if(CService(ip).GetPort() != 9340) {
-                strErr = ("Invalid port detected in ") + getFileName() + "\n" +
-                        strprintf("Line: %d", linenumber) + "\n\"" + line + "\"" + "\n" +
-                        ("(must be 9340 for mainnet)");
-                streamConfig.close();
-                return false;
-            }
-        } else if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-            if(CService(ip).GetPort() != 18333) {
-                strErr = ("Invalid port detected in ") + getFileName() + "\n" +
-                        strprintf("Line: %d", linenumber) + "\n\"" + line + "\"" + "\n" +
-                        ("(must be 18333 for testnet)");
-                streamConfig.close();
-                return false;
-            }
-        } else if(CService(ip).GetPort() == 9340) {
+        LogPrintf("%s: ALIAS: %s, IP: %s, \n", __func__, alias, ip);
+
+        if(CService(ip).GetPort() != Params().GetDefaultPort()) {
             strErr = ("Invalid port detected in ") + getFileName() + "\n" +
-                    strprintf("Line: %d", linenumber) + "\n\"" + line + "\"" + "\n" +
-                    ("(9340 could be used only on mainnet)");
+                    strprintf("Line: %d\n", linenumber) + strprintf("GOT: %d", CService(ip).GetPort()) + "\n\"" + line + "\"" + "\n" +
+                    strprintf("(GOT %d, must be %d for %s)", CService(ip).GetPort(), Params().GetDefaultPort(), Params().NetworkIDString());
             streamConfig.close();
             return false;
-        }
-        // TODO fix
-        //if (Params().NetworkIDString() != CBaseChainParams::DEVNET && !(CService(ip).IsIPv4() && CService(ip).IsRoutable())) {
-        //    strErr = _("Invalid Address detected in ") + getFileName() + "\n" +
-        //            strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-        //            _("(IPV4 ONLY)");
-        //    streamConfig.close();
-        //    return false;
-        //}
-
+        }*/
 
         add(alias, ip, privKey, txHash, outputIndex);
     }

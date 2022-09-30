@@ -636,12 +636,7 @@ void ThreadStakeMiner(CWallet *pwallet)
                     }
                 }
             }
-            //
-            // Create new block
-            //
-            //LOCK(pwallet->cs_wallet);
-            if(pwallet->HaveAvailableCoinsForStaking())
-            {
+
                 // First just create an empty block. No need to process transactions until we know we can create a block
                 std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(dummyscript, pwallet, true));
 
@@ -662,11 +657,7 @@ void ThreadStakeMiner(CWallet *pwallet)
                     LogPrintf("ThreadStakeMiner : ProcessBlock, block not accepted \n");
                     return;
                 }
-            }
-            else {
-                LogPrintf("%s: no available coins\n", __func__);
-                UninterruptibleSleep(std::chrono::seconds{600});
-            }
+
         }
     }
     catch (const std::runtime_error &e)
@@ -682,24 +673,3 @@ void ThreadStakeMiner(CWallet *pwallet)
     LogPrintf("ThreadStakeMiner exiting\n");
 }
 
-std::thread* stakeThread = nullptr;
-
-void Stake(bool fStake, CWallet *pwallet)
-{
-    if (stakeThread != nullptr)
-    {
-        LogPrintf("%s: Destroying Stake thread\n", __func__);
-
-        if (stakeThread->joinable())
-            stakeThread->join();
-        stakeThread = nullptr;
-        LogPrintf("%s: Stake thread destroyed \n", __func__);
-
-    }
-    if(fStake)
-    {
-        LogPrintf("%s: Creating Stake thread\n", __func__);
-
-        stakeThread = new std::thread([&, pwallet] { TraceThread("stake", [&, pwallet] { ThreadStakeMiner(pwallet); }); });
-    }
-}
