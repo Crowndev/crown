@@ -173,8 +173,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vpout.resize(1);
     coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
     coinbaseTx.vpout[0].scriptPubKey = scriptPubKeyIn;
+    
+    if (fProofOfStake && nHeight < Params().PoSStartHeight())
+        return NULL;
 
-    if (fProofOfStake && nHeight >= Params().PoSStartHeight()) {
+    if (fProofOfStake) {
         pblock->nTime = GetAdjustedTime();
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
         bool fStakeFound = false;
@@ -210,7 +213,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     // Proof of stake blocks pay the mining reward in the coinstake transaction
-    if (fProofOfStake && nHeight >= Params().PoSStartHeight()) {
+    if (fProofOfStake) {
         CAmount nValueNodeRewards = 0;
         if(coinbaseTx.nVersion >= TX_ELE_VERSION){
             if (coinbaseTx.vpout.size() > 1)
@@ -274,7 +277,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
 
-    if (fProofOfStake && nHeight >= Params().PoSStartHeight()){
+    if (fProofOfStake){
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
         LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
