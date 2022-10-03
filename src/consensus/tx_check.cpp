@@ -134,15 +134,15 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
     }
 
-
+/*
     if(tx.nVersion >= TX_ELE_VERSION){
 		for (unsigned int k = 0; k < tx.vpout.size(); k++) {
 		    if(!tx.vpout[k].IsEmpty())
                 if(tx.vpout[k].nAsset.IsEmpty())
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
          }
-     }
-
+    }
+*/
     if(tx.nVersion >= TX_ELE_VERSION){
         size_t nContractOutputs = 0, nDataOutputs = 0, nIDOutputs = 0;
         for (unsigned int i = 0; i < tx.vdata.size(); i++){

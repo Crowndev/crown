@@ -123,12 +123,7 @@ std::string CTxOut::ToString() const
 
 std::string CTxOutAsset::ToString() const
 {
-    std::string strAsset;
-    if (IsEmpty()) return "CTxOutAsset(empty)";
-
-        strAsset += strprintf("%s", nAsset.ToString(false));
-
-    return strprintf("CTxOutAsset \n%s \n(nValue=%s, scriptPubKey=%s)\n", strAsset, strprintf("%d.%08d", nValue / COIN, nValue % COIN), scriptPubKey.ToString());
+    return strprintf("CTxOutAsset \n%s \n(nValue=%s, scriptPubKey=%s)\n", nAsset.ToString(false), strprintf("%d.%08d", nValue / COIN, nValue % COIN), scriptPubKey.ToString());
 }
 
 std::string CTxDataBase::ToString() const

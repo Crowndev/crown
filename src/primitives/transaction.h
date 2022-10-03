@@ -183,7 +183,7 @@ public:
 
     void SetNull()
     {
-        nValue=0;
+        nValue=-1;
         scriptPubKey.clear();
         nAsset.SetNull();
         nVersion=0;
@@ -191,24 +191,11 @@ public:
 
     bool IsNull() const
     {
-        return nAsset.IsNull() && nValue==0 && scriptPubKey.empty();
-    }
-
-    void SetEmpty()
-    {
-        nValue = 0;
-        scriptPubKey.clear();
-        nAsset.SetNull();
-        nVersion=0;
+        return (nValue == -1);
     }
 
     bool IsFee() const {
         return scriptPubKey == CScript() && !nValue==0;
-    }
-
-    bool IsEmpty() const
-    {
-        return (nValue == 0 && scriptPubKey.empty());
     }
 
     friend bool operator==(const CTxOutAsset& a, const CTxOutAsset& b)
