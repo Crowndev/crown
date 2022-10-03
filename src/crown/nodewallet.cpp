@@ -126,23 +126,6 @@ uint256 NodeWallet::GenerateStakeModifier(const CBlockIndex* prewardBlockIndex) 
     return pstakeModBlockIndex->GetBlockHash();
 }
 
-void GetScriptForMining(CScript& script, std::shared_ptr<CWallet> wallet)
-{
-    auto pwallet = wallet.get();
-    ReserveDestination reservedest(pwallet, OutputType::LEGACY);
-
-    //! this requires a lock, yet cannot fail; so just remove it altogether
-
-    CTxDestination dest;
-    bool ret = reservedest.GetReservedDestination(dest, true);
-    if (!ret) {
-        LogPrintf("%s: keypool ran out, please call keypoolrefill first", __func__);
-        return;
-    }
-
-    script = GetScriptForDestination(dest);
-}
-
 void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 {
     util::ThreadRename("crown-minter");
@@ -168,10 +151,6 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 
     unsigned int nExtraNonce = 0;
 
-    CScript coinbaseScript;
-    GetScriptForMining(coinbaseScript, pwallet);
-    if (coinbaseScript.empty()) return;
-
     //
     // Create new block
     //
@@ -179,31 +158,20 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
     if (!pindexPrev) return;
 
     const CTxMemPool& mempool = pwallet->chain().getMempool();
+    CScript dummyscript;
 
-    BlockAssembler assembler(mempool, chainparams);
-    auto pblocktemplate = assembler.CreateNewBlock(coinbaseScript, pwallet.get(), true);
+    std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, chainparams).CreateNewBlock(dummyscript, pwallet.get(), true));
+
     if (!pblocktemplate.get()) {
         LogPrintf("%s: Stake not found..\n", __func__);
         return;
     }
+	CBlock *pblock = &pblocktemplate->block;
+	//IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
 
-    auto pblock = std::make_shared<CBlock>(pblocktemplate->block);
-    IncrementExtraNonce(pblock.get(), pindexPrev, nExtraNonce);
-
-    // sign block
-    LogPrintf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString());
-    if (!SignBlock(pblock.get())) {
-        LogPrintf("%s: SignBlock failed", __func__);
-        return;
-    }
-    LogPrintf("%s : proof-of-stake block was signed %s\n", __func__, pblock->GetHash().ToString());
-
-    // check if block is valid
-    BlockValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-        LogPrintf("%s: TestBlockValidity failed: %s", __func__, state.ToString());
-        return;
-    }
+	// if proof-of-stake block found then process block
+	// Process this block the same as if we had received it from another node
+	std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
 
     //! guts of ProcessBlockFound()
     if (pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
@@ -211,7 +179,7 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
         return;
     } else {
         LOCK(cs_main);
-        if (!g_chainman.ProcessNewBlock(chainparams, pblock, true, nullptr)) {
+        if (!g_chainman.ProcessNewBlock(chainparams, shared_pblock, true, nullptr)) {
             LogPrintf("%s - ProcessNewBlock() failed, block not accepted\n", __func__);
             return;
         }

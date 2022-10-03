@@ -73,7 +73,6 @@ public:
         assert(!IsSpent());
         uint32_t code = nHeight * uint32_t{2} + fCoinBase;
         ::Serialize(s, VARINT(code));
-        //::Serialize(s, Using<TxOutCompression>(out));
         ::Serialize(s, Using<TxOutAssetCompression>(out));
         unsigned int nFlag = fCoinStake? 1 : 0;
         ::Serialize(s, VARINT(nFlag));
@@ -85,7 +84,6 @@ public:
         ::Unserialize(s, VARINT(code));
         nHeight = code >> 1;
         fCoinBase = code & 1;
-        //::Unserialize(s, Using<TxOutCompression>(out));
         ::Unserialize(s, Using<TxOutAssetCompression>(out));
         unsigned int nFlag = 0;
         ::Unserialize(s, VARINT(nFlag));
