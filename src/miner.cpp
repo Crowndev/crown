@@ -210,7 +210,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     // Proof of stake blocks pay the mining reward in the coinstake transaction
-    if (fProofOfStake) {
+    if (fProofOfStake && nHeight >= Params().PoSStartHeight()) {
         CAmount nValueNodeRewards = 0;
         if(coinbaseTx.nVersion >= TX_ELE_VERSION){
             if (coinbaseTx.vpout.size() > 1)
@@ -274,7 +274,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
 
-    if (fProofOfStake){
+    if (fProofOfStake && nHeight >= Params().PoSStartHeight()){
         pblock->vtx.emplace_back();
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
         LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
