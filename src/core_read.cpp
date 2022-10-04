@@ -108,9 +108,19 @@ static bool CheckTxScriptsSanity(const CMutableTransaction& tx)
         }
     }
     // Check output scripts
-    for (unsigned int i = 0; i < tx.vout.size(); i++) {
-        if (!tx.vout[i].scriptPubKey.HasValidOps() || tx.vout[i].scriptPubKey.size() > MAX_SCRIPT_SIZE) {
-            return false;
+    if(tx.nVersion >= TX_ELE_VERSION ){
+        for (unsigned int i = 0; i < tx.vpout.size(); i++) {
+            if (!tx.vpout[i].scriptPubKey.HasValidOps() || tx.vpout[i].scriptPubKey.size() > MAX_SCRIPT_SIZE) {
+                return false;
+            }
+        }
+    }
+    else
+    {
+        for (unsigned int i = 0; i < tx.vout.size(); i++) {
+            if (!tx.vout[i].scriptPubKey.HasValidOps() || tx.vout[i].scriptPubKey.size() > MAX_SCRIPT_SIZE) {
+                return false;
+            }
         }
     }
 

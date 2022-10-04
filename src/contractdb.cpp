@@ -127,3 +127,12 @@ bool ExistsContract(const std::string& name){
     }	
 	return false;
 }
+
+std::vector<CContract> GetAllContracts(){
+    std::vector<CContract> tmp;
+
+    for(auto const& x : pcontractCache->GetItemsMap())
+       tmp.push_back(x.second->second.contract);
+
+    return tmp;
+}
