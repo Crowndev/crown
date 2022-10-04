@@ -2766,49 +2766,51 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             if(block.vtx[i]->nVersion >= TX_ELE_VERSION ){
                 for(unsigned int j = 0; j < block.vtx[i]->vpout.size(); j++){
                     CAsset out = block.vtx[i]->vpout[j].nAsset;
-
                     bool exists = false;
                     //LogPrintf("%s: FOUND ASSET %s \n", __func__, out.ToString());
-
                     for(auto const& x : passetsCache->GetItemsMap()){
                         CAsset checkasset = x.second->second.asset;
                         if(iequals(out.getAssetName(), checkasset.getAssetName()) || iequals(out.getAssetName(), checkasset.getShortName()))
                             exists = true;
                     }
+/*
+                    const CContract &contract = GetContractByHash(out.contract_hash);
 
-                    //if (exists)
-                    //    LogPrintf("%s: EXISTS ASSET %s.\n", __func__, out.getAssetName());
-
+                    if(contract.IsEmpty())
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("contract-not-found %s", out.contract_hash), strprintf("%s", __func__));
+*/
                     if (!exists && !passetsCache->Exists(out.getAssetName())){
                         if(!fJustCheck){
-                            LogPrintf("%s: ADDING ASSET %s\n", __func__, out.getAssetName());
+                            //LogPrintf("%s: ADDING ASSET %s\n", __func__, out.getAssetName());
                             passetsCache->Put(out.getAssetName(), CAssetData(out, block.vtx[i], j, view, block.nTime));
                         }
                     }
                 }
             }
-            const CTransactionRef &tx = block.vtx[i];
-            for (unsigned int i = 0; i < tx->vdata.size(); i++){
-                uint8_t vers = tx->vdata[i].get()->GetVersion();
+
+            for (unsigned int k = 0; k < block.vtx[i]->vdata.size(); k++){
+                //LogPrintf("DATA: \n %s\n", block.vtx[i]->vdata[k]->ToString());
+
+                uint8_t vers = block.vtx[i]->vdata[k].get()->GetVersion();
                 switch (vers) {
                     case OUTPUT_CONTRACT:{
-                        CContract *contract = (CContract*)tx->vdata[i].get();
-                        LogPrintf("NOTIFICATION: %s: FOUND CONTRACT %s\n", __func__, contract->ToString());
+                        CContract *contract = (CContract*)block.vtx[i]->vdata[k].get();
+                        //LogPrintf("%s: FOUND CONTRACT %s\n", __func__, contract->ToString());
                         if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name)){
                             if(!fJustCheck)
-                                pcontractCache->Put(contract->asset_name, CContractData(*contract, tx->GetHash(), block.nTime));
+                                pcontractCache->Put(contract->asset_name, CContractData(*contract, block.vtx[i]->GetHash(), block.nTime));
                         }
                         break;
                     }
                     case OUTPUT_DATA:{
-                        CTxData *data = (CTxData*)tx->vdata[i].get();
+                        CTxData *data = (CTxData*)block.vtx[i]->vdata[k].get();
                         break;
                     }
                     default:
                         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("bad-txns-unknown-output-version got %d", vers), strprintf("%s", __func__));
                 }
 
-                //LogPrintf("TXDATA CONNECT: %s\n", tx->vdata[i]->ToString());
+                //LogPrintf("TXDATA CONNECT: %s\n", block.vtx[i]->vdata[k]->ToString());
             }
         }
     }

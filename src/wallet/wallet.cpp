@@ -2371,6 +2371,7 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
             ret.m_mine_immature += wtx.GetImmatureCredit();
             ret.m_watchonly_immature += wtx.GetImmatureWatchOnlyCredit();
         }
+        //ret.m_mine_trusted -= tx_credit_locked;
     }
     return ret;
 }
@@ -3238,6 +3239,11 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         return false;
     }
 
+    if(chain().existsContract(name)){
+        strFailReason = "Contract name already reserved";
+        return false;
+    }
+
     CContract newcontract;
     newcontract.contract_url = contract_url;
     newcontract.website_url = website_url;
@@ -3364,6 +3370,11 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
             strFailReason = "Code already reserved";
             return false;
         }
+    }
+
+    if(!chain().existsContract(contract.asset_name)){
+        strFailReason = "Contract does not exist";
+        return false;
     }
 
     //Fill in the meta data
@@ -3505,41 +3516,32 @@ bool CWallet::CreateTransactionInternal(
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), GetLastBlockHash(), GetLastBlockHeight());
     txNew.nVersion=chain().getTxVersion();
 
-    if(fNewAsset){
-
-        uint8_t vers = datar.GetVersion();
-        switch (vers) {
-            case OUTPUT_DATA:{
-                OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
-                CTxData *s = (CTxData*) &datar;
-                out0->nType = s->nType;
-                out0->vData = s->vData;
-                txNew.vdata.push_back(out0);
-                break;
-            }
-            case OUTPUT_CONTRACT:{
-                OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
-                CContract *s = (CContract*) &datar;
-
-                if(chain().existsContract(s->asset_name)){
-                    error = _("Contract name already reserved");
-                    return false;
-                }
-
-                out0->contract_url = s->contract_url;
-                out0->website_url = s->website_url;
-                out0->description = s->description;
-                out0->scriptcode = s->scriptcode;
-                out0->asset_symbol = s->asset_symbol;
-                out0->asset_name = s->asset_name;
-                out0->sIssuingaddress = s->sIssuingaddress;
-                out0->vchContractSig = s->vchContractSig;
-                txNew.vdata.push_back(out0);
-                break;
-            }
+    uint8_t vers = datar.GetVersion();
+    switch (vers) {
+        case OUTPUT_DATA:{
+            OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
+            CTxData *s = (CTxData*) &datar;
+            out0->nType = s->nType;
+            out0->vData = s->vData;
+            txNew.vdata.push_back(out0);
+            break;
         }
-
+        case OUTPUT_CONTRACT:{
+            OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
+            CContract *s = (CContract*) &datar;
+            out0->contract_url = s->contract_url;
+            out0->website_url = s->website_url;
+            out0->description = s->description;
+            out0->scriptcode = s->scriptcode;
+            out0->asset_symbol = s->asset_symbol;
+            out0->asset_name = s->asset_name;
+            out0->sIssuingaddress = s->sIssuingaddress;
+            out0->vchContractSig = s->vchContractSig;
+            txNew.vdata.push_back(out0);
+            break;
+        }
     }
+
     FeeCalculation feeCalc;
     CAmount nFeeNeeded;
 

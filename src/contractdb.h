@@ -67,5 +67,5 @@ extern std::unique_ptr<CContractDB> pcontractdb;
 extern CLRUCache<std::string, CContractData> *pcontractCache;
 bool ExistsContract(const std::string& name);
 void DumpContracts();
-
+std::vector<CContract> GetAllContracts();
 #endif // CROWN_ID_DB_H

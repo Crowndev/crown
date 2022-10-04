@@ -65,6 +65,48 @@ static RPCHelpMan hashmessage()
     };
 }
 
+static RPCHelpMan getcontracts()
+{
+    return RPCHelpMan{"getcontracts",
+                "\n  Get List of contracts \n",
+                {
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "details", "The contracts "
+                },
+                RPCExamples{
+            "\nRetrieve a contract\n"
+            + HelpExampleCli("getcontracts", "\"Contract Name\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("getcontracts", "\"Contract Name\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::vector<CContract> allcontracts = ::GetAllContracts();
+
+    UniValue result(UniValue::VARR);
+    for(auto s : allcontracts){
+
+        UniValue entry(UniValue::VOBJ);
+
+        entry.pushKV("url", s.contract_url);
+        entry.pushKV("name", s.asset_name);
+        entry.pushKV("symbol", s.asset_symbol);
+        entry.pushKV("issuing address", s.sIssuingaddress);
+        entry.pushKV("description", s.description);
+        entry.pushKV("website", s.website_url);
+        entry.pushKV("script", HexStr(s.scriptcode));
+        entry.pushKV("signature", HexStr(s.vchContractSig));
+
+        result.push_back(entry);
+    }
+
+    return result;
+
+},
+    };
+}
+
 static RPCHelpMan getcontract()
 {
     return RPCHelpMan{"getcontract",
@@ -83,11 +125,18 @@ static RPCHelpMan getcontract()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    std::string contractstring = request.params[0].get_str();
-    CContract contract = GetContract(contractstring);
+    const CContract &s = GetContract(request.params[0].get_str());
     UniValue result(UniValue::VOBJ);
 
-    ContractToUniv(&contract,result);
+    result.pushKV("url", s.contract_url);
+    result.pushKV("name", s.asset_name);
+    result.pushKV("symbol", s.asset_symbol);
+    result.pushKV("issuing address", s.sIssuingaddress);
+    result.pushKV("description", s.description);
+    result.pushKV("website", s.website_url);
+    result.pushKV("script", HexStr(s.scriptcode));
+    result.pushKV("signature", HexStr(s.vchContractSig));
+    //ContractToUniv(contract,result);
 
     return result;
 },
@@ -333,6 +382,7 @@ static const CRPCCommand commands[] =
 { //  category              actor (function)
   //  --------------------- ------------------------
     { "contracts",  "hashmessage",         &hashmessage,            {}    },
+    { "contracts",  "getcontracts",        &getcontracts,           {}    },
     { "contracts",  "getcontract",         &getcontract,            {}    },
     { "contracts",  "createcontract",      &createcontract,         {}    },
     { "contracts",  "createasset",         &createasset,            {}    },
