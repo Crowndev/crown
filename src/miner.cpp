@@ -229,7 +229,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 nValueNodeRewards += coinbaseTx.vout[SN_PMT_SLOT].nValue;
         }
 
-        if ((Params().NetworkIDString() == CBaseChainParams::TESTNET && !budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)) || (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)))){
+        if(Params().NetworkIDString() == CBaseChainParams::TESTNET && !budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)){
+            //Reduce PoS reward by the node rewards
+            if(txCoinStake.nVersion >= TX_ELE_VERSION)
+                txCoinStake.vpout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
+            else
+                txCoinStake.vout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
+		}
+        else if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1))){
             //Reduce PoS reward by the node rewards
             if(txCoinStake.nVersion >= TX_ELE_VERSION)
                 txCoinStake.vpout[0].nValue = GetBlockValue(nHeight, nFees) - nValueNodeRewards;
