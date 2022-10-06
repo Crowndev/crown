@@ -178,7 +178,7 @@ bool CSystemnodePayments::CanVote(COutPoint outSystemnode, int nBlockHeight)
     return true;
 }
 
-void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
+void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if (!pindexPrev)
@@ -188,7 +188,7 @@ void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
     } else if (IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(pindexPrev->nHeight + 1)) {
         // Doesn't pay systemnode, miners get the full amount on these blocks
     } else {
-        systemnodePayments.FillBlockPayee(txNew, nFees);
+        systemnodePayments.FillBlockPayee(txNew, nFees, hasMNPayment);
     }
 }
 
@@ -204,7 +204,7 @@ std::string SNGetRequiredPaymentsString(int nBlockHeight)
     }
 }
 
-void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees)
+void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if(!pindexPrev) return;
@@ -252,6 +252,18 @@ void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         
         LogPrint(BCLog::NET, "Systemnode payment to %s\n", EncodeDestination(address1));
     }
+    
+    if(!hasMNPayment && hasPayment){
+        if(txNew.nVersion >= TX_ELE_VERSION){
+            txNew.vpout[1].scriptPubKey = payee;
+            txNew.vpout[1].nValue = 0;
+            txNew.vpout[1].nAsset = Params().GetConsensus().subsidy_asset;
+        }
+        else{
+            txNew.vout[1].scriptPubKey = payee;
+            txNew.vout[1].nValue = 0;
+        }	
+	}
 }
 
 std::string CSystemnodeBlockPayees::GetRequiredPaymentsString()

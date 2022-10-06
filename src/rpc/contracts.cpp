@@ -88,16 +88,7 @@ static RPCHelpMan getcontracts()
     for(auto s : allcontracts){
 
         UniValue entry(UniValue::VOBJ);
-
-        entry.pushKV("url", s.contract_url);
-        entry.pushKV("name", s.asset_name);
-        entry.pushKV("symbol", s.asset_symbol);
-        entry.pushKV("issuing address", s.sIssuingaddress);
-        entry.pushKV("description", s.description);
-        entry.pushKV("website", s.website_url);
-        entry.pushKV("script", HexStr(s.scriptcode));
-        entry.pushKV("signature", HexStr(s.vchContractSig));
-
+        ContractToUniv(s,entry);
         result.push_back(entry);
     }
 
@@ -127,16 +118,7 @@ static RPCHelpMan getcontract()
 {
     const CContract &s = GetContract(request.params[0].get_str());
     UniValue result(UniValue::VOBJ);
-
-    result.pushKV("url", s.contract_url);
-    result.pushKV("name", s.asset_name);
-    result.pushKV("symbol", s.asset_symbol);
-    result.pushKV("issuing address", s.sIssuingaddress);
-    result.pushKV("description", s.description);
-    result.pushKV("website", s.website_url);
-    result.pushKV("script", HexStr(s.scriptcode));
-    result.pushKV("signature", HexStr(s.vchContractSig));
-    //ContractToUniv(contract,result);
+    ContractToUniv(s,result);
 
     return result;
 },
@@ -323,24 +305,8 @@ static RPCHelpMan getassets()
 
     UniValue result(UniValue::VARR);
     for(auto asset : allassets){
-
         UniValue entry(UniValue::VOBJ);
-
-        entry.pushKV("version", (int)asset.nVersion);
-        uint32_t type = asset.GetType();
-        entry.pushKV("type", AssetTypeToString(type));
-        entry.pushKV("name", asset.getAssetName());
-        entry.pushKV("symbol", asset.getShortName());
-        entry.pushKV("id", asset.GetHex());
-        entry.pushKV("contract_hash", asset.contract_hash.GetHex());
-        entry.pushKV("expiry", (int64_t)asset.GetExpiry());
-        entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
-        entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
-        entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
-        entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
-        entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
-        entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");
-
+        AssetToUniv(asset,entry);
         result.push_back(entry);
     }
 
@@ -367,8 +333,10 @@ static RPCHelpMan getnumassets()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::vector<CAsset> allassets = ::GetAllAssets();
+    std::vector<CContract> allcontracts = ::GetAllContracts();
     UniValue deets(UniValue::VOBJ);
     deets.pushKV("Asset count", allassets.size());
+    deets.pushKV("Contract count", allcontracts.size());
 
     return deets;
 },
