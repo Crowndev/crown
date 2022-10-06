@@ -173,7 +173,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vpout.resize(1);
     coinbaseTx.vpout[0].nAsset = Params().GetConsensus().subsidy_asset;
     coinbaseTx.vpout[0].scriptPubKey = scriptPubKeyIn;
-    
+
     if (fProofOfStake && nHeight < Params().PoSStartHeight())
         return NULL;
 
@@ -200,6 +200,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if (!fStakeFound)
             return NULL;
     }
+    LogPrintf("%s: 111111111  %s\n",__func__, txCoinStake.ToString());
 
     // Masternode and general budget payments
     if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
@@ -263,6 +264,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         }
     }
 
+    LogPrintf("%s: 222222222  %s\n",__func__, txCoinStake.ToString());
+
     if ((Params().NetworkIDString() == CBaseChainParams::TESTNET && !budget.IsBudgetPaymentBlock(nHeight)) || (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nHeight))) )   {
 
         if(txCoinStake.nVersion >= TX_ELE_VERSION){
@@ -304,7 +307,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     //pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
-    
+
     //LogPrintf("%s: BLOCK %s\n",__func__, pblock->ToString());
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
@@ -329,7 +332,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     BlockValidationState state;
     if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, state.ToString()));
+        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s  \n%s", __func__, state.ToString(), pblock->ToString()));
     }
     int64_t nTime2 = GetTimeMicros();
 
