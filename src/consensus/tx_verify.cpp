@@ -240,17 +240,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             //Asset exists , check for output rules
             if (exists && asset != subsidy_asset) {
                 // check asset limited
-/*
+
                 if(asset.isLimited() && inputAssets.begin()->first != asset)
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset-is-limited", strprintf("cannot convert other assets to (%s)", asset.getAssetName()));
-*/
+
                 // check asset restricted
                 // get contract hash, retrieve contract, get issuer , compare input address to issueraddress
                 const CContract &contract = GetContractByHash(asset.contract_hash);
-/*
+
                 if(contract.IsEmpty())
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "contract-not-found", strprintf("contract retrieval failed %s", asset.contract_hash.ToString()));
-*/
+
                 CTxDestination address1;
                 ExtractDestination(input_addresses.front(), address1);
                 if(asset.isRestricted()){
@@ -287,8 +287,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 if(assetNameExists(asset.getAssetName()) || assetNameExists(asset.getShortName()))
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-name", strprintf("asset name/shortname %s / %s  already in use", asset.getAssetName(), asset.getShortName()));
 
-               // if(asset.nExpiry != 0 && asset.nExpiry < tx.nTime + 84000)// TODO (Why on earth do transactions not have time ?
-               //     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-expiry");
+                if(asset.nExpiry != 0 && asset.nExpiry < tx.nTime)// TODO (Why on earth do transactions not have time ?
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-expiry");
 
                 if(asset.nType == 2){
                     if(asset.isConvertable())
@@ -296,7 +296,6 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(asset.isInflatable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-inflatable");
                 }
-
             }
         }
     }

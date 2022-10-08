@@ -276,6 +276,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     }
     else {
         s >> flags;
+        s >> tx.nTime;
         s >> tx.vin;
         s >> tx.vpout;
         s >> tx.nLockTime;
@@ -343,6 +344,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         }
 
         s << flags;
+        s << tx.nTime;
         s << tx.vin;
         s << tx.vpout;
         s << tx.nLockTime;
@@ -377,6 +379,7 @@ public:
     // actually immutable; deserialization and assignment are implemented,
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
+    const uint32_t nTime;
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const std::vector<CTxOutAsset> vpout;
@@ -463,6 +466,7 @@ public:
 /** A mutable version of CTransaction. */
 struct CMutableTransaction
 {
+    uint32_t nTime;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     std::vector<CTxOutAsset> vpout;
