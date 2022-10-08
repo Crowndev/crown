@@ -204,7 +204,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Masternode and general budget payments
     if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        bool hasMNPayment =true;
+        bool hasMNPayment = true;
         FillBlockPayee(coinbaseTx, nFees, hasMNPayment);
         SNFillBlockPayee(coinbaseTx, nFees, hasMNPayment);
     }

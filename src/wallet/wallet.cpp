@@ -3281,7 +3281,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, nAmount, MAX_MONEY, 0);
+        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3320,7 +3320,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
 
     mapValue_t mapValue;
 
-    //coin_control.m_add_inputs = false;
+    coin_control.m_add_inputs = false;
     std::vector<CRecipient> recipients;
 
     CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
@@ -3406,19 +3406,64 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
 
     CAsset assetNew = CAsset(meta);
 
-    std::vector<CRecipient> recipients;
-
-    CRecipient recipient = {GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), outputamt/100, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
-    recipients.push_back(recipient);
-
     // Send
     CAmount nFeeRequired;
     int nChangePosRet = -1;
     bilingual_str error;
     FeeCalculation fee_calc_out;
     CCoinControl coin_control;
-    mapValue_t mapValue;
+    CTxDestination dest = DecodeDestination(contract.sIssuingaddress);
 
+    std::vector<COutput> vecOutputs;
+    {
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
+    }
+
+    for (const COutput& out : vecOutputs) {
+        CTxDestination address;
+        const CScript& scriptPubKey = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey) ;
+        bool fValidAddress = ExtractDestination(scriptPubKey, address);
+
+        if(std::get<PKHash>(dest) != std::get<PKHash>(address))
+            continue;
+
+        if (!fValidAddress)
+            continue;
+
+        // Elements
+        CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
+        CAsset assetid;
+        if(out.tx->tx->nVersion >= TX_ELE_VERSION)
+            assetid = out.tx->tx->vpout[out.i].nAsset;
+
+        if ((amount < 0 || assetid.IsNull())) {
+            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
+            continue;
+        }
+
+        if (assetid != Params().GetConsensus().subsidy_asset) {
+            continue;
+        }
+
+        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
+    }
+
+    if(coin_control.setSelected.size() < 1){
+        strFailReason ="No suitable output found";
+        return false;
+    }
+
+    mapValue_t mapValue;
+    coin_control.m_add_inputs = false;
+
+    std::vector<CRecipient> recipients;
+
+    CRecipient recipient = {GetScriptForDestination(dest), inputamt, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
+    recipients.push_back(recipient);
 
     bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
     if (!fCreated) {

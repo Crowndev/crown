@@ -30,7 +30,7 @@ bool IsReferenceNode(CTxIn& vin);
 bool IsBlockPayeeValid(const CAmount& nValueCreated, const CTransaction& txNew, int nBlockHeight, const uint32_t& nTime, const uint32_t& nTimePrevBlock);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 bool IsBlockValueValid(const CBlock& block, int64_t nExpectedValue);
-void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment);
+void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment);
 
 class CMasternodePayee
 {
@@ -224,7 +224,7 @@ public:
     int GetMinMasternodePaymentsProto();
     void ProcessMessageMasternodePayments(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     std::string GetRequiredPaymentsString(int nBlockHeight);
-    void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment);
+    void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment);
     std::string ToString() const;
     int GetOldestBlock();
     int GetNewestBlock();
