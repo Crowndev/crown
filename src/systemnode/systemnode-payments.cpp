@@ -178,7 +178,7 @@ bool CSystemnodePayments::CanVote(COutPoint outSystemnode, int nBlockHeight)
     return true;
 }
 
-void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment)
+void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if (!pindexPrev)
@@ -204,7 +204,7 @@ std::string SNGetRequiredPaymentsString(int nBlockHeight)
     }
 }
 
-void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment)
+void CSystemnodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if(!pindexPrev) return;

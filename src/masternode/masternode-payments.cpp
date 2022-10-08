@@ -135,7 +135,7 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
     return true;
 }
 
-void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasMNPayment)
+void FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if(!pindexPrev) return;
@@ -160,12 +160,12 @@ std::string GetRequiredPaymentsString(int nBlockHeight)
     }
 }
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool hasPayment)
+void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPayment)
 {
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if(!pindexPrev) return;
 
-    //bool hasPayment = true;
+    bool hasPayment = true;
     CScript payee;
 
     //spork
@@ -206,6 +206,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
         
         LogPrint(BCLog::NET, "Masternode payment to %s\n", EncodeDestination(address1));
     }
+    hasMNPayment = hasPayment;
 }
 
 int CMasternodePayments::GetMinMasternodePaymentsProto() {
