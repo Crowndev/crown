@@ -267,8 +267,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inflation-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
 
                 }
-                else
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-ouput-asset-not-inflatable");
+                //else
+                    //return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-ouput-asset-not-inflatable");
 
             }
 
