@@ -200,7 +200,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         if (!fStakeFound)
             return NULL;
     }
-    LogPrintf("%s: 111111111  %s\n",__func__, txCoinStake.ToString());
+    //LogPrintf("%s: 111111111  %s\n",__func__, txCoinStake.ToString());
 
     // Masternode and general budget payments
     if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
@@ -232,7 +232,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
         if(Params().NetworkIDString() == CBaseChainParams::TESTNET){
             //Reduce PoS reward by the node rewards
-                LogPrintf("%s: 3333333333333  \n",__func__);
+                //LogPrintf("%s: 3333333333333  \n",__func__);
 
             if (!budget.IsBudgetPaymentBlock(nHeight)){
 				if(txCoinStake.nVersion >= TX_ELE_VERSION)
@@ -242,7 +242,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 			}
 		}
         else if (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nHeight))){
-                LogPrintf("%s: 4444444  \n",__func__);
+                //LogPrintf("%s: 4444444  \n",__func__);
 
             //Reduce PoS reward by the node rewards
             if(txCoinStake.nVersion >= TX_ELE_VERSION)
@@ -270,7 +270,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         }
     }
 
-    LogPrintf("%s: 222222222  %s\n",__func__, txCoinStake.ToString());
+    //LogPrintf("%s: 222222222  %s\n",__func__, txCoinStake.ToString());
 
     if ((Params().NetworkIDString() == CBaseChainParams::TESTNET && !budget.IsBudgetPaymentBlock(nHeight)) || (!(IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nHeight))) )   {
 
