@@ -3568,7 +3568,8 @@ bool CWallet::CreateTransactionInternal(
             CTxData *s = (CTxData*) &datar;
             out0->nType = s->nType;
             out0->vData = s->vData;
-            txNew.vdata.push_back(out0);
+            if (out0->vData.size() > 0)
+                txNew.vdata.push_back(out0);
             break;
         }
         case OUTPUT_CONTRACT:{
