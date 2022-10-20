@@ -13,7 +13,7 @@
 static bool CheckData(TxValidationState &state, const CTxData *p)
 {
     if (p->vData.size() < 1) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-output-data-size-small");
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-output-data-size-small..\n");
     }
 
     const size_t MAX_DATA_OUTPUT_SIZE = 1024; // (max 1024 bytes) 1kb
