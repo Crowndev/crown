@@ -195,14 +195,6 @@ void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
             CTxData *s = (CTxData*) baseOut;
             entry.pushKV("type", "data");
             entry.pushKV("data_hex", HexStr(s->vData));
-            CAmount nValue;
-            if (s->GetSmsgFeeRate(nValue)) {
-                entry.pushKV("smsgfeerate", ValueFromAmount(nValue));
-            }
-            uint32_t difficulty;
-            if (s->GetSmsgDifficulty(difficulty)) {
-                entry.pushKV("smsgdifficulty", strprintf("%08x", difficulty));
-            }
             break;
         }
         case OUTPUT_CONTRACT:{

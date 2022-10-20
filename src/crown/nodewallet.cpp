@@ -130,20 +130,26 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 {
     util::ThreadRename("crown-minter");
 
-    auto pwallet = GetMainWallet();
-    if (!pwallet)
-        return;
-
     if (!fMasterNode && !fSystemNode)
         return;
-    if (fReindex || fImporting || pwallet->IsLocked())
+    if (fReindex || fImporting)
         return;
     if (!gArgs.GetBoolArg("-jumpstart", false)) {
-        if (connman.GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 ||
-            ::ChainActive().Tip()->nHeight+1 < Params().PoSStartHeight() ||
-            ::ChainstateActive().IsInitialBlockDownload() ||
-            !masternodeSync.IsSynced() || !systemnodeSync.IsSynced()) {
-                return;
+        if (connman.GetNodeCount(CConnman::CONNECTIONS_ALL) == 0){
+            LogPrintf("%s: No connections..\n", __func__);
+            return;
+        }
+        if (::ChainActive().Tip()->nHeight+1 < Params().PoSStartHeight()){
+            LogPrintf("%s: PoS Pre start Height..\n", __func__);
+            return;
+        }
+        if (::ChainstateActive().IsInitialBlockDownload()){
+            LogPrintf("%s: Initial Download..\n", __func__);
+            return;
+        }
+        if (!masternodeSync.IsSynced() || !systemnodeSync.IsSynced()){
+            LogPrintf("%s: Masternode/Systemnode Sync..\n", __func__);
+            return;
         }
     }
 
@@ -157,21 +163,20 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     if (!pindexPrev) return;
 
-    const CTxMemPool& mempool = pwallet->chain().getMempool();
     CScript dummyscript;
 
-    std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, chainparams).CreateNewBlock(dummyscript, pwallet.get(), true));
+    std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(*g_mempool, chainparams).CreateNewBlock(dummyscript, true));
 
     if (!pblocktemplate.get()) {
         LogPrintf("%s: Stake not found..\n", __func__);
         return;
     }
-	CBlock *pblock = &pblocktemplate->block;
-	//IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+    CBlock *pblock = &pblocktemplate->block;
+    //IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
 
-	// if proof-of-stake block found then process block
-	// Process this block the same as if we had received it from another node
-	std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
+    // if proof-of-stake block found then process block
+    // Process this block the same as if we had received it from another node
+    std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
 
     //! guts of ProcessBlockFound()
     if (pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
@@ -189,10 +194,8 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 }
 
 #define STAKE_SEARCH_INTERVAL 30
-bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer, std::shared_ptr<CWallet> pwallet)
+bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer)
 {
-    if (!pwallet) return false;
-
     CTxIn* pvinActiveNode;
     CPubKey* ppubkeyActiveNode;
     int nActiveNodeInputHeight;

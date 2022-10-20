@@ -30,7 +30,7 @@ public:
     bool GetSystemnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::shared_ptr<CWallet> pwallet = GetMainWallet());
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubkeyRet, CKey& keyRet, std::shared_ptr<CWallet> pwallet = GetMainWallet());
     bool GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, std::shared_ptr<CWallet> pwallet = GetMainWallet());
-    bool CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer, std::shared_ptr<CWallet> pwallet = GetMainWallet());
+    bool CreateCoinStake(const int nHeight, const uint32_t& nBits, const uint32_t& nTime, CMutableTransaction& txCoinStake, uint32_t& nTxNewTime, StakePointer& stakePointer);
     bool GetActiveMasternode(CMasternode*& activeStakingNode);
     bool GetActiveSystemnode(CSystemnode*& activeStakingNode);
     uint256 GenerateStakeModifier(const CBlockIndex* prewardBlockIndex) const;
