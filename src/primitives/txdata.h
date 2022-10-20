@@ -56,9 +56,6 @@ public:
     virtual std::vector<uint8_t> *GetPData() { return nullptr; };
     virtual const std::vector<uint8_t> *GetPData() const { return nullptr; };
 
-    virtual bool GetSmsgFeeRate(CAmount &nCfwd) const { return false; };
-    virtual bool GetSmsgDifficulty(uint32_t &compact) const { return false; };
-
     virtual void SetEmpty() {};
 
     virtual bool IsEmpty() const { return false; };
