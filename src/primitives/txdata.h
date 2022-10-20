@@ -23,7 +23,7 @@ enum DataTypes
 class CTxDataBase
 {
 public:
-    explicit CTxDataBase(uint8_t v) : nVersion(OUTPUT_NULL) {};
+    explicit CTxDataBase(uint8_t v) : nVersion(v) {};
     explicit CTxDataBase() {};
     virtual ~CTxDataBase() {};
     uint8_t nVersion;
