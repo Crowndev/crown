@@ -120,8 +120,9 @@ CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _m
     connect(ui->pushButtonSelectAll, &QPushButton::clicked, this, &CoinControlDialog::buttonSelectAllClicked);
 
     ui->treeWidget->setColumnWidth(COLUMN_CHECKBOX, 84);
-    ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 110);
-    ui->treeWidget->setColumnWidth(COLUMN_LABEL, 190);
+    ui->treeWidget->setColumnWidth(COLUMN_ASSET, 70);
+    ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 100);
+    ui->treeWidget->setColumnWidth(COLUMN_LABEL, 130);
     ui->treeWidget->setColumnWidth(COLUMN_ADDRESS, 320);
     ui->treeWidget->setColumnWidth(COLUMN_DATE, 130);
     ui->treeWidget->setColumnWidth(COLUMN_CONFIRMATIONS, 110);
@@ -617,10 +618,12 @@ void CoinControlDialog::updateView()
 
         CAmount nSum = 0;
         int nChildren = 0;
+        CAsset nAsset;
         for (const auto& outpair : coins.second) {
             const COutPoint& output = std::get<0>(outpair);
             const interfaces::WalletTxOut& out = std::get<1>(outpair);
             nSum += out.txout.nValue;
+            nAsset = out.txout.nAsset;
             nChildren++;
 
             CCoinControlWidgetItem *itemOutput;
@@ -655,7 +658,12 @@ void CoinControlDialog::updateView()
                     sLabel = tr("(no label)");
                 itemOutput->setText(COLUMN_LABEL, sLabel);
             }
-
+            
+            //asset
+            QString sAsset = QString::fromStdString(out.txout.nAsset.getAssetName());
+            itemOutput->setText(COLUMN_ASSET, sAsset);
+            //itemOutput->setData(COLUMN_ASSET, Qt::UserRole, QString::fromStdString(out.txout.nAsset.getAssetName())); // padding so that sorting works correctly
+            
             // amount
             itemOutput->setText(COLUMN_AMOUNT, CrownUnits::format(nDisplayUnit, out.txout.nValue));
             itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.txout.nValue)); // padding so that sorting works correctly
@@ -693,6 +701,7 @@ void CoinControlDialog::updateView()
             itemWalletAddress->setText(COLUMN_CHECKBOX, "(" + QString::number(nChildren) + ")");
             itemWalletAddress->setText(COLUMN_AMOUNT, CrownUnits::format(nDisplayUnit, nSum));
             itemWalletAddress->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)nSum));
+            itemWalletAddress->setText(COLUMN_ASSET, QString::fromStdString(nAsset.getAssetName()));
         }
     }
 
