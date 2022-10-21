@@ -153,15 +153,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // transaction (which in most cases can be a no-op).
     fIncludeWitness = false;// IsWitnessEnabled(pindexPrev, chainparams.GetConsensus());
 
-    int nPackagesSelected = 0;
-    int nDescendantsUpdated = 0;
-    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
-
-    int64_t nTime1 = GetTimeMicros();
-
-    m_last_block_num_txs = nBlockTx;
-    m_last_block_weight = nBlockWeight;
-
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     CMutableTransaction txCoinStake;
@@ -211,6 +202,22 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
     //LogPrintf("%s: 111111111  %s\n",__func__, txCoinStake.ToString());
 
+    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
+
+    if (fProofOfStake)
+        pblock->vtx.push_back(MakeTransactionRef(std::move(txCoinStake)));
+
+        //pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
+
+    int nPackagesSelected = 0;
+    int nDescendantsUpdated = 0;
+    addPackageTxs(nPackagesSelected, nDescendantsUpdated);
+
+    int64_t nTime1 = GetTimeMicros();
+
+    m_last_block_num_txs = nBlockTx;
+    m_last_block_weight = nBlockWeight;
+    
     // Masternode and general budget payments
     if (IsSporkActive(SPORK_4_ENABLE_MASTERNODE_PAYMENTS) || Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         bool hasMNPayment = true;
@@ -303,11 +310,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
 
-    if (fProofOfStake){
-        pblock->vtx.emplace_back();
+    if (fProofOfStake)
         pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
-    }
-
+    
     LogPrintf("%s: vtx size %d\n",__func__, pblock->vtx.size());
 
     //pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
