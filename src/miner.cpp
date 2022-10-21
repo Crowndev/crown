@@ -207,8 +207,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (fProofOfStake)
         pblock->vtx.push_back(MakeTransactionRef(std::move(txCoinStake)));
 
-        //pblock->vtx[1] = MakeTransactionRef(std::move(txCoinStake));
-
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
     addPackageTxs(nPackagesSelected, nDescendantsUpdated);
