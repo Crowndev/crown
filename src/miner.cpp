@@ -202,10 +202,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
     //LogPrintf("%s: 111111111  %s\n",__func__, txCoinStake.ToString());
 
-    pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-
     if (fProofOfStake)
-        pblock->vtx.push_back(MakeTransactionRef(std::move(txCoinStake)));
+        pblock->vtx.emplace_back();
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
