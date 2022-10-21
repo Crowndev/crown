@@ -218,13 +218,13 @@ public:
     virtual isminetype txinIsMine(const CTxIn& txin) = 0;
 
     //! Return whether transaction output belongs to wallet.
-    virtual isminetype txoutIsMine(const CTxOut& txout) = 0;
+    virtual isminetype txoutIsMine(const CTxOutAsset& txout) = 0;
 
     //! Return debit amount if transaction input belongs to wallet.
     virtual CAmountMap getDebit(const CTxIn& txin, isminefilter filter) = 0;
 
     //! Return credit amount if transaction input belongs to wallet.
-    virtual CAmountMap getCredit(const CTxOut& txout, isminefilter filter) = 0;
+    virtual CAmountMap getCredit(const CTxOutAsset& txout, isminefilter filter) = 0;
 
     //! Return AvailableCoins + LockedCoins grouped by wallet address.
     //! (put change in one group with wallet address)
@@ -403,7 +403,7 @@ struct WalletTxStatus
 //! Wallet transaction output.
 struct WalletTxOut
 {
-    CTxOut txout;
+    CTxOutAsset txout;
     int64_t time;
     int depth_in_main_chain = -1;
     bool is_spent = false;
