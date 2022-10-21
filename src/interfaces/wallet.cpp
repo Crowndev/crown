@@ -391,7 +391,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->IsMine(txin);
     }
-    isminetype txoutIsMine(const CTxOut& txout) override
+    isminetype txoutIsMine(const CTxOutAsset& txout) override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->IsMine(txout);
@@ -401,7 +401,7 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->GetDebit(txin, filter);
     }
-    CAmountMap getCredit(const CTxOut& txout, isminefilter filter) override
+    CAmountMap getCredit(const CTxOutAsset& txout, isminefilter filter) override
     {
         LOCK(m_wallet->cs_wallet);
         return m_wallet->GetCredit(txout, filter);
