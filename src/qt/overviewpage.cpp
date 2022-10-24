@@ -204,30 +204,30 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
     m_balances = balances;
     if (walletModel->wallet().isLegacy()) {
         if (walletModel->wallet().privateKeysDisabled()) {
-            ui->labelBalance->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelBalance->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
 
         } else {
-            ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
             CAmountMap nm = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
 
-            ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelWatchAvailable->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelWatchPending->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelWatchImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-            ui->labelWatchTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+            ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelWatchAvailable->setText(formatMultiAssetAmount(balances.watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelWatchPending->setText(formatMultiAssetAmount(balances.unconfirmed_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelWatchImmature->setText(formatMultiAssetAmount(balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+            ui->labelWatchTotal->setText(formatMultiAssetAmount(balances.watch_only_balance + balances.unconfirmed_watch_only_balance + balances.immature_watch_only_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
 
         }
     } else {
-        ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-        ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
-        ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelBalance->setText(formatMultiAssetAmount(balances.balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+        ui->labelUnconfirmed->setText(formatMultiAssetAmount(balances.unconfirmed_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+        ui->labelImmature->setText(formatMultiAssetAmount(balances.immature_balance, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
         CAmountMap nm = balances.balance + balances.unconfirmed_balance + balances.immature_balance;
-        ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelTotal->setText(formatMultiAssetAmount(nm, unit, CrownUnits::SeparatorStyle::ALWAYS, "\n"));
     }
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users

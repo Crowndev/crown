@@ -235,14 +235,15 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         for(auto & a : outputAssets){
             CAsset asset = a.first;
-            bool exists = assetExists(asset);
+            uint256 thash = uint256();
+            bool exists = assetExists(asset, thash);
 
             //Asset exists , check for output rules
             if (exists && asset != subsidy_asset) {
                 // check asset limited
 
-                if(asset.isLimited() && inputAssets.begin()->first != asset)
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset-is-limited", strprintf("cannot convert other assets to (%s)", asset.getAssetName()));
+                if(asset.isLimited() && inputAssets.begin()->first != asset && thash != tx.GetHash())
+                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset-is-limited", strprintf("cannot convert other assets to (%s)", asset.getAssetName()));
 
                 // check asset restricted
                 // get contract hash, retrieve contract, get issuer , compare input address to issueraddress
