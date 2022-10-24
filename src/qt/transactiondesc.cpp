@@ -163,14 +163,19 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         // Coinbase
         //
         CAmountMap mapUnmatured;
-        for (const CTxOut& txout : wtx.tx->vout)
+        for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
+            const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
+
+        //for (const CTxOutAsset& txout :(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout : wtx.tx->vout))
             mapUnmatured += wallet.getCredit(txout, ISMINE_ALL);
+		}
         strHTML += "<b>" + tr("Credit") + ":</b> ";
         if (status.is_in_main_chain)
             strHTML += formatMultiAssetAmount(mapUnmatured,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + " (" + tr("matures in %n more block(s)", "", status.blocks_to_maturity) + ")";
         else
             strHTML += "(" + tr("not accepted") + ")";
         strHTML += "<br>";
+	    
     }
     else if (mapNet > CAmountMap())
     {
@@ -202,8 +207,8 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
             // Debit
             //
             auto mine = wtx.txout_is_mine.begin();
-            for (const CTxOut& txout : wtx.tx->vout)
-            {
+            for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
+                const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
                 // Ignore change
                 isminetype toSelf = *(mine++);
                 if ((toSelf == ISMINE_SPENDABLE) && (fAllFromMe == ISMINE_SPENDABLE))
@@ -259,7 +264,8 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
                 }
             }
             mine = wtx.txout_is_mine.begin();
-            for (const CTxOut& txout : wtx.tx->vout) {
+            for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
+                const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
                 if (*(mine++)) {
                     strHTML += "<b>" + tr("Credit") + ":</b> " + formatMultiAssetAmount(wallet.getCredit(txout, ISMINE_ALL),unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
                 }
@@ -319,10 +325,11 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
         for (const CTxIn& txin : wtx.tx->vin)
             if(wallet.txinIsMine(txin))
                 strHTML += "<b>" + tr("Debit") + ":</b> " + formatMultiAssetAmount(wallet.getDebit(txin, ISMINE_ALL)*-1,unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
-        for (const CTxOut& txout : wtx.tx->vout)
+        for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
+            const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
             if(wallet.txoutIsMine(txout))
                 strHTML += "<b>" + tr("Credit") + ":</b> " + formatMultiAssetAmount(wallet.getCredit(txout, ISMINE_ALL),unit, CrownUnits::SeparatorStyle::ALWAYS, "\n") + "<br>";
-
+        }
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.tx->ToString(), true);
 
@@ -338,7 +345,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
             {
                 {
                     strHTML += "<li>";
-                    const CTxOut &vout = prev.out;
+                    const CTxOutAsset &vout = prev.out;
                     CTxDestination address;
                     if (ExtractDestination(vout.scriptPubKey, address))
                     {

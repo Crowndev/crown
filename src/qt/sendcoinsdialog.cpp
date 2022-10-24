@@ -753,7 +753,7 @@ void SendCoinsDialog::setBalance(const interfaces::WalletBalances& balances)
             balance = balances.watch_only_balance;
             ui->labelBalanceName->setText(tr("Watch-only balance:"));
         }
-        ui->labelBalance->setText(formatMultiAssetAmount(balance, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, ""));
+        ui->labelBalance->setText(formatMultiAssetAmount(balance, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "  "));
     }
 }
 
