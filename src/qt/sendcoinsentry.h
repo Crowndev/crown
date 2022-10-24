@@ -44,6 +44,7 @@ public:
     void setValue(const SendAssetsRecipient &value);
     void setAddress(const QString &address);
     void setAmount(const CAmount &amount);
+    void assetList();
 
     /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases
      *  (issue https://bugreports.qt-project.org/browse/QTBUG-10907).
@@ -76,11 +77,8 @@ private:
     Ui::SendCoinsEntry *ui;
     WalletModel *model;
     const PlatformStyle *platformStyle;
-    interfaces::WalletBalances m_balances;
 
     bool updateLabel(const QString &address);
-    void assetList();
-    void setBalance(const interfaces::WalletBalances &balances);
     
 };
 

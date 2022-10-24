@@ -1326,6 +1326,7 @@
    <class>CrownAmountField</class>
    <extends>QLineEdit</extends>
    <header>qt/crownamountfield.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

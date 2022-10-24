@@ -62,24 +62,21 @@ SendCoinsEntry::~SendCoinsEntry()
 
 void SendCoinsEntry::assetList(){
     // Keep up to date with wallet
-    interfaces::Wallet& wallet = model->wallet();
-    m_balances = wallet.getBalances();
-    QStringList list;
-    
-    for(auto const& x : m_balances.balance){
-        list << QString::fromStdString(x.first.getAssetName());
-    }
+    if(!model)
+        return;
 
-    std::sort(list.begin(), list.end());
-    
+    interfaces::WalletBalances m_balances = model->wallet().getBalances();
+
+    QStringList list;
+
+    for(auto const& x : m_balances.balance)
+        list << QString::fromStdString(x.first.getAssetName());
+
+    //std::sort(list.begin(), list.end());
+
     QStringListModel *a_model = new QStringListModel();
     a_model->setStringList(list);
     ui->assetBox->setModel(a_model);
-}
-
-void SendCoinsEntry::setBalance(const interfaces::WalletBalances& balances)
-{
-    assetList();
 }
 
 void SendCoinsEntry::on_pasteButton_clicked()
@@ -113,8 +110,6 @@ void SendCoinsEntry::setModel(WalletModel *_model)
     if (_model && _model->getOptionsModel())
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
 
-    connect(model, &WalletModel::balanceChanged, this, &SendCoinsEntry::setBalance);
-
     clear();
 }
 
@@ -139,6 +134,7 @@ void SendCoinsEntry::clear()
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
+    assetList();
 }
 
 void SendCoinsEntry::checkSubtractFeeFromAmount()
@@ -201,7 +197,7 @@ SendAssetsRecipient SendCoinsEntry::getValue()
 
     for(auto const& x : passetsCache->GetItemsMap()){
         if(QString::fromStdString(x.second->second.asset.getAssetName()) == ui->assetBox->currentText())
-            recipient.asset = x.second->second.asset;     
+            recipient.asset = x.second->second.asset;
     }
 
     return recipient;
