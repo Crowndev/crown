@@ -200,10 +200,11 @@ std::vector<CAsset> GetAllAssets(){
     return tmp;
 }
 
-bool assetExists(CAsset assetToCheck){
+bool assetExists(CAsset assetToCheck, uint256 &txhash){
 	
     for(auto const& x : passetsCache->GetItemsMap()){
         CAsset checkasset = x.second->second.asset;
+        txhash = x.second->second.txhash;
         
         if(checkasset == assetToCheck)
             return true;

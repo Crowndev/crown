@@ -78,7 +78,7 @@ void DumpAssets();
 
 CAsset GetAsset(const std::string& name);
 std::vector<CAsset> GetAllAssets();
-bool assetExists(CAsset assetToCheck);
+bool assetExists(CAsset assetToCheck, uint256 &txhash);
 bool assetNameExists(std::string assetName);
 bool isSubsidy(CAsset assetToCheck);
 CAsset GetSubsidyAsset();
