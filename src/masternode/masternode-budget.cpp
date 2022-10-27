@@ -1757,8 +1757,8 @@ BudgetDraft::BudgetDraft(const BudgetDraft& other)
     , m_blockStart(other.m_blockStart)
     , m_votes(other.m_votes)
     , m_feeTransactionHash(other.m_feeTransactionHash)
-    , m_signature(other.m_signature)
     , m_masternodeSubmittedId(other.m_masternodeSubmittedId)
+    , m_signature(other.m_signature)
     , m_voteSubmittedTime(std::nullopt)
 {
     assert(boost::is_sorted(m_payments, ComparePayments));

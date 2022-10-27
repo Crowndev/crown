@@ -27,14 +27,12 @@
  *
  * Serialized format:
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
- * - the non-spent CTxOut (via TxOutCompression)
+ * - the non-spent CTxOutAsset (via TxOutAssetCompression)
  */
 class Coin
 {
 public:
     //! unspent transaction output
-    //CTxOut out;
-    //! newer unspent transaction output
     CTxOutAsset out;
     
     //! whether containing transaction was a coinbase

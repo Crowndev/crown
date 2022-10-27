@@ -14,9 +14,16 @@
 #include <qt/walletmodel.h>
 #include <sync.h>
 #include <wallet/wallet.h>
-
+#include <qt/privatekeywidget.h>
+#include <qt/crownunits.h>
+#include <qt/addresstablemodel.h>
+#include <qt/optionsmodel.h>
+#include <qt/datetablewidgetitem.h>
+#include <qt/createsystemnodedialog.h>
 #include <QMessageBox>
 #include <QTimer>
+
+#include <boost/lexical_cast.hpp>
 
 RecursiveMutex cs_systemnodes;
 
@@ -67,6 +74,8 @@ SystemnodeList::SystemnodeList(const PlatformStyle *platformStyle, QWidget *pare
     fFilterUpdated = false;
     nTimeFilterUpdated = GetTime();
     updateNodeList();
+
+    sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
 }
 
 SystemnodeList::~SystemnodeList()
@@ -173,14 +182,14 @@ void SystemnodeList::StartAll(std::string strCommand)
     updateMyNodeList(true);
 }
 
-void SystemnodeList::updateMySystemnodeInfo(QString strAlias, QString strAddr, CSystemnode* pmn)
+void SystemnodeList::updateMySystemnodeInfo(QString alias, QString addr, QString privkey, QString txHash, QString txIndex, CSystemnode *pmn)
 {
     LOCK(cs_mnlistupdate);
     bool fOldRowFound = false;
     int nNewRow = 0;
 
     for (int i = 0; i < ui->tableWidgetMySystemnodes->rowCount(); i++) {
-        if (ui->tableWidgetMySystemnodes->item(i, 0)->text() == strAlias) {
+        if (ui->tableWidgetMySystemnodes->item(i, 0)->text() == alias) {
             fOldRowFound = true;
             nNewRow = i;
             break;
@@ -192,8 +201,9 @@ void SystemnodeList::updateMySystemnodeInfo(QString strAlias, QString strAddr, C
         ui->tableWidgetMySystemnodes->insertRow(nNewRow);
     }
 
-    QTableWidgetItem* aliasItem = new QTableWidgetItem(strAlias);
-    QTableWidgetItem* addrItem = new QTableWidgetItem(pmn ? QString::fromStdString(pmn->addr.ToString()) : strAddr);
+    QTableWidgetItem* aliasItem = new QTableWidgetItem(alias);
+    QTableWidgetItem* addrItem = new QTableWidgetItem(pmn ? QString::fromStdString(pmn->addr.ToString()) : addr);
+    PrivateKeyWidget *privateKeyWidget = new PrivateKeyWidget(privkey);
     QTableWidgetItem* protocolItem = new QTableWidgetItem(QString::number(pmn ? pmn->protocolVersion : -1));
     QTableWidgetItem* statusItem = new QTableWidgetItem(QString::fromStdString(pmn ? pmn->Status() : "MISSING"));
     QTableWidgetItem* activeSecondsItem = new QTableWidgetItem(QString::fromStdString(DurationToDHMS(pmn ? (int64_t)(pmn->lastPing.sigTime - pmn->sigTime) : 0)));
@@ -202,11 +212,13 @@ void SystemnodeList::updateMySystemnodeInfo(QString strAlias, QString strAddr, C
 
     ui->tableWidgetMySystemnodes->setItem(nNewRow, 0, aliasItem);
     ui->tableWidgetMySystemnodes->setItem(nNewRow, 1, addrItem);
-    ui->tableWidgetMySystemnodes->setItem(nNewRow, 2, protocolItem);
-    ui->tableWidgetMySystemnodes->setItem(nNewRow, 3, statusItem);
-    ui->tableWidgetMySystemnodes->setItem(nNewRow, 4, activeSecondsItem);
-    ui->tableWidgetMySystemnodes->setItem(nNewRow, 5, lastSeenItem);
-    ui->tableWidgetMySystemnodes->setItem(nNewRow, 6, pubkeyItem);
+    ui->tableWidgetMySystemnodes->setCellWidget(nNewRow, 2, privateKeyWidget);
+    ui->tableWidgetMySystemnodes->setColumnWidth(2, 150);
+    ui->tableWidgetMySystemnodes->setItem(nNewRow, 3, protocolItem);
+    ui->tableWidgetMySystemnodes->setItem(nNewRow, 4, statusItem);
+    ui->tableWidgetMySystemnodes->setItem(nNewRow, 5, activeSecondsItem);
+    ui->tableWidgetMySystemnodes->setItem(nNewRow, 6, lastSeenItem);
+    ui->tableWidgetMySystemnodes->setItem(nNewRow, 7, pubkeyItem);
 }
 
 void SystemnodeList::updateMyNodeList(bool fForce)
@@ -225,7 +237,9 @@ void SystemnodeList::updateMyNodeList(bool fForce)
     for (CNodeEntry mne : systemnodeConfig.getEntries()) {
         CTxIn txin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
         CSystemnode* pmn = snodeman.Find(txin);
-        updateMySystemnodeInfo(QString::fromStdString(mne.getAlias()), QString::fromStdString(mne.getIp()), pmn);
+
+        updateMySystemnodeInfo(QString::fromStdString(mne.getAlias()), QString::fromStdString(mne.getIp()), QString::fromStdString(mne.getPrivKey()), QString::fromStdString(mne.getTxHash()),
+            QString::fromStdString(mne.getOutputIndex()), pmn);
     }
     ui->tableWidgetMySystemnodes->setSortingEnabled(true);
 
@@ -338,6 +352,51 @@ void SystemnodeList::on_startButton_clicked()
     StartAlias(strAlias);
 }
 
+void SystemnodeList::on_editButton_clicked()
+{
+    CreateSystemnodeDialog dialog(this);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setEditMode();
+    dialog.setWindowTitle("Edit Systemnode");
+    
+    QItemSelectionModel* selectionModel = ui->tableWidgetMySystemnodes->selectionModel();
+    QModelIndexList selected = selectionModel->selectedRows();
+    if(selected.count() == 0)
+        return;
+
+    QModelIndex index = selected.at(0);
+    int r = index.row();
+    QString strAlias = ui->tableWidgetMySystemnodes->item(r, 0)->text();
+    QString strIP = ui->tableWidgetMySystemnodes->item(r, 1)->text();
+    strIP.replace(QRegExp(":+\\d*"), "");
+
+    dialog.setAlias(strAlias);
+    dialog.setIP(strIP);
+    if (dialog.exec())
+    {
+        // OK pressed
+        std::string port = "9340";
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            port = "19340";
+        }
+        BOOST_FOREACH(CNodeEntry &sne, systemnodeConfig.getEntries()) {
+            if (sne.getAlias() == strAlias.toStdString())
+            {
+                sne.setAlias(dialog.getAlias().toStdString());
+                sne.setIp(dialog.getIP().toStdString() + ":" + port);
+                systemnodeConfig.write();
+                ui->tableWidgetMySystemnodes->removeRow(r);
+                updateMyNodeList(true);
+            }
+        }
+
+    }
+    else
+    {
+        // Cancel pressed
+    }
+}
+
 void SystemnodeList::on_startAllButton_clicked()
 {
     if (!systemnodeSync.IsSynced()) {
@@ -412,4 +471,63 @@ void SystemnodeList::on_UpdateButton_clicked()
     }
 
     updateMyNodeList(true);
+}
+
+
+void SystemnodeList::on_CreateNewSystemnode_clicked()
+{
+    CreateSystemnodeDialog dialog(this);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), 
+                                                           500 * COIN);
+    dialog.setNoteLabel("This action will send " + formattedAmount + " to yourself");
+    if (dialog.exec())
+    {
+        // OK Pressed
+        QString label = dialog.getLabel();
+        QString address = walletModel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
+        SendAssetsRecipient recipient(address, label, 500 * COIN, "");
+        recipient.asset = Params().GetConsensus().subsidy_asset;
+
+        QList<SendAssetsRecipient> recipients;
+        recipients.append(recipient);
+
+        std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+
+        // Get outputs before and after transaction
+        std::vector<COutput> vPossibleCoinsBefore;
+        wallets[0]->AvailableCoins(vPossibleCoinsBefore, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+
+        sendDialog->setModel(walletModel);
+        sendDialog->send(recipients);
+
+        std::vector<COutput> vPossibleCoinsAfter;
+        wallets[0]->AvailableCoins(vPossibleCoinsAfter, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+
+        BOOST_FOREACH(COutput& out, vPossibleCoinsAfter) {
+            std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
+            if (it == vPossibleCoinsBefore.end()) {
+                // Not found so this is a new element
+
+                COutPoint outpoint = COutPoint(out.tx->GetHash(), boost::lexical_cast<unsigned int>(out.i));
+                wallets[0]->LockCoin(outpoint);
+
+                // Generate a key
+                CKey secret;
+                secret.MakeNewKey(false);
+                std::string privateKey = EncodeSecret(secret);
+                std::string port = "9340";
+                if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+                    port = "19340";
+                }
+
+                systemnodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 
+                        privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+                systemnodeConfig.write();
+                updateMyNodeList(true);
+            }
+        }
+    } else {
+        // Cancel Pressed
+    }
 }

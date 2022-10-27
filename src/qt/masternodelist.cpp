@@ -15,6 +15,7 @@
 #include <qt/addresstablemodel.h>
 #include <qt/crownunits.h>
 #include <qt/clientmodel.h>
+#include <qt/privatekeywidget.h>
 #include <qt/createmasternodedialog.h>
 #include <qt/datetablewidgetitem.h>
 #include <qt/guiutil.h>
@@ -99,6 +100,8 @@ MasternodeList::MasternodeList(const PlatformStyle *platformStyle, QWidget *pare
     fFilterUpdated = false;
     nTimeFilterUpdated = GetTime();
     updateNodeList();
+
+    sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
 }
 
 MasternodeList::~MasternodeList()
@@ -205,14 +208,28 @@ void MasternodeList::StartAll(std::string strCommand)
     updateMyNodeList(true);
 }
 
-void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, CMasternode* pmn)
+void MasternodeList::selectAliasRow(const QString& alias)
+{
+    for(int i=0; i < ui->tableWidgetMyMasternodes->rowCount(); ++i)
+    {
+        if(ui->tableWidgetMyMasternodes->item(i, 0)->text() == alias)
+        {
+            ui->tableWidgetMyMasternodes->selectRow(i);
+            ui->tableWidgetMyMasternodes->setFocus();
+            ui->tabWidget->setCurrentIndex(0);
+            return;
+        }
+    }
+}
+
+void MasternodeList::updateMyMasternodeInfo(QString alias, QString addr, QString privkey, QString txHash, QString txIndex, CMasternode *pmn)
 {
     LOCK(cs_mnlistupdate);
     bool fOldRowFound = false;
     int nNewRow = 0;
 
     for (int i = 0; i < ui->tableWidgetMyMasternodes->rowCount(); i++) {
-        if (ui->tableWidgetMyMasternodes->item(i, 0)->text() == strAlias) {
+        if (ui->tableWidgetMyMasternodes->item(i, 0)->text() == alias) {
             fOldRowFound = true;
             nNewRow = i;
             break;
@@ -224,8 +241,9 @@ void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, C
         ui->tableWidgetMyMasternodes->insertRow(nNewRow);
     }
 
-    QTableWidgetItem* aliasItem = new QTableWidgetItem(strAlias);
-    QTableWidgetItem* addrItem = new QTableWidgetItem(pmn ? QString::fromStdString(pmn->addr.ToString()) : strAddr);
+    QTableWidgetItem* aliasItem = new QTableWidgetItem(alias);
+    QTableWidgetItem* addrItem = new QTableWidgetItem(pmn ? QString::fromStdString(pmn->addr.ToString()) : addr);
+    PrivateKeyWidget *privateKeyWidget = new PrivateKeyWidget(privkey);
     QTableWidgetItem* protocolItem = new QTableWidgetItem(QString::number(pmn ? pmn->protocolVersion : -1));
     QTableWidgetItem* statusItem = new QTableWidgetItem(QString::fromStdString(pmn ? pmn->Status() : "MISSING"));
     QTableWidgetItem* activeSecondsItem = new QTableWidgetItem(QString::fromStdString(DurationToDHMS(pmn ? (int64_t)(pmn->lastPing.sigTime - pmn->sigTime) : 0)));
@@ -234,11 +252,13 @@ void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, C
 
     ui->tableWidgetMyMasternodes->setItem(nNewRow, 0, aliasItem);
     ui->tableWidgetMyMasternodes->setItem(nNewRow, 1, addrItem);
-    ui->tableWidgetMyMasternodes->setItem(nNewRow, 2, protocolItem);
-    ui->tableWidgetMyMasternodes->setItem(nNewRow, 3, statusItem);
-    ui->tableWidgetMyMasternodes->setItem(nNewRow, 4, activeSecondsItem);
-    ui->tableWidgetMyMasternodes->setItem(nNewRow, 5, lastSeenItem);
-    ui->tableWidgetMyMasternodes->setItem(nNewRow, 6, pubkeyItem);
+    ui->tableWidgetMyMasternodes->setCellWidget(nNewRow, 2, privateKeyWidget);
+    ui->tableWidgetMyMasternodes->setColumnWidth(2, 150);
+    ui->tableWidgetMyMasternodes->setItem(nNewRow, 3, protocolItem);
+    ui->tableWidgetMyMasternodes->setItem(nNewRow, 4, statusItem);
+    ui->tableWidgetMyMasternodes->setItem(nNewRow, 5, activeSecondsItem);
+    ui->tableWidgetMyMasternodes->setItem(nNewRow, 6, lastSeenItem);
+    ui->tableWidgetMyMasternodes->setItem(nNewRow, 7, pubkeyItem);
 }
 
 void MasternodeList::updateMyNodeList(bool fForce)
@@ -257,7 +277,9 @@ void MasternodeList::updateMyNodeList(bool fForce)
     for (CNodeEntry mne : masternodeConfig.getEntries()) {
         CTxIn txin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
         CMasternode* pmn = mnodeman.Find(txin);
-        updateMyMasternodeInfo(QString::fromStdString(mne.getAlias()), QString::fromStdString(mne.getIp()), pmn);
+
+        updateMyMasternodeInfo(QString::fromStdString(mne.getAlias()), QString::fromStdString(mne.getIp()), QString::fromStdString(mne.getPrivKey()), QString::fromStdString(mne.getTxHash()),
+            QString::fromStdString(mne.getOutputIndex()), pmn);
     }
     ui->tableWidgetMyMasternodes->setSortingEnabled(true);
 
@@ -380,6 +402,51 @@ void MasternodeList::on_startButton_clicked()
     }
 
     StartAlias(strAlias);
+}
+
+void MasternodeList::on_editButton_clicked()
+{
+    CreateMasternodeDialog dialog(this);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setEditMode();
+    dialog.setWindowTitle("Edit Masternode");
+    
+    QItemSelectionModel* selectionModel = ui->tableWidgetMyMasternodes->selectionModel();
+    QModelIndexList selected = selectionModel->selectedRows();
+    if(selected.count() == 0)
+        return;
+
+    QModelIndex index = selected.at(0);
+    int r = index.row();
+    QString strAlias = ui->tableWidgetMyMasternodes->item(r, 0)->text();
+    QString strIP = ui->tableWidgetMyMasternodes->item(r, 1)->text();
+    strIP.replace(QRegExp(":+\\d*"), "");
+
+    dialog.setAlias(strAlias);
+    dialog.setIP(strIP);
+    if (dialog.exec())
+    {
+        // OK pressed
+        std::string port = "9340";
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            port = "19340";
+        }
+        BOOST_FOREACH(CNodeEntry &mne, masternodeConfig.getEntries()) {
+            if (mne.getAlias() == strAlias.toStdString())
+            {
+                mne.setAlias(dialog.getAlias().toStdString());
+                mne.setIp(dialog.getIP().toStdString() + ":" + port);
+                masternodeConfig.write();
+                ui->tableWidgetMyMasternodes->removeRow(r);
+                updateMyNodeList(true);
+            }
+        }
+
+    }
+    else
+    {
+        // Cancel pressed
+    }
 }
 
 void MasternodeList::on_startAllButton_clicked()
@@ -746,5 +813,70 @@ void MasternodeList::on_tableWidgetVoting_itemSelectionChanged()
     {
         ui->voteManyYesButton->setEnabled(true);
         ui->voteManyNoButton->setEnabled(true);
+    }
+}
+
+void MasternodeList::on_CreateNewMasternode_clicked()
+{
+	if(!walletModel)
+	    return;
+	    
+	if(!walletModel->getOptionsModel())
+	    return;
+
+    CreateMasternodeDialog dialog(this);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowTitle("Create a New Masternode");
+    QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), 
+                                                           10000 * COIN);
+    dialog.setNoteLabel("*This action will send " + formattedAmount + " to yourself");
+    if (dialog.exec())
+    {
+        // OK Pressed
+        QString label = dialog.getLabel();
+        QString address = walletModel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
+        SendAssetsRecipient recipient(address, label, 10000 * COIN, "");
+        recipient.asset = Params().GetConsensus().subsidy_asset;
+        QList<SendAssetsRecipient> recipients;
+        recipients.append(recipient);
+
+        std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+
+        // Get outputs before and after transaction
+        std::vector<COutput> vPossibleCoinsBefore;
+        wallets[0]->AvailableCoins(vPossibleCoinsBefore, true, nullptr, ONLY_10000, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+
+        sendDialog->setModel(walletModel);
+        sendDialog->send(recipients);
+
+        std::vector<COutput> vPossibleCoinsAfter;
+        wallets[0]->AvailableCoins(vPossibleCoinsAfter, true, NULL, ONLY_10000, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+
+        for (auto& out : vPossibleCoinsAfter)
+        {
+            std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
+            if (it == vPossibleCoinsBefore.end()) {
+                // Not found so this is a new element
+
+                COutPoint outpoint = COutPoint(out.tx->GetHash(), boost::lexical_cast<unsigned int>(out.i));
+                wallets[0]->LockCoin(outpoint);
+
+                // Generate a key
+                CKey secret;
+                secret.MakeNewKey(false);
+                std::string privateKey = EncodeSecret(secret);
+                std::string port = "9340";
+                if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+                    port = "19340";
+                }
+
+                masternodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 
+                        privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+                masternodeConfig.write();
+                updateMyNodeList(true);
+            }
+        }
+    } else {
+        // Cancel Pressed
     }
 }

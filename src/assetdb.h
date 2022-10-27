@@ -11,8 +11,6 @@
 #include <lrucache.h>
 #include <dbwrapper.h>
 
-static size_t MAX_DATABASE_RESULTS = 50000;
-
 class CCoinsViewCache;
 
 class CAssetData

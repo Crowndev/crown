@@ -231,19 +231,11 @@ static GCSFilter::ElementSet BasicFilterElements(const CBlock& block,
     GCSFilter::ElementSet elements;
 
     for (const CTransactionRef& tx : block.vtx) {
-		if(tx->nVersion >= TX_ELE_VERSION){
-			for (const CTxOutAsset& txout : tx->vpout) {
-				const CScript& script = txout.scriptPubKey;
-				if (script.empty() || script[0] == OP_RETURN) continue;
-				elements.emplace(script.begin(), script.end());
-			}
-		}
-		else {
-			for (const CTxOut& txout : tx->vout) {
-				const CScript& script = txout.scriptPubKey;
-				if (script.empty() || script[0] == OP_RETURN) continue;
-				elements.emplace(script.begin(), script.end());
-			}
+        for (size_t o = 0; o < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()); o++) {
+            const CTxOutAsset &txout = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[o] : tx->vout[o]);
+			const CScript& script = txout.scriptPubKey;
+			if (script.empty() || script[0] == OP_RETURN) continue;
+			elements.emplace(script.begin(), script.end());
 		}
     }
 

@@ -6,8 +6,7 @@
 #ifndef CROWN_ADDRESSINDEX_H
 #define CROWN_ADDRESSINDEX_H
 
-#include "uint256.h"
-#include "amount.h"
+#include <primitives/asset.h>
 #include <chrono>
 
 enum AddressIndexType {
@@ -22,19 +21,22 @@ struct CMempoolAddressDelta
 {
     std::chrono::seconds time;
     CAmount amount;
+    CAsset asset;
     uint256 prevhash;
     unsigned int prevout;
 
-    CMempoolAddressDelta(std::chrono::seconds t, CAmount a, uint256 hash, unsigned int out) {
+    CMempoolAddressDelta(std::chrono::seconds t, CAmount a, CAsset at, uint256 hash, unsigned int out) {
         time = t;
         amount = a;
+        asset = at;
         prevhash = hash;
         prevout = out;
     }
 
-    CMempoolAddressDelta(std::chrono::seconds t, CAmount a) {
+    CMempoolAddressDelta(std::chrono::seconds t, CAmount a, CAsset at) {
         time = t;
         amount = a;
+        asset = at;
         prevhash.SetNull();
         prevout = 0;
     }
@@ -44,47 +46,27 @@ struct CMempoolAddressDeltaKey
 {
     int type;
     uint160 addressBytes;
-    std::string asset;
     uint256 txhash;
     unsigned int index;
     int spending;
 
-    CMempoolAddressDeltaKey(int addressType, uint160 addressHash, std::string sAssetName,
+    CMempoolAddressDeltaKey(int addressType, uint160 addressHash,
                             uint256 hash, unsigned int i, int s) {
         type = addressType;
         addressBytes = addressHash;
-        asset = sAssetName;
         txhash = hash;
         index = i;
         spending = s;
-    }
-
-    CMempoolAddressDeltaKey(int addressType, uint160 addressHash, uint256 hash, unsigned int i, int s) {
-        type = addressType;
-        addressBytes = addressHash;
-        asset = "";
-        txhash = hash;
-        index = i;
-        spending = s;
-    }
-
-    CMempoolAddressDeltaKey(int addressType, uint160 addressHash, std::string sAssetName) {
-        type = addressType;
-        addressBytes = addressHash;
-        asset = sAssetName;
-        txhash.SetNull();
-        index = 0;
-        spending = 0;
     }
 
     CMempoolAddressDeltaKey(int addressType, uint160 addressHash) {
         type = addressType;
         addressBytes = addressHash;
-        asset = "";
         txhash.SetNull();
         index = 0;
         spending = 0;
     }
+
 };
 
 struct CMempoolAddressDeltaKeyCompare
@@ -92,18 +74,14 @@ struct CMempoolAddressDeltaKeyCompare
     bool operator()(const CMempoolAddressDeltaKey& a, const CMempoolAddressDeltaKey& b) const {
         if (a.type == b.type) {
             if (a.addressBytes == b.addressBytes) {
-                if (a.asset == b.asset) {
-                    if (a.txhash == b.txhash) {
-                        if (a.index == b.index) {
-                            return a.spending < b.spending;
-                        } else {
-                            return a.index < b.index;
-                        }
+                if (a.txhash == b.txhash) {
+                    if (a.index == b.index) {
+                        return a.spending < b.spending;
                     } else {
-                        return a.txhash < b.txhash;
+                        return a.index < b.index;
                     }
                 } else {
-                    return a.asset < b.asset;
+                    return a.txhash < b.txhash;
                 }
             } else {
                 return a.addressBytes < b.addressBytes;

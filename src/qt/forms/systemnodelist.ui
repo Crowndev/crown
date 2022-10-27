@@ -311,6 +311,22 @@
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="tab">
+        <attribute name="title">
+         <string>Voting</string>
+        </attribute>
+        <widget class="QLabel" name="label_superblock">
+         <property name="margin">
+            <number>30</number>
+         </property>
+         <property name="styleSheet">
+          <string>color: black;</string>
+         </property>
+         <property name="text">
+          <string>Voting with systemnodes will be available in the future.</string>
+         </property>
+        </widget>
+       </widget>
       </widget>
      </item>
     </layout>

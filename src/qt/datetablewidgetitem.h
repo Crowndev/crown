@@ -10,7 +10,7 @@ private:
     int64_t date;
 public:
     explicit DateTableWidgetItem(int64_t date);
-    bool operator< ( const QTableWidgetItem & other ) const;
+    bool operator< ( const QTableWidgetItem & other ) const override;
 };
 
 #endif // DATE_TABLE_WIDGET_ITEM_H

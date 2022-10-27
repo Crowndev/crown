@@ -38,16 +38,18 @@ struct CSpentIndexValue {
     unsigned int inputIndex;
     int blockHeight;
     CAmount satoshis;
+    CAsset asset;
     int addressType;
     uint160 addressHash;
 
-    SERIALIZE_METHODS(CSpentIndexValue, obj) {READWRITE(obj.txid, obj.inputIndex, obj.blockHeight, obj.satoshis, obj.addressType, obj.addressHash);}
+    SERIALIZE_METHODS(CSpentIndexValue, obj) {READWRITE(obj.txid, obj.inputIndex, obj.blockHeight, obj.satoshis, obj.asset, obj.addressType, obj.addressHash);}
 
-    CSpentIndexValue(uint256 t, unsigned int i, int h, CAmount s, int type, uint160 a) {
+    CSpentIndexValue(uint256 t, unsigned int i, int h, CAmount s, CAsset at, int type, uint160 a) {
         txid = t;
         inputIndex = i;
         blockHeight = h;
         satoshis = s;
+        asset=at;
         addressType = type;
         addressHash = a;
     }
@@ -61,6 +63,7 @@ struct CSpentIndexValue {
         inputIndex = 0;
         blockHeight = 0;
         satoshis = 0;
+        asset.SetNull();
         addressType = 0;
         addressHash.SetNull();
     }
@@ -89,16 +92,16 @@ struct CSpentIndexTxInfo
 struct CAddressUnspentKey {
     unsigned int type;
     uint160 hashBytes;
-    std::string asset;
+    CAsset asset;
     uint256 txhash;
     size_t index;
 
     SERIALIZE_METHODS(CAddressUnspentKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset, obj.txhash, obj.index);}
 
-    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, std::string sAssetName, uint256 txid, size_t indexValue) {
+    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, CAsset at, uint256 txid, size_t indexValue) {
         type = addressType;
         hashBytes = addressHash;
-        asset = sAssetName;
+        asset = at;
         txhash = txid;
         index = indexValue;
     }
@@ -110,7 +113,7 @@ struct CAddressUnspentKey {
     void SetNull() {
         type = 0;
         hashBytes.SetNull();
-        asset.clear();
+        asset.SetNull();
         txhash.SetNull();
         index = 0;
     }
@@ -118,13 +121,15 @@ struct CAddressUnspentKey {
 
 struct CAddressUnspentValue {
     CAmount satoshis;
+    CAsset asset;
     CScript script;
     int blockHeight;
 
-    SERIALIZE_METHODS(CAddressUnspentValue, obj) { READWRITE(obj.satoshis, obj.script, obj.blockHeight); }
+    SERIALIZE_METHODS(CAddressUnspentValue, obj) { READWRITE(obj.satoshis, obj.asset, obj.script, obj.blockHeight); }
 
-    CAddressUnspentValue(CAmount sats, CScript scriptPubKey, int height) {
+    CAddressUnspentValue(CAmount sats, CAsset at, CScript scriptPubKey, int height) {
         satoshis = sats;
+        asset = at;
         script = scriptPubKey;
         blockHeight = height;
     }
@@ -135,6 +140,7 @@ struct CAddressUnspentValue {
 
     void SetNull() {
         satoshis = -1;
+        asset.SetNull();
         script.clear();
         blockHeight = 0;
     }
@@ -147,7 +153,7 @@ struct CAddressUnspentValue {
 struct CAddressIndexKey {
     unsigned int type;
     uint160 hashBytes;
-    std::string asset;
+    CAsset asset;
     int blockHeight;
     unsigned int txindex;
     uint256 txhash;
@@ -156,11 +162,11 @@ struct CAddressIndexKey {
 
     SERIALIZE_METHODS(CAddressIndexKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset, obj.blockHeight, obj.txindex, obj.txhash, obj.index, obj.spending);}
 
-    CAddressIndexKey(unsigned int addressType, uint160 addressHash, std::string sAssetName, int height, int blockindex,
+    CAddressIndexKey(unsigned int addressType, uint160 addressHash, CAsset at, int height, int blockindex,
                      uint256 txid, size_t indexValue, bool isSpending) {
         type = addressType;
         hashBytes = addressHash;
-        asset = sAssetName;
+        asset = at;
         blockHeight = height;
         txindex = blockindex;
         txhash = txid;
@@ -175,7 +181,7 @@ struct CAddressIndexKey {
     void SetNull() {
         type = 0;
         hashBytes.SetNull();
-        asset.clear();
+        asset.SetNull();
         blockHeight = 0;
         txindex = 0;
         txhash.SetNull();
@@ -209,14 +215,14 @@ struct CAddressIndexIteratorKey {
 struct CAddressIndexIteratorAssetKey {
     unsigned int type;
     uint160 hashBytes;
-    std::string asset;
+    CAsset asset;
 
     SERIALIZE_METHODS(CAddressIndexIteratorAssetKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset);}
 
-    CAddressIndexIteratorAssetKey(unsigned int addressType, uint160 addressHash, std::string sAssetName) {
+    CAddressIndexIteratorAssetKey(unsigned int addressType, uint160 addressHash, CAsset at) {
         type = addressType;
         hashBytes = addressHash;
-        asset = sAssetName;
+        asset = at;
     }
 
     CAddressIndexIteratorAssetKey() {
@@ -226,22 +232,22 @@ struct CAddressIndexIteratorAssetKey {
     void SetNull() {
         type = 0;
         hashBytes.SetNull();
-        asset.clear();
+        asset.SetNull();
     }
 };
 
 struct CAddressIndexIteratorHeightKey {
     unsigned int type;
     uint160 hashBytes;
-    std::string asset;
+    CAsset asset;
     int blockHeight;
 
     SERIALIZE_METHODS(CAddressIndexIteratorHeightKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset, obj.blockHeight);}
 
-    CAddressIndexIteratorHeightKey(unsigned int addressType, uint160 addressHash, std::string sAssetName, int height) {
+    CAddressIndexIteratorHeightKey(unsigned int addressType, uint160 addressHash, CAsset at, int height) {
         type = addressType;
         hashBytes = addressHash;
-        asset = sAssetName;
+        asset = at;
         blockHeight = height;
     }
 
@@ -252,7 +258,7 @@ struct CAddressIndexIteratorHeightKey {
     void SetNull() {
         type = 0;
         hashBytes.SetNull();
-        asset.clear();
+        asset.SetNull();
         blockHeight = 0;
     }
 };

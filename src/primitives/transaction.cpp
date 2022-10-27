@@ -206,8 +206,8 @@ std::vector<CTxDataBaseRef> DeepCopy(const std::vector<CTxDataBaseRef> &from)
     return vdata;
 }
 
-CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nTime(GetTime()), nLockTime(0) {}
-CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nTime(tx.nTime), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness) {}
+CMutableTransaction::CMutableTransaction() : nTime(GetTime()), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0) {}
+CMutableTransaction::CMutableTransaction(const CTransaction& tx) : nTime(tx.nTime), vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness) {}
 
 uint256 CMutableTransaction::GetHash() const
 {
@@ -244,9 +244,9 @@ uint256 CTransaction::GetWitnessOnlyHash() const
 }
 
 /* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
-CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nTime(0), nLockTime(0), hash{}, m_witness_hash{} {}
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nTime(tx.nTime), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
-CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), vpout(std::move(tx.vpout)), vdata(std::move(tx.vdata)), nVersion(tx.nVersion), nType(tx.nType), nTime(tx.nTime), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(std::move(tx.witness)), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
+CTransaction::CTransaction() :  nTime(0), vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), nType(TRANSACTION_NORMAL), nLockTime(0), hash{}, m_witness_hash{} {}
+CTransaction::CTransaction(const CMutableTransaction& tx) : nTime(tx.nTime), vin(tx.vin), vout(tx.vout), vpout(tx.vpout), vdata{DeepCopy(tx.vdata)}, nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(tx.witness), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
+CTransaction::CTransaction(CMutableTransaction&& tx) : nTime(tx.nTime), vin(std::move(tx.vin)), vout(std::move(tx.vout)), vpout(std::move(tx.vpout)), vdata(std::move(tx.vdata)), nVersion(tx.nVersion), nType(tx.nType), nLockTime(tx.nLockTime), extraPayload(tx.extraPayload), witness(std::move(tx.witness)), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {ComputeHash();}
 
 CAmount CTransaction::GetValueOut() const
 {

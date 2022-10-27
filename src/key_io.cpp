@@ -78,6 +78,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
 {
     std::vector<unsigned char> data;
     uint160 hash;
+    
     if (DecodeBase58Check(str, data, 21)) {
         // base58-encoded Crown addresses.
         // Public-key-hash-addresses have version 0 (or 111 testnet).
@@ -95,6 +96,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
             return ScriptHash(hash);
         }
     }
+    
     data.clear();
     const auto dec = bech32::Decode(str);
     if ((dec.encoding == bech32::Encoding::BECH32 || dec.encoding == bech32::Encoding::BECH32M) && dec.data.size() > 0 && dec.hrp == params.Bech32HRP()) {

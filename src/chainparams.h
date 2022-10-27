@@ -91,9 +91,17 @@ public:
     bool MineBlocksOnDemand() const { return consensus.fPowNoRetargeting; }
     /** Return the network string */
     std::string NetworkIDString() const { return strNetworkID; }
+    const std::vector<unsigned char>& Base58Prefix(Base58Type type, AddressType addressType = NEW_ADDRESS_TYPE) const
+    {
+        if (addressType == DEPRECATED_ADDRESS_TYPE)
+        {
+            return base58PrefixesOld[type];
+        }
+        return base58Prefixes[type];
+    }
     /** Return the list of hostnames to look up for DNS seeds */
     const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
-    const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
+    //const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::string& Bech32HRP() const { return bech32_hrp; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
@@ -124,6 +132,7 @@ protected:
     CAmount nMasternodeCollateral;
     CAmount nSystemnodeCollateral;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
+    std::vector<unsigned char> base58PrefixesOld[MAX_BASE58_TYPES];
     std::string bech32_hrp;
     std::string strNetworkID;
     CBlock genesis;

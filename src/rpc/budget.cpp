@@ -9,6 +9,7 @@
 #include <crown/nodewallet.h>
 #include <db.h>
 #include <init.h>
+#include <index/txindex.h>
 #include <key_io.h>
 #include <masternode/activemasternode.h>
 #include <masternode/masternode-budget.h>
@@ -187,7 +188,34 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
         //create the proposal incase we're the first to make it
         CBudgetProposalBroadcast budgetProposalBroadcast(strProposalName, strURL, nPaymentCount, scriptPubKey, nAmount, nBlockStart, hash);
+/*
+        CBlockIndex* blockindex = nullptr;
 
+        bool f_txindex_ready = false;
+        if (g_txindex && !blockindex) {
+            f_txindex_ready = g_txindex->BlockUntilSyncedToCurrentChain();
+        }
+
+        uint256 hash_block;
+        const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, Params().GetConsensus(), hash_block);
+
+        if (!tx) {
+            std::string errmsg;
+            if (blockindex) {
+                if (!(blockindex->nStatus & BLOCK_HAVE_DATA)) {
+                    throw JSONRPCError(RPC_MISC_ERROR, "Block not available");
+                }
+                errmsg = "No such transaction found in the provided block";
+            } else if (!g_txindex) {
+                errmsg = "No such mempool transaction. Use -txindex or provide a block hash to enable blockchain transaction queries";
+            } else if (!f_txindex_ready) {
+                errmsg = "No such mempool transaction. Blockchain transactions are still in the process of being indexed";
+            } else {
+                errmsg = "No such mempool or blockchain transaction";
+            }
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errmsg + ". Use gettransaction for wallet transactions.");
+        }
+*/
         std::string strError = "";
         int nConf = 0;
         if (!IsBudgetCollateralValid(hash, budgetProposalBroadcast.GetHash(), strError, budgetProposalBroadcast.nTime, nConf)) {

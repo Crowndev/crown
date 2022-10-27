@@ -746,7 +746,6 @@ static RPCHelpMan mnsync()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
-    NodeContext& node = EnsureNodeContext(request.context);
     std::string strMode = request.params[0].get_str();
 
     if(strMode == "status") {

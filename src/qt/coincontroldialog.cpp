@@ -30,6 +30,7 @@
 #include <QIcon>
 #include <QSettings>
 #include <QTreeWidget>
+#include <QDebug>
 
 QList<CAmount> CoinControlDialog::payAmounts;
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
@@ -408,7 +409,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
         if (amount > 0)
         {
             // Assumes a p2pkh script size
-            CTxOut txout(amount, CScript() << std::vector<unsigned char>(24, 0));
+            CTxOutAsset txout(CAsset(), amount, CScript() << std::vector<unsigned char>(24, 0));
             fDust |= IsDust(txout, model->node().getDustRelayFee());
         }
     }
@@ -499,7 +500,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
             if (nChange > 0 && nChange < MIN_CHANGE)
             {
                 // Assumes a p2pkh script size
-                CTxOut txout(nChange, CScript() << std::vector<unsigned char>(24, 0));
+                CTxOutAsset txout(CAsset(), nChange, CScript() << std::vector<unsigned char>(24, 0));
                 if (IsDust(txout, model->node().getDustRelayFee()))
                 {
                     nPayFee += nChange;
@@ -615,17 +616,16 @@ void CoinControlDialog::updateView()
             // address
             itemWalletAddress->setText(COLUMN_ADDRESS, sWalletAddress);
         }
-
+        
         CAmount nSum = 0;
         int nChildren = 0;
-        CAsset nAsset;
+        QString sAsset ="";
         for (const auto& outpair : coins.second) {
             const COutPoint& output = std::get<0>(outpair);
             const interfaces::WalletTxOut& out = std::get<1>(outpair);
             nSum += out.txout.nValue;
-            nAsset = out.txout.nAsset;
+            sAsset = QString::fromStdString(out.txout.nAsset.getAssetName());
             nChildren++;
-
             CCoinControlWidgetItem *itemOutput;
             if (treeMode)    itemOutput = new CCoinControlWidgetItem(itemWalletAddress);
             else             itemOutput = new CCoinControlWidgetItem(ui->treeWidget);
@@ -658,11 +658,10 @@ void CoinControlDialog::updateView()
                     sLabel = tr("(no label)");
                 itemOutput->setText(COLUMN_LABEL, sLabel);
             }
-            
-            //asset
-            QString sAsset = QString::fromStdString(out.txout.nAsset.getAssetName());
+
+            //asset            
             itemOutput->setText(COLUMN_ASSET, sAsset);
-            //itemOutput->setData(COLUMN_ASSET, Qt::UserRole, QString::fromStdString(out.txout.nAsset.getAssetName())); // padding so that sorting works correctly
+            itemOutput->setData(COLUMN_ASSET, Qt::UserRole, sAsset); // padding so that sorting works correctly
             
             // amount
             itemOutput->setText(COLUMN_AMOUNT, CrownUnits::format(nDisplayUnit, out.txout.nValue));
@@ -701,7 +700,7 @@ void CoinControlDialog::updateView()
             itemWalletAddress->setText(COLUMN_CHECKBOX, "(" + QString::number(nChildren) + ")");
             itemWalletAddress->setText(COLUMN_AMOUNT, CrownUnits::format(nDisplayUnit, nSum));
             itemWalletAddress->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)nSum));
-            itemWalletAddress->setText(COLUMN_ASSET, QString::fromStdString(nAsset.getAssetName()));
+            itemWalletAddress->setText(COLUMN_ASSET, sAsset);
         }
     }
 

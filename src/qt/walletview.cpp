@@ -104,8 +104,8 @@ void WalletView::setClientModel(ClientModel *_clientModel)
 
     overviewPage->setClientModel(_clientModel);
     sendCoinsPage->setClientModel(_clientModel);
-    if (walletModel) masternodeListPage->setClientModel(_clientModel);
-    if (walletModel) systemnodeListPage->setClientModel(_clientModel);
+    masternodeListPage->setClientModel(_clientModel);
+    systemnodeListPage->setClientModel(_clientModel);
     if (walletModel) walletModel->setClientModel(_clientModel);
 }
 
@@ -120,7 +120,8 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel ? _walletModel->getAddressTableModel() : nullptr);
     usedSendingAddressesPage->setModel(_walletModel ? _walletModel->getAddressTableModel() : nullptr);
-
+    masternodeListPage->setWalletModel(_walletModel);
+    systemnodeListPage->setWalletModel(_walletModel);
     if (_walletModel)
     {
         // Receive and pass through messages from wallet model
