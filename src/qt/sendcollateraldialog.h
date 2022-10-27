@@ -12,7 +12,7 @@ public:
         SYSTEMNODE,
         MASTERNODE
     };
-    explicit SendCollateralDialog(Node node, QWidget *parent = 0);
+    explicit SendCollateralDialog(const PlatformStyle *platformStyle, Node node, QWidget *parent = 0);
     void send(QList<SendAssetsRecipient> &recipients);
     bool fAutoCreate;
 private:

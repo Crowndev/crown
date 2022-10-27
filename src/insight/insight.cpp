@@ -102,26 +102,26 @@ bool HashOnchainActive(const uint256 &hash)
     return true;
 };
 
-bool GetAddressIndex(uint160 addressHash, int type, std::string sAssetName,
-                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex, int start, int end)
+bool GetAddressIndex(uint160 addressHash, int type, CAsset asset,
+                     std::vector<std::pair<CAddressIndexKey, CAmountMap> > &addressIndex, int start, int end)
 {
     if (!fAddressIndex) {
         return error("Address index not enabled");
     }
-    if (!pblocktree->ReadAddressIndex(addressHash, type, sAssetName, addressIndex, start, end)) {
+    if (!pblocktree->ReadAddressIndex(addressHash, type, asset, addressIndex, start, end)) {
         return error("Unable to get txids for address");
     }
 
     return true;
 };
 
-bool GetAddressUnspent(uint160 addressHash, int type, std::string sAssetName,
+bool GetAddressUnspent(uint160 addressHash, int type, CAsset asset,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
 {
     if (!fAddressIndex) {
         return error("Address index not enabled");
     }
-    if (!pblocktree->ReadAddressUnspentIndex(addressHash, type, sAssetName, unspentOutputs)) {
+    if (!pblocktree->ReadAddressUnspentIndex(addressHash, type, asset, unspentOutputs)) {
         return error("Unable to get txids for address");
     }
 

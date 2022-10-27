@@ -332,3 +332,11 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
         entry.pushKV("hex", EncodeHexTx(tx, serialize_flags)); // The hex-encoded transaction. Used the name "hex" to be consistent with the verbose output of "getrawtransaction".
     }
 }
+
+void AmountMapToUniv(const CAmountMap& balanceOrig, UniValue &entry)
+{
+    // Make sure the policyAsset is always present in the balance map.
+    for(auto it = balanceOrig.begin(); it != balanceOrig.end(); ++it) 
+        entry.pushKV(it->first.getAssetName(), ValueFromAmount(it->second));
+
+}

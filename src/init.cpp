@@ -2196,7 +2196,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
         DumpContracts();
     }, DUMP_BANS_INTERVAL);
 
-    node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::seconds{60});
+    node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::seconds{10});
     node.scheduler->scheduleEvery(std::bind(&NodeMinter, std::ref(Params()), std::ref(*node.connman)), std::chrono::seconds{60});
 
 #if HAVE_SYSTEM

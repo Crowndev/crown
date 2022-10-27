@@ -13,6 +13,7 @@
 #include <util/strencodings.h>
 #include <versionbitsinfo.h>
 #include <arith_uint256.h>
+#include <boost/assign/list_of.hpp>
 #include <assert.h>
 
 #include <boost/algorithm/string/classification.hpp>
@@ -58,7 +59,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
  * CBlock(hash=000000000019d6, ver=1, hashPrevBlock=00000000000000, hashMerkleRoot=4a5e1e, nTime=1231006505, nBits=1d00ffff, nNonce=2083236893, vtx=1)
  *   CTransaction(hash=4a5e1e, ver=1, vin.size=1, vout.size=1, nLockTime=0)
  *     CTxIn(COutPoint(000000, -1), coinbase 04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73)
- *     CTxOut(nValue=50.00000000, scriptPubKey=0x5F1DF16B2B704C8A578D0B)
+ *     CTxOutAsset(nValue=50.00000000, scriptPubKey=0x5F1DF16B2B704C8A578D0B)
  *   vMerkleTree: 4a5e1e
  */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward, Consensus::Params& consensus)
@@ -316,9 +317,16 @@ public:
         vSeeds.emplace_back("92.60.46.29");
         vSeeds.emplace_back("92.60.46.30");
         vSeeds.emplace_back("92.60.46.31");
+        
+        base58Prefixes[PUBKEY_ADDRESS] = {0x01, 0x7A, 0xCD, 0x67};
+        base58Prefixes[SCRIPT_ADDRESS] = {0x01, 0x7A, 0xCD, 0x51};
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
+        // Testnet crown addresses start with 'tCRW'
+        //base58Prefixes[PUBKEY_ADDRESS] = boost::assign::list_of(0x01)(0x7A)(0xCD)(0x67).convert_to_container<std::vector<unsigned char> >();
+        // Testnet crown script addresses start with 'tCRM'
+        //base58Prefixes[SCRIPT_ADDRESS] = boost::assign::list_of(0x01)(0x7A)(0xCD)(0x51).convert_to_container<std::vector<unsigned char> >();
+
+
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};

@@ -454,7 +454,7 @@ QString TransactionTableModel::formatTxAmount(const TransactionRecord *wtx, bool
     {
         if(!wtx->status.countsForBalance)
         {
-            str = QString("[") + str + QString("]");
+            str = QString("[") + str + QString("] ") + QString::fromStdString(wtx->asset.getShortName());
         }
     }
     return QString(str);
@@ -649,6 +649,8 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         return formatTxAmount(rec, false, CrownUnits::SeparatorStyle::NEVER);
     case StatusRole:
         return rec->status.status;
+    case AssetRole:
+        return QString::fromStdString(rec->asset.getShortName());
     }
     return QVariant();
 }

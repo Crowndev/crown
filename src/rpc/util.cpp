@@ -820,21 +820,6 @@ static std::pair<int64_t, int64_t> ParseRange(const UniValue& value)
     throw JSONRPCError(RPC_INVALID_PARAMETER, "Range must be specified as end or as [begin,end]");
 }
 
-UniValue AmountMapToUniv(const CAmountMap& balanceOrig)
-{
-    // Make sure the policyAsset is always present in the balance map.
-    CAmountMap balance = balanceOrig;
-
-    UniValue obj(UniValue::VOBJ);
-    for(auto it = balance.begin(); it != balance.end(); ++it) {
-        UniValue pair(UniValue::VOBJ);
-        std::string label = it->first.getAssetName();
-
-        obj.pushKV(label, ValueFromAmount(it->second));
-    }
-    return obj;
-}
-
 std::pair<int64_t, int64_t> ParseDescriptorRange(const UniValue& value)
 {
     int64_t low, high;

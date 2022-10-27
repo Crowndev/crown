@@ -208,7 +208,7 @@ size_t CountPSBTUnsignedInputs(const PartiallySignedTransaction& psbt) {
 void UpdatePSBTOutput(const SigningProvider& provider, PartiallySignedTransaction& psbt, int index)
 {
     CMutableTransaction& tx = *(psbt.tx);
-    const CTxOut& out = tx.vout.at(index);
+    const CTxOutAsset& out = tx.vout.at(index);
     PSBTOutput& psbt_out = psbt.outputs.at(index);
 
     // Fill a SignatureData with output info

@@ -9,8 +9,8 @@
 #include <qt/crownunits.h>
 #include <qt/optionsmodel.h>
 
-SendCollateralDialog::SendCollateralDialog(Node node, QWidget *parent) :
-    SendCoinsDialog(nullptr, nullptr),
+SendCollateralDialog::SendCollateralDialog(const PlatformStyle *platformStyle, Node node, QWidget *parent) :
+    SendCoinsDialog(platformStyle, nullptr),
     fAutoCreate(false),
     node(node)
 {

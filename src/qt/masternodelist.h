@@ -22,7 +22,7 @@ class MasternodeList;
 
 class ClientModel;
 class WalletModel;
-class SendCollateralDialog;
+//class SendCollateralDialog;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -42,7 +42,7 @@ public:
     void StartAlias(std::string strAlias);
     void StartAll(std::string strCommand = "start-all");
     void VoteMany(std::string strCommand);
-    void on_filterLineEdit_textChanged(const QString &strFilterIn);
+    void selectAliasRow(const QString& alias);
 
 private:
     QMenu* contextMenu;
@@ -50,7 +50,7 @@ private:
     bool fFilterUpdated{false};
 
 public Q_SLOTS:
-    void updateMyMasternodeInfo(QString strAlias, QString strAddr, CMasternode* pmn);
+    void updateMyMasternodeInfo(QString alias, QString addr, QString privkey, QString txHash, QString txIndex, CMasternode *pmn);
     void updateMyNodeList(bool fForce = false);
     void updateNodeList();
     void updateVoteList(bool reset = false);
@@ -74,7 +74,9 @@ private:
 private Q_SLOTS:
     void notReady();
     void showContextMenu(const QPoint&);
+    void on_filterLineEdit_textChanged(const QString &filterString);
     void on_startButton_clicked();
+    void on_editButton_clicked();
     void on_startAllButton_clicked();
     void on_startMissingButton_clicked();
     void on_tableWidgetMyMasternodes_itemSelectionChanged();
@@ -85,5 +87,6 @@ private Q_SLOTS:
     void on_voteManyAbstainButton_clicked();
     void on_tableWidgetVoting_itemSelectionChanged();
     void on_UpdateVotesButton_clicked();
+    void on_CreateNewMasternode_clicked();
 };
 #endif // MASTERNODELIST_H

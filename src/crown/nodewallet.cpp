@@ -155,8 +155,6 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 
     LogPrintf("%s: Attempting to stake..\n", __func__);
 
-    unsigned int nExtraNonce = 0;
-
     //
     // Create new block
     //

@@ -46,10 +46,10 @@ bool ExtractIndexInfo(const CTxOutAsset *out, int &scriptType, std::vector<uint8
 /** Functions for insight block explorer */
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value, const CTxMemPool *pmempool);
-bool GetAddressIndex(uint160 addressHash, int type, std::string sAssetName,
-                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+bool GetAddressIndex(uint160 addressHash, int type, CAsset asset,
+                     std::vector<std::pair<CAddressIndexKey, CAmountMap> > &addressIndex,
                      int start = 0, int end = 0);
-bool GetAddressUnspent(uint160 addressHash, int type, std::string sAssetName, 
+bool GetAddressUnspent(uint160 addressHash, int type, CAsset asset, 
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);
 bool GetBlockBalances(const uint256 &block_hash, BlockBalances &balances);
 

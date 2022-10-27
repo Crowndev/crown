@@ -594,6 +594,47 @@ static RPCHelpMan getrawmempool()
     };
 }
 
+static RPCHelpMan sendrawmempool()
+{
+    return RPCHelpMan{"sendrawmempool",
+                "\n  Get List of assets \n",
+                {
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "details", "The deets "
+                },
+                RPCExamples{
+            "\n Send mempool\n"
+            + HelpExampleCli("sendrawmempool", "\"deets\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("sendrawmempool", "\"deets\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+        NodeContext& node = EnsureNodeContext(request.context);
+        UniValue o(UniValue::VOBJ);
+        for (const CTxMemPoolEntry& e : node.mempool.get()->mapTx) {
+            const uint256& hash = e.GetTx().GetHash();
+
+			uint256 hash_block;
+			const CTransactionRef tx = GetTransaction(nullptr, node.mempool.get(), hash, Params().GetConsensus(), hash_block);
+
+            const CFeeRate max_raw_tx_fee_rate = DEFAULT_MAX_RAW_TX_FEE_RATE;
+            int64_t virtual_size = GetVirtualTransactionSize(*tx);
+            CAmount max_raw_tx_fee = max_raw_tx_fee_rate.GetFee(virtual_size);
+
+            std::string err_string;
+            AssertLockNotHeld(cs_main);
+            const TransactionError err = BroadcastTransaction(node, tx, err_string, max_raw_tx_fee, /*relay*/ true, /*wait_callback*/ true);
+            if (TransactionError::OK != err) {
+				o.pushKV(hash.GetHex(), err_string);
+            }
+        }
+        return o;
+},
+    };
+}
+
 static RPCHelpMan getmempoolancestors()
 {
     return RPCHelpMan{"getmempoolancestors",
@@ -1893,8 +1934,8 @@ static RPCHelpMan getblockstats()
     CAmount maxfeerate = 0;
     CAmount minfee = MAX_MONEY;
     CAmount minfeerate = MAX_MONEY;
-    CAmount total_out = 0;
-    CAmount totalfee = 0;
+    CAmountMap total_out;
+    CAmountMap totalfee;
     int64_t inputs = 0;
     int64_t maxtxsize = 0;
     int64_t mintxsize = MAX_BLOCK_SERIALIZED_SIZE;
@@ -1911,12 +1952,13 @@ static RPCHelpMan getblockstats()
 
     for (size_t i = 0; i < block.vtx.size(); ++i) {
         const auto& tx = block.vtx.at(i);
-        outputs += tx->vout.size();
+        outputs += (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size());
 
-        CAmount tx_total_out = 0;
+        CAmountMap tx_total_out;
         if (loop_outputs) {
-            for (const CTxOut& out : tx->vout) {
-                tx_total_out += out.nValue;
+            for (size_t o = 0; o < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()); o++) {
+                const CTxOutAsset &out = (tx->nVersion >= TX_ELE_VERSION ? tx->vpout[o] : tx->vout[o]);
+                tx_total_out[out.nAsset] += out.nValue;
                 utxo_size_inc += GetSerializeSize(out, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
             }
         }
@@ -1953,31 +1995,31 @@ static RPCHelpMan getblockstats()
         }
 
         if (loop_inputs) {
-            CAmount tx_total_in = 0;
+            CAmountMap tx_total_in;
             const auto& txundo = blockUndo.vtxundo.at(i - 1);
             for (const Coin& coin: txundo.vprevout) {
-                const CTxOut& prevoutput = coin.out;
+                const CTxOutAsset& prevoutput = coin.out;
 
                 tx_total_in += prevoutput.nValue;
                 utxo_size_inc -= GetSerializeSize(prevoutput, PROTOCOL_VERSION) + PER_UTXO_OVERHEAD;
             }
 
-            CAmount txfee = tx_total_in - tx_total_out;
+            CAmountMap txfee = tx_total_in - tx_total_out;
             CHECK_NONFATAL(MoneyRange(txfee));
             if (do_medianfee) {
-                fee_array.push_back(txfee);
+                //fee_array.push_back(txfee);
             }
-            maxfee = std::max(maxfee, txfee);
-            minfee = std::min(minfee, txfee);
+            //maxfee = std::max(maxfee, txfee);
+            //minfee = std::min(minfee, txfee);
             totalfee += txfee;
 
             // New feerate uses satoshis per virtual byte instead of per serialized byte
-            CAmount feerate = weight ? (txfee * WITNESS_SCALE_FACTOR) / weight : 0;
+            //CAmount feerate = weight ? (txfee * WITNESS_SCALE_FACTOR) / weight : 0;
             if (do_feerate_percentiles) {
-                feerate_array.emplace_back(std::make_pair(feerate, weight));
+                //feerate_array.emplace_back(std::make_pair(feerate, weight));
             }
-            maxfeerate = std::max(maxfeerate, feerate);
-            minfeerate = std::min(minfeerate, feerate);
+            //maxfeerate = std::max(maxfeerate, feerate);
+            //minfeerate = std::min(minfeerate, feerate);
         }
     }
 
@@ -1990,8 +2032,8 @@ static RPCHelpMan getblockstats()
     }
 
     UniValue ret_all(UniValue::VOBJ);
-    ret_all.pushKV("avgfee", (block.vtx.size() > 1) ? totalfee / (block.vtx.size() - 1) : 0);
-    ret_all.pushKV("avgfeerate", total_weight ? (totalfee * WITNESS_SCALE_FACTOR) / total_weight : 0); // Unit: sat/vbyte
+    //ret_all.pushKV("avgfee", (block.vtx.size() > 1) ? totalfee / (block.vtx.size() - 1) : 0);
+    //ret_all.pushKV("avgfeerate", total_weight ? (totalfee * WITNESS_SCALE_FACTOR) / total_weight : 0); // Unit: sat/vbyte
     ret_all.pushKV("avgtxsize", (block.vtx.size() > 1) ? total_size / (block.vtx.size() - 1) : 0);
     ret_all.pushKV("blockhash", pindex->GetBlockHash().GetHex());
     ret_all.pushKV("feerate_percentiles", feerates_res);
@@ -2012,10 +2054,17 @@ static RPCHelpMan getblockstats()
     ret_all.pushKV("swtotal_weight", swtotal_weight);
     ret_all.pushKV("swtxs", swtxs);
     ret_all.pushKV("time", pindex->GetBlockTime());
-    ret_all.pushKV("total_out", total_out);
+
+    UniValue res(UniValue::VOBJ);
+    AmountMapToUniv(total_out, res);
+
+    ret_all.pushKV("total_out", res);
     ret_all.pushKV("total_size", total_size);
     ret_all.pushKV("total_weight", total_weight);
-    ret_all.pushKV("totalfee", totalfee);
+    UniValue res1(UniValue::VOBJ);
+    AmountMapToUniv(totalfee, res1);
+
+    ret_all.pushKV("totalfee", res1);
     ret_all.pushKV("txs", (int64_t)block.vtx.size());
     ret_all.pushKV("utxo_increase", outputs - inputs);
     ret_all.pushKV("utxo_size_inc", utxo_size_inc);
@@ -2230,7 +2279,7 @@ static RPCHelpMan scantxoutset()
 
         // Scan the unspent transaction output set for inputs
         UniValue unspents(UniValue::VARR);
-        std::vector<CTxOut> input_txos;
+        std::vector<CTxOutAsset> input_txos;
         std::map<COutPoint, Coin> coins;
         g_should_abort_scan = false;
         int64_t count = 0;
@@ -2254,7 +2303,7 @@ static RPCHelpMan scantxoutset()
         for (const auto& it : coins) {
             const COutPoint& outpoint = it.first;
             const Coin& coin = it.second;
-            const CTxOut& txo = coin.out;
+            const CTxOutAsset& txo = coin.out;
             input_txos.push_back(txo);
             total_in += txo.nValue;
 
@@ -2494,6 +2543,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
     { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
+    { "blockchain",         "sendrawmempool",         &sendrawmempool,          {} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

@@ -37,7 +37,8 @@ public:
         Date = 2,
         Type = 3,
         ToAddress = 4,
-        Amount = 5
+        Amount = 5, 
+        Asset = 6
     };
 
     /** Roles to get specific information from a transaction row.
@@ -74,6 +75,7 @@ public:
         StatusRole,
         /** Unprocessed icon */
         RawDecorationRole,
+        AssetRole,
     };
 
     int rowCount(const QModelIndex &parent) const override;

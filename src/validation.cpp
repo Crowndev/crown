@@ -631,9 +631,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
             bool sub_address = false;
             sub_address = txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination;
 
-            bool sub_asset = false;
-            sub_asset = txout.nAsset == Params().GetConsensus().subsidy_asset;
-
             bool sub_fee = false;
             sub_fee = txout.nValue == 10.0001 * COIN;
 
@@ -1890,7 +1887,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
-    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressIndexKey, CAmountMap> > addressIndex;
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
 
@@ -1912,8 +1909,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             uint160 hashBytes;
             for (unsigned int k = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()); k-- > 0;) {
                 const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
-                std::string sAssetName = out.nAsset.getAssetName();
-
                 const CScript *pScript;
                 std::vector<unsigned char> hashBytes;
                 int scriptType = 0;
@@ -1923,10 +1918,11 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                     || scriptType == 0) {
                     continue;
                 }
+                CAmountMap p{{out.nAsset, out.nValue}};
                 // undo receiving activity
-                addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, Hash160(hashBytes), sAssetName, pindex->nHeight, i, hash, k, false), out.nValue));
+                addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, Hash160(hashBytes), out.nAsset, pindex->nHeight, i, hash, k, false), p));
                 // undo unspent index
-                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, Hash160(hashBytes), sAssetName, hash, k), CAddressUnspentValue()));
+                addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, Hash160(hashBytes), out.nAsset, hash, k), CAddressUnspentValue()));
             }
         }
 
@@ -1986,10 +1982,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
                 if (fAddressIndex) {
                     const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
-                    const CTxOutAsset &prevout = coin.out; //(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
-
-                    std::string sAssetName = prevout.nAsset.getAssetName();
-
+                    const CTxOutAsset &prevout = coin.out;
                     const CScript *pScript = &prevout.scriptPubKey;
 
                     std::vector<uint8_t> hashBytes;
@@ -1998,9 +1991,10 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                         || scriptType == 0) {
                         continue;
                     }
+                    CAmountMap p{{prevout.nAsset, prevout.nValue}};
 
-                    addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, hash, j, false), prevout.nValue));
-                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, hash, j), CAddressUnspentValue()));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), prevout.nAsset, pindex->nHeight, i, hash, j, false), p));
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), prevout.nAsset, hash, j), CAddressUnspentValue()));
                 }
 
             }
@@ -2577,7 +2571,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
-    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressIndexKey, CAmountMap> > addressIndex;
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
     std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
 
@@ -2632,7 +2626,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     const CTxIn input = tx.vin[j];
                     const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
                     const CTxOutAsset &prevout = coin.out; //(tx.nVersion >= TX_ELE_VERSION ? coin.out2 : coin.out);
-                    std::string sAssetName = prevout.nAsset.getAssetName();
 
                     const CScript *pScript = &prevout.scriptPubKey;
                     std::vector<uint8_t> hashBytes;
@@ -2645,14 +2638,16 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
                     if (g_txindex && scriptType > 0) {
                         // record spending activity
-                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
+                        CAmountMap p{{prevout.nAsset, prevout.nValue}};
+
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), prevout.nAsset, pindex->nHeight, i, txhash, j, true), p));
                         // remove address from unspent index
-                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), prevout.nAsset, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
                     }
                     if (fSpentIndex) {
                         // add the spent index to determine the txid and input that spent an output
                         // and to find the amount and address from an input
-                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, scriptType, uint160(hashBytes))));
+                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, prevout.nAsset, scriptType, uint160(hashBytes))));
                     }
                 }
             }
@@ -2687,8 +2682,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             for (unsigned int k = 0; k <  (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++) {
                 const CTxOutAsset &out = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
-                std::string sAssetName = out.nAsset.getAssetName();
-
                 const CScript *pScript;
                 std::vector<unsigned char> hashBytes;
                 int scriptType = 0;
@@ -2699,9 +2692,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 }
 
                 // Record receiving activity
-                view.addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), sAssetName, pindex->nHeight, i, txhash, k, false), out.nValue));
+                view.addressIndex.push_back(std::make_pair(CAddressIndexKey(scriptType, uint160(hashBytes), out.nAsset, pindex->nHeight, i, txhash, k, false), out.nValue));
                 // Record unspent output
-                view.addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), sAssetName, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+                view.addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(scriptType, uint160(hashBytes), out.nAsset, txhash, k), CAddressUnspentValue(out.nValue, out.nAsset, out.scriptPubKey, pindex->nHeight)));
             }
         }
 
@@ -2709,6 +2702,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
+        //LogPrintf("%s: %s:\n", __func__, tx.ToString());
+
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;

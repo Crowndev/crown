@@ -48,21 +48,15 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.txout_address.reserve(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size());
     result.txout_address_is_mine.reserve(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size());
     for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
-        CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+        const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
 
         result.txout_is_mine.emplace_back(wallet.IsMine(txout));
         result.txout_address.emplace_back();
         result.txout_address_is_mine.emplace_back(ExtractDestination(txout.scriptPubKey, result.txout_address.back()) ?
-                                                      wallet.IsMine(result.txout_address.back()) :
-                                                      ISMINE_NO);
+                                                      wallet.IsMine(result.txout_address.back()) : ISMINE_NO);
         result.txout_is_change.push_back(wallet.IsChange(txout));
-    }
-    // ELEMENTS: Retrieve unblinded information about outputs
-    for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
-        CTxOutAsset txOut = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
-
-            result.txout_amounts.emplace_back(txOut.nValue);
-            result.txout_assets.emplace_back(txOut.nAsset);
+        result.txout_amounts.emplace_back(txout.nValue);
+        result.txout_assets.emplace_back(txout.nAsset);
     }
     result.credit = wtx.GetCredit(ISMINE_ALL);
     result.debit = wtx.GetDebit(ISMINE_ALL);
@@ -97,10 +91,17 @@ WalletTxOut MakeWalletTxOut(CWallet& wallet,
     int depth) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     WalletTxOut result;
-    result.txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[n] : wtx.tx->vout[n]);
+    const CTransactionRef &mtx = wtx.tx;
+    if(mtx->nVersion >= TX_ELE_VERSION)
+        result.txout = mtx->vpout[n];
+    else
+        result.txout = mtx->vout[n];
+        
     result.time = wtx.GetTxTime();
     result.depth_in_main_chain = depth;
     result.is_spent = wallet.IsSpent(wtx.GetHash(), n);
+    LogPrintf("%s - %s\n", __func__, mtx->vpout[n].ToString());
+
     return result;
 }
 

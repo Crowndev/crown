@@ -92,6 +92,7 @@ QT_MOC_CPP = \
   qt/moc_utilitydialog.cpp \
   qt/moc_walletcontroller.cpp \
   qt/moc_walletframe.cpp \
+  qt/moc_privatekeywidget.cpp \
   qt/moc_createsystemnodedialog.cpp \
   qt/moc_createmasternodedialog.cpp \
   qt/moc_createnodedialog.cpp \
@@ -164,6 +165,7 @@ CROWN_QT_H = \
   qt/masternodelist.h \
   qt/systemnodelist.h \
   qt/datetablewidgetitem.h \
+  qt/privatekeywidget.h \
   qt/createsystemnodedialog.h \
   qt/createmasternodedialog.h \
   qt/createnodedialog.h \
@@ -298,6 +300,7 @@ CROWN_QT_WALLET_CPP = \
   qt/walletframe.cpp \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
+  qt/privatekeywidget.cpp \
   qt/walletview.cpp
 
 CROWN_QT_CPP = $(CROWN_QT_BASE_CPP)

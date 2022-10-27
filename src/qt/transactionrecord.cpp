@@ -43,8 +43,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
         for (unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); i++) {
              CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
 
-            //const CTxOut& txout = wtx.tx->vout[i];
-            //const CAsset& asset = wtx.txout_assets[i];
             if (txout.IsFee()) {
                 // explicit fee; ignore
                 continue;
@@ -56,6 +54,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 TransactionRecord sub(hash, nTime);
                 sub.idx = i; // vout index
                 sub.credit = txout.nValue;
+                sub.asset = txout.nAsset;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (wtx.txout_address_is_mine[i])
                 {
@@ -104,18 +103,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 if (it != wtx.txout_address.begin()) address += ", ";
                 address += EncodeDestination(*it);
             }
-
             CAmountMap nChange = wtx.change;
             TransactionRecord sub(hash, nTime);
             sub.idx = 0;
             sub.involvesWatchAddress = involvesWatchAddress;
             sub.type = TransactionRecord::SendToSelf;
             sub.address = address;
-            //sub.debit = -nValue;
-            //sub.credit = -nValue;
+            sub.asset = wtx.txout_assets[0];
+            CAmountMap mm = (nDebit - nChange) * -1;
+            sub.debit = mm[wtx.txout_assets[0]];
+            CAmountMap nn = nCredit - nChange;
+            sub.credit = nn[wtx.txout_assets[0]];
             parts.append(sub);
-
-            //parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, address, (nDebit - nChange) * -1, nCredit - nChange));
         }
         else if (fAllFromMe)
         {
@@ -125,10 +124,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             CAmountMap nTxFee = nDebit - wtx.tx->GetValueOutMap();
             for (unsigned int nOut = 0; nOut < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; nOut++){
                 CTxOutAsset txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[nOut] : wtx.tx->vout[nOut]);
-                
-            //for (unsigned int nOut = 0; nOut < wtx.tx->vout.size(); nOut++)
-            //{
-                //const CTxOut& txout = wtx.tx->vout[nOut];
+
                 TransactionRecord sub(hash, nTime);
                 sub.idx = nOut;
                 sub.involvesWatchAddress = involvesWatchAddress;
@@ -153,14 +149,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                     sub.address = mapValue["to"];
                 }
 
-                CAmount nValue = txout.nValue;
                 /* Add fee to first output */
                 if (nTxFee > CAmountMap())
                 {
-                    //nValue += nTxFee;
                     nTxFee = CAmountMap();
                 }
-                sub.debit = -nValue;
+                sub.debit = -txout.nValue;
+                sub.asset = txout.nAsset;
 
                 parts.append(sub);
             }

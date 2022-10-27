@@ -2034,7 +2034,7 @@ CAmountMap CWalletTx::GetCredit(const isminefilter& filter) const
 CAmountMap CWalletTx::GetImmatureCredit(bool fUseCache) const
 {
     CAmountMap nCredit;
-    uint256 hashTx = GetHash();
+    //uint256 hashTx = GetHash();
     if (IsImmatureCoinBase() && IsInMainChain()) {
 
         for(unsigned int i = 0; i < (tx->nVersion >= TX_ELE_VERSION ? tx->vpout.size() : tx->vout.size()) ; i++){
@@ -2394,7 +2394,7 @@ CAmountMap CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     return balance;
 }
 
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount, const CAsset* asset_filter) const
+void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount, const CAsset& asset_filter) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -2480,20 +2480,9 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
             if (out.nValue < nMinimumAmount || out.nValue > nMaximumAmount)
                 continue;
 
-            CAmount outValue = out.nValue;
-            CAsset asset;
+            CAsset asset = wtx.tx->nVersion >= TX_ELE_VERSION ? out.nAsset : Params().GetConsensus().subsidy_asset;
 
-            if(wtx.tx->nVersion >= TX_ELE_VERSION)
-                asset = out.nAsset;
-            else
-                asset = Params().GetConsensus().subsidy_asset;
-
-            CAsset reqasset;
-            if (asset_filter){
-                reqasset = *asset_filter;
-            }
-
-            if (asset_filter && asset != *asset_filter) {
+            if (asset != asset_filter) {
                 continue;
             }
 
@@ -2558,9 +2547,6 @@ std::map<CTxDestination, std::vector<COutput> > CWallet::AvailableCoinsByAddress
 
         if (!ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, address))
             continue;
-
-
-        //mapCoins[CHemisAddress(address, fColdStakeAddr ? CChainParams::STAKING_ADDRESS : CChainParams::PUBKEY_ADDRESS)].push_back(out);
         mapCoins[address].push_back(out);
 
     }
@@ -2618,7 +2604,7 @@ void CWallet::AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed,
 
             CTxOutAsset out = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
 
-            CAmount outValue = out.nValue;
+            //CAmount outValue = out.nValue;
             CAsset asset;
 
             if(wtx.tx->nVersion >= TX_ELE_VERSION)
@@ -2664,7 +2650,6 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
     for (const COutput& coin : availableCoins) {
         CTxDestination address;
         if (coin.fSpendable &&
-        //if ((coin.fSpendable || (IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && coin.fSolvable)) &&
             ExtractDestination(FindNonChangeParentOutput(*coin.tx->tx, coin.i).scriptPubKey, address)) {
             result[address].emplace_back(std::move(coin));
         }
@@ -2684,8 +2669,7 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
             ) {
                 CTxDestination address;
                 if (ExtractDestination(FindNonChangeParentOutput(*it->second.tx, output.n).scriptPubKey, address)) {
-                    result[address].emplace_back(
-                        &it->second, output.n, depth, true /* spendable */, true /* solvable */, false /* safe */);
+                    result[address].emplace_back(&it->second, output.n, depth, true /* spendable */, true /* solvable */, false /* safe */);
                 }
             }
         }
@@ -2766,7 +2750,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_10000);
+    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_10000, MAX_MONEY);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate any valid masternode vin\n");
         return false;
@@ -2798,7 +2782,7 @@ bool CWallet::GetSystemnodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_500);
+    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_500, MAX_MONEY);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetSystemnodeVinAndKeys - Could not locate any valid servicenode vin\n");
         return false;
@@ -3281,7 +3265,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
+        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3420,7 +3404,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
+        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3767,7 +3751,6 @@ bool CWallet::CreateTransactionInternal(
                     }
 
                     CTxOutAsset newTxOut(assetChange.first, assetChange.second, scriptChange);
-                    //CTxOut newTxOut(assettosend, nChange, scriptChange);
                     // Never create dust outputs; if we would, just
                     // add the dust to the fee.
                     // The nChange when BnB is used is always going to go to fees.
@@ -4535,7 +4518,6 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const {
             // ... which are already in a block
             for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
                 const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
-            //for (const CTxOut &txout : wtx.tx->vout) {
                 // iterate over all their outputs
                 for (const auto &keyid : GetAffectedKeys(txout.scriptPubKey, *spk_man)) {
                     // ... and all their affected keys

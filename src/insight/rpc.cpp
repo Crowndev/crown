@@ -27,11 +27,15 @@
 bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
 {
     if (params[0].isStr()) {
-        auto dest = DecodeDestination(params[0].get_str());
+        CTxDestination dest = DecodeDestination(params[0].get_str());
+        if (!IsValidDestination(dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Invalid Crown address 1 %s", params[0].get_str()));
+        }
+
         uint160 hashBytes;
         int type = 0;
         if (!GetIndexKey(dest, hashBytes, type)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Invalid address 1 type = %d", type ));
         }
         addresses.push_back(std::make_pair(hashBytes, type));
     } else if (params[0].isObject()) {
@@ -43,16 +47,21 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
 
         std::vector<UniValue> values = addressValues.getValues();
         for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
-            auto dest = DecodeDestination(it->get_str());
+
+            CTxDestination dest = DecodeDestination(it->get_str());
+            if (!IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Invalid Crown address 2 %s", params[0].get_str()));
+            }
+
             uint160 hashBytes;
             int type = 0;
             if (!GetIndexKey(dest, hashBytes, type)) {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 2");
             }
             addresses.push_back(std::make_pair(hashBytes, type));
         }
     } else {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 3");
     }
 
     return true;
@@ -94,7 +103,7 @@ static RPCHelpMan getaddressmempool()
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 4");
     }
 
     std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> > indexes;
@@ -174,14 +183,14 @@ return RPCHelpMan{"getaddressutxos",
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 5");
     }
 
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
-    std::string sAssetName="";
+    CAsset asset;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-        if (!GetAddressUnspent((*it).first, (*it).second, sAssetName, unspentOutputs)) {
+        if (!GetAddressUnspent((*it).first, (*it).second, asset, unspentOutputs)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     }
@@ -202,6 +211,10 @@ return RPCHelpMan{"getaddressutxos",
         output.pushKV("outputIndex", (int)it->first.index);
         output.pushKV("script", HexStr(it->second.script));
         output.pushKV("satoshis", it->second.satoshis);
+        UniValue p(UniValue::VOBJ);
+        AssetToUniv(it->second.asset, p);
+        output.pushKV("asset", p);
+                    
         output.pushKV("height", it->second.blockHeight);
         utxos.push_back(output);
     }
@@ -278,19 +291,19 @@ static RPCHelpMan getaddressdeltas()
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 6");
     }
 
-    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-    std::string sAssetName="";
+    std::vector<std::pair<CAddressIndexKey, CAmountMap> > addressIndex;
+    CAsset asset;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
-            if (!GetAddressIndex((*it).first, (*it).second, sAssetName, addressIndex, start, end)) {
+            if (!GetAddressIndex((*it).first, (*it).second, asset, addressIndex, start, end)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
         } else {
-            if (!GetAddressIndex((*it).first, (*it).second,sAssetName, addressIndex)) {
+            if (!GetAddressIndex((*it).first, (*it).second, asset, addressIndex)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
         }
@@ -298,14 +311,16 @@ static RPCHelpMan getaddressdeltas()
 
     UniValue deltas(UniValue::VARR);
 
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+    for (std::vector<std::pair<CAddressIndexKey, CAmountMap> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
         std::string address;
         if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
         }
 
         UniValue delta(UniValue::VOBJ);
-        delta.pushKV("satoshis", it->second);
+        UniValue p(UniValue::VOBJ);
+        AmountMapToUniv(it->second, p);
+        delta.pushKV("satoshis", p);
         delta.pushKV("txid", it->first.txhash.GetHex());
         delta.pushKV("index", (int)it->first.index);
         delta.pushKV("blockindex", (int)it->first.txindex);
@@ -374,32 +389,36 @@ static RPCHelpMan getaddressbalance()
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 7");
     }
 
-    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressIndexKey, CAmountMap> > addressIndex;
     std::string address= request.params[0].get_str();
-    std::string sAssetName="";
+    CAsset asset;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-        if (!GetAddressIndex((*it).first, (*it).second, sAssetName, addressIndex)) {
+        if (!GetAddressIndex((*it).first, (*it).second, asset, addressIndex)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     }
 
-    CAmount balance = 0;
-    CAmount received = 0;
+    CAmountMap balance;
+    CAmountMap received;
 
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
-        if (it->second > 0) {
+    for (std::vector<std::pair<CAddressIndexKey, CAmountMap> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+        if (it->second > CAmountMap()) {
             received += it->second;
         }
         balance += it->second;
     }
 
     UniValue result(UniValue::VOBJ);
-    result.pushKV("balance", balance);
-    result.pushKV("received", received);
+    UniValue bal(UniValue::VOBJ);
+    UniValue rec(UniValue::VOBJ);
+    AmountMapToUniv(balance, bal);
+    AmountMapToUniv(received, rec);
+    result.pushKV("balance", bal);
+    result.pushKV("received", rec);
 
     return result;
 },
@@ -434,7 +453,7 @@ static RPCHelpMan getaddresstxids()
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 8");
     }
 
     int start = 0;
@@ -448,16 +467,16 @@ static RPCHelpMan getaddresstxids()
         }
     }
 
-    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
-    std::string sAssetName="";
+    std::vector<std::pair<CAddressIndexKey, CAmountMap> > addressIndex;
+    CAsset asset;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
-            if (!GetAddressIndex((*it).first, (*it).second, sAssetName,  addressIndex, start, end)) {
+            if (!GetAddressIndex((*it).first, (*it).second, asset,  addressIndex, start, end)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
         } else {
-            if (!GetAddressIndex((*it).first, (*it).second, sAssetName, addressIndex)) {
+            if (!GetAddressIndex((*it).first, (*it).second, asset, addressIndex)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
         }
@@ -466,7 +485,7 @@ static RPCHelpMan getaddresstxids()
     std::set<std::pair<int, std::string> > txids;
     UniValue result(UniValue::VARR);
 
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+    for (std::vector<std::pair<CAddressIndexKey, CAmountMap> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
         int height = it->first.blockHeight;
         std::string txid = it->first.txhash.GetHex();
 
