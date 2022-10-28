@@ -191,9 +191,9 @@ namespace Platform
             CKeyID OwnerOf(uint64_t protocolId, const uint256 & tokenId);
 
             /// Amount of all nf-tokens belonging to a specified owner within a protocol
-            std::size_t BalanceOf(uint64_t protocolId, const CKeyID & ownerId) const;
+            unsigned int BalanceOf(uint64_t protocolId, const CKeyID & ownerId) const;
             /// Amount of all nf-tokens belonging to a specified owner in a global protocol set
-            std::size_t BalanceOf(const CKeyID & ownerId) const;
+            unsigned int BalanceOf(const CKeyID & ownerId) const;
 
             /// Retrieve all nf-tokens belonging to a specified owner within a protocol
             std::vector<std::weak_ptr<const NfToken> > NfTokensOf(uint64_t protocolId, const CKeyID & ownerId) const;
@@ -206,9 +206,9 @@ namespace Platform
             std::vector<uint256> NfTokenIdsOf(const CKeyID & ownerId) const;
 
             /// Total amount of nf-tokens
-            std::size_t TotalSupply() const;
+            unsigned int TotalSupply() const;
             /// Total amount of nf-tokens for a specified protocol
-            std::size_t TotalSupply(uint64_t protocolId) const;
+            unsigned int TotalSupply(uint64_t protocolId) const;
 
             using NftIndexRange = boost::any_range<const NfTokenIndex &, boost::bidirectional_traversal_tag>;
             using NftIndexForwardRange = boost::any_range<const NfTokenIndex &, boost::forward_traversal_tag>;
@@ -261,7 +261,7 @@ namespace Platform
             uint256 m_tipBlockHash;
             mutable RecursiveMutex m_cs;
 
-            std::unordered_map<uint64_t, std::size_t> m_protocolsTotalSupply;
+            std::unordered_map<uint64_t, unsigned int> m_protocolsTotalSupply;
 
             static std::unique_ptr<NfTokensManager> s_instance;
     };

@@ -297,7 +297,7 @@ Examples:
 
     UniValue NftProtoTotalSupply(const UniValue& params)
     {
-        std::size_t totalSupply = NftProtocolsManager::Instance().TotalSupply();
+        unsigned int totalSupply = NftProtocolsManager::Instance().TotalSupply();
         return static_cast<uint64_t>(totalSupply);
     }
 

@@ -107,7 +107,7 @@ namespace Platform
         return CKeyID();
     }
 
-    std::size_t NftProtocolsManager::TotalSupply() const
+    unsigned int NftProtocolsManager::TotalSupply() const
     {
         LOCK(m_cs);
         return m_totalProtocolsCount;

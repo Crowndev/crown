@@ -26,7 +26,7 @@ namespace Platform
             m_tipBlockHash = ::ChainActive().Tip()->GetBlockHash();
         }
 
-        auto protoSupplyHandler = [this](uint64_t protocolId, std::size_t totalSupply) -> bool
+        auto protoSupplyHandler = [this](uint64_t protocolId, unsigned int totalSupply) -> bool
         {
             m_protocolsTotalSupply[protocolId] = totalSupply;
             return true;
@@ -157,7 +157,7 @@ namespace Platform
         return CKeyID();
     }
 
-    std::size_t NfTokensManager::BalanceOf(uint64_t protocolId, const CKeyID & ownerId) const
+    unsigned int NfTokensManager::BalanceOf(uint64_t protocolId, const CKeyID & ownerId) const
     {
         LOCK(m_cs);
         // TODO: put my addresses balance into db
@@ -166,7 +166,7 @@ namespace Platform
 
         if (PlatformDb::Instance().OptimizeRam())
         {
-            std::size_t count = 0;
+            unsigned int count = 0;
             PlatformDb::Instance().ProcessNftIndexGutsOnly([&](NfTokenIndex nftIndex) -> bool
             {
                 if (nftIndex.NfTokenPtr()->tokenProtocolId == protocolId &&
@@ -184,7 +184,7 @@ namespace Platform
         return protocolOwnerIndex.count(std::make_tuple(protocolId, ownerId));
     }
 
-    std::size_t NfTokensManager::BalanceOf(const CKeyID & ownerId) const
+    unsigned int NfTokensManager::BalanceOf(const CKeyID & ownerId) const
     {
         LOCK(m_cs);
         // TODO: put my addresses balance into db
@@ -192,7 +192,7 @@ namespace Platform
 
         if (PlatformDb::Instance().OptimizeRam())
         {
-            std::size_t count = 0;
+            unsigned int count = 0;
             PlatformDb::Instance().ProcessNftIndexGutsOnly([&](NfTokenIndex nftIndex) -> bool
             {
                 if (nftIndex.NfTokenPtr()->tokenOwnerKeyId == ownerId)
@@ -279,12 +279,12 @@ namespace Platform
         return nfTokenIds;
     }
 
-    std::size_t NfTokensManager::TotalSupply() const
+    unsigned int NfTokensManager::TotalSupply() const
     {
         return TotalSupply(NfToken::UNKNOWN_TOKEN_PROTOCOL);
     }
 
-    std::size_t NfTokensManager::TotalSupply(uint64_t protocolId) const
+    unsigned int NfTokensManager::TotalSupply(uint64_t protocolId) const
     {
         LOCK(m_cs);
         auto it = m_protocolsTotalSupply.find(protocolId);
@@ -511,13 +511,13 @@ namespace Platform
 
     void NfTokensManager::UpdateTotalSupply(uint64_t protocolId, bool increase)
     {
-        std::size_t updatedSize = increase ? ++m_protocolsTotalSupply[protocolId] : --m_protocolsTotalSupply[protocolId];
+        unsigned int updatedSize = increase ? ++m_protocolsTotalSupply[protocolId] : --m_protocolsTotalSupply[protocolId];
         PlatformDb::Instance().WriteTotalSupply(updatedSize, protocolId);
         if (protocolId != NfToken::UNKNOWN_TOKEN_PROTOCOL)
         {
             /// Update total supply count
             uint64_t tempTotalId = NfToken::UNKNOWN_TOKEN_PROTOCOL;
-            std::size_t updatedTotalSize = increase ? ++m_protocolsTotalSupply[tempTotalId] : --m_protocolsTotalSupply[tempTotalId];
+            unsigned int updatedTotalSize = increase ? ++m_protocolsTotalSupply[tempTotalId] : --m_protocolsTotalSupply[tempTotalId];
             PlatformDb::Instance().WriteTotalSupply(updatedTotalSize);
         }
     }

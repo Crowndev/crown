@@ -61,22 +61,22 @@ namespace Platform
         void ProcessNftProtoIndexGutsOnly(std::function<bool(NftProtoIndex)> protoIndexHandler);
         bool ProcessNftIndex(const leveldb::Iterator & dbIt, std::function<bool(NfTokenIndex)> nftIndexHandler);
         bool ProcessNftProtoIndex(const leveldb::Iterator & dbIt, std::function<bool(NftProtoIndex)> protoIndexHandler);
-        bool ProcessNftSupply(const leveldb::Iterator & dbIt, std::function<bool(uint64_t, std::size_t)> protoSupplyHandler);
+        bool ProcessNftSupply(const leveldb::Iterator & dbIt, std::function<bool(uint64_t, unsigned int)> protoSupplyHandler);
 
         bool IsNftIndexEmpty();
         void WriteNftDiskIndex(const NfTokenDiskIndex & nftDiskIndex);
         void EraseNftDiskIndex(const uint64_t &protocolId, const uint256 &tokenId);
         NfTokenIndex ReadNftIndex(const uint64_t &protocolId, const uint256 &tokenId);
 
-        void WriteTotalSupply(std::size_t count, uint64_t nftProtocolId = NfToken::UNKNOWN_TOKEN_PROTOCOL);
-        bool ReadTotalSupply(std::size_t & count, uint64_t nftProtocolId = NfToken::UNKNOWN_TOKEN_PROTOCOL);
+        void WriteTotalSupply(unsigned int count, uint64_t nftProtocolId = NfToken::UNKNOWN_TOKEN_PROTOCOL);
+        bool ReadTotalSupply(unsigned int & count, uint64_t nftProtocolId = NfToken::UNKNOWN_TOKEN_PROTOCOL);
 
         void WriteNftProtoDiskIndex(const NftProtoDiskIndex & nftDiskIndex);
         void EraseNftProtoDiskIndex(const uint64_t &protocolId);
         NftProtoIndex ReadNftProtoIndex(const uint64_t &protocolId);
 
-        void WriteTotalProtocolCount(std::size_t count);
-        bool ReadTotalProtocolCount(std::size_t & count);
+        void WriteTotalProtocolCount(unsigned int count);
+        bool ReadTotalProtocolCount(unsigned int & count);
 
     private:
         explicit PlatformDb(

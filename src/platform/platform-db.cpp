@@ -160,7 +160,7 @@ namespace Platform
         return true;
     }
 
-    bool PlatformDb::ProcessNftSupply(const leveldb::Iterator & dbIt, std::function<bool(uint64_t, std::size_t)> protoSupplyHandler)
+    bool PlatformDb::ProcessNftSupply(const leveldb::Iterator & dbIt, std::function<bool(uint64_t, unsigned int)> protoSupplyHandler)
     {
         if (dbIt.key().starts_with(std::string(1, DB_NFT_TOTAL)))
         {
@@ -170,7 +170,7 @@ namespace Platform
 
             leveldb::Slice sliceValue = dbIt.value();
             CDataStream streamValue(sliceValue.data(), sliceValue.data() + sliceValue.size(), SER_DISK, CLIENT_VERSION);
-            std::size_t protoSupply = 0;
+            unsigned int protoSupply = 0;
 
             try
             {
@@ -237,22 +237,22 @@ namespace Platform
         return NftProtoIndex();
     }
 
-    void PlatformDb::WriteTotalSupply(std::size_t count, uint64_t nftProtocolId)
+    void PlatformDb::WriteTotalSupply(unsigned int count, uint64_t nftProtocolId)
     {
         this->Write(std::make_pair(DB_NFT_TOTAL, nftProtocolId), count);
     }
 
-    bool PlatformDb::ReadTotalSupply(std::size_t & count, uint64_t nftProtocolId)
+    bool PlatformDb::ReadTotalSupply(unsigned int & count, uint64_t nftProtocolId)
     {
         return this->Read(std::make_pair(DB_NFT_TOTAL, nftProtocolId), count);
     }
 
-    void PlatformDb::WriteTotalProtocolCount(std::size_t count)
+    void PlatformDb::WriteTotalProtocolCount(unsigned int count)
     {
         this->Write(DB_NFT_PROTO_TOTAL, count);   
     }
 
-    bool PlatformDb::ReadTotalProtocolCount(std::size_t & count)
+    bool PlatformDb::ReadTotalProtocolCount(unsigned int & count)
     {
         return this->Read(DB_NFT_PROTO_TOTAL, count);
     }
@@ -260,8 +260,8 @@ namespace Platform
     BlockIndex * PlatformDb::FindBlockIndex(const uint256 & blockHash)
     {
         auto blockIndexIt = g_chainman.m_blockman.m_block_index.find(blockHash);
-        if (blockIndexIt != g_chainman.m_blockman.m_block_index.end())
-            blockIndexIt->second;
+        //if (blockIndexIt != g_chainman.m_blockman.m_block_index.end())
+        //    blockIndexIt->second;
         return nullptr;
     }
 

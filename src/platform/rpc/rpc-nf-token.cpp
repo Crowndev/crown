@@ -337,7 +337,7 @@ Examples:
 
     UniValue NfTokenTotalSupply(const UniValue& params)
     {
-        std::size_t totalSupply = 0;
+        unsigned int totalSupply = 0;
         if (params.size() == 2)
         {
             uint64_t tokenProtocolId = StringToProtocolName(params[1].get_str().c_str());
@@ -378,7 +378,7 @@ Display balance of "CRWS78Yf5kbWAyfcES6RfiTVzP87csPNhZzc" address
     UniValue NfTokenBalanceOf(const UniValue& params)
     {
         CKeyID filterKeyId = ParsePubKeyIDFromAddress(params[1].get_str(), "nfTokenOwnerAddr");
-        std::size_t balance = 0;
+        unsigned int balance = 0;
 
         if (params.size() == 3)
         {
