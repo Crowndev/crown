@@ -606,7 +606,7 @@ UniValue getmasternodewinners(const JSONRPCRequest& request)
             boost::tokenizer<boost::char_separator<char>> tokens(strPayment, sep);
             for (const std::string& t : tokens) {
                 UniValue addr(UniValue::VOBJ);
-                std::size_t pos = t.find(":");
+                unsigned int pos = t.find(":");
                 std::string strAddress = t.substr(0, pos);
                 uint64_t nVotes = atoi(t.substr(pos + 1));
                 addr.pushKV("address", strAddress);
@@ -616,7 +616,7 @@ UniValue getmasternodewinners(const JSONRPCRequest& request)
             obj.pushKV("winner", winner);
         } else if (strPayment.find("Unknown") == std::string::npos) {
             UniValue winner(UniValue::VOBJ);
-            std::size_t pos = strPayment.find(":");
+            unsigned int pos = strPayment.find(":");
             std::string strAddress = strPayment.substr(0, pos);
             uint64_t nVotes = atoi(strPayment.substr(pos + 1));
             winner.pushKV("address", strAddress);

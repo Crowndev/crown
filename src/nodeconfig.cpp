@@ -63,7 +63,7 @@ bool CNodeConfig::read(std::string& strErr)
             }
         }
         /*std::remove(ip.begin(), ip.end(), ' ');
-        std::size_t pos = ip.find(":");
+        unsigned int pos = ip.find(":");
         std::string sport = ip.substr(pos);
         int port = stoi(sport);
 
