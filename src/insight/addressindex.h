@@ -66,7 +66,6 @@ struct CMempoolAddressDeltaKey
         index = 0;
         spending = 0;
     }
-
 };
 
 struct CMempoolAddressDeltaKeyCompare

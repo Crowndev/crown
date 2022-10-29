@@ -195,7 +195,7 @@ public:
     }
 
     bool IsFee() const {
-        return scriptPubKey == CScript() && !nValue==0;
+        return scriptPubKey == CScript() && nValue != 0;
     }
 
     friend bool operator==(const CTxOutAsset& a, const CTxOutAsset& b)

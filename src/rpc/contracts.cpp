@@ -335,8 +335,8 @@ static RPCHelpMan getnumassets()
     std::vector<CAsset> allassets = ::GetAllAssets();
     std::vector<CContract> allcontracts = ::GetAllContracts();
     UniValue deets(UniValue::VOBJ);
-    deets.pushKV("Asset count", allassets.size());
-    deets.pushKV("Contract count", allcontracts.size());
+    deets.pushKV("Asset count", (int64_t)allassets.size());
+    deets.pushKV("Contract count", (int64_t)allcontracts.size());
 
     return deets;
 },

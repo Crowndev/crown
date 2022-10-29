@@ -94,11 +94,11 @@ struct CAddressUnspentKey {
     uint160 hashBytes;
     CAsset asset;
     uint256 txhash;
-    size_t index;
+    unsigned int  index;
 
     SERIALIZE_METHODS(CAddressUnspentKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset, obj.txhash, obj.index);}
 
-    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, CAsset at, uint256 txid, size_t indexValue) {
+    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, CAsset at, uint256 txid, unsigned int  indexValue) {
         type = addressType;
         hashBytes = addressHash;
         asset = at;
@@ -157,13 +157,13 @@ struct CAddressIndexKey {
     int blockHeight;
     unsigned int txindex;
     uint256 txhash;
-    size_t index;
+    unsigned int  index;
     bool spending;
 
     SERIALIZE_METHODS(CAddressIndexKey, obj) {READWRITE(obj.type, obj.hashBytes, obj.asset, obj.blockHeight, obj.txindex, obj.txhash, obj.index, obj.spending);}
 
     CAddressIndexKey(unsigned int addressType, uint160 addressHash, CAsset at, int height, int blockindex,
-                     uint256 txid, size_t indexValue, bool isSpending) {
+                     uint256 txid, unsigned int indexValue, bool isSpending) {
         type = addressType;
         hashBytes = addressHash;
         asset = at;

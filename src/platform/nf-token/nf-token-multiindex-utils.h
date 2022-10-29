@@ -9,8 +9,8 @@
 #include <boost/multi_index/composite_key.hpp>
 #include "pubkey.h"
 
-std::size_t hash_value(const uint256 & val);
-std::size_t hash_value(const CKeyID & val);
+unsigned int hash_value(const uint256 & val);
+unsigned int hash_value(const CKeyID & val);
 
 namespace Platform
 {

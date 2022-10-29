@@ -100,7 +100,7 @@ namespace Platform
         CKeyID OwnerOf(uint64_t protocolId);
 
         /// Retrieve total amount of nft protocols
-        std::size_t TotalSupply() const;
+        unsigned int TotalSupply() const;
 
         using NftProtoIndexRange = boost::any_range<const NftProtoIndex &, boost::bidirectional_traversal_tag>;
 
@@ -129,7 +129,7 @@ namespace Platform
         uint256 m_tipBlockHash;
         mutable RecursiveMutex m_cs;
 
-        std::size_t m_totalProtocolsCount{0};
+        unsigned int m_totalProtocolsCount{0};
 
         static std::unique_ptr<NftProtocolsManager> s_instance;
     };
