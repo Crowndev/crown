@@ -36,9 +36,9 @@
             <meta-data android:name="android.app.system_libs_prefix" android:value="/system/lib/"/>
             <meta-data android:name="android.app.background_running" android:value="true"/>
             <meta-data android:name="android.app.auto_screen_scale_factor" android:value="true"/>
-            <meta-data android:name="android.app.extract_android_style" android:value="minimal"/>
+            <meta-data android:name="android.app.extract_android_style" android:value="default"/>
+            <meta-data android:name="android.app.load_local_libs_resource_id" android:resource="@array/load_local_libs"/>
     </activity>
 
     </application>
-
 </manifest>

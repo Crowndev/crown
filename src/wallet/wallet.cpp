@@ -2382,7 +2382,7 @@ CAmountMap CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
 
     CAmountMap balance;
     std::vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl);
+    AvailableCoins(vCoins, CAsset(), true, coinControl);
     for (const COutput& out : vCoins) {
         if (out.fSpendable) {
             if(out.tx->tx->nVersion >= TX_ELE_VERSION)
@@ -2394,7 +2394,7 @@ CAmountMap CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     return balance;
 }
 
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount, const CAsset& asset_filter) const
+void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -2482,9 +2482,8 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, bool fOnlySafe, const
 
             CAsset asset = wtx.tx->nVersion >= TX_ELE_VERSION ? out.nAsset : Params().GetConsensus().subsidy_asset;
 
-            if (asset != asset_filter) {
+            if(asset_filter != CAsset() && asset != asset_filter)
                 continue;
-            }
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
@@ -2536,7 +2535,7 @@ std::map<CTxDestination, std::vector<COutput> > CWallet::AvailableCoinsByAddress
 {
     std::vector<COutput> vCoins;
     // include cold
-    AvailableCoins(vCoins, true, nullptr, 1, MAX_MONEY, 0, 0);
+    AvailableCoins(vCoins, CAsset(), true, nullptr, 1, MAX_MONEY, 0, 0);
 
     std::map<CTxDestination, std::vector<COutput> > mapCoins;
     for (COutput out : vCoins) {
@@ -2645,7 +2644,7 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
     std::map<CTxDestination, std::vector<COutput>> result;
     std::vector<COutput> availableCoins;
 
-    AvailableCoins(availableCoins);
+    AvailableCoins(availableCoins, CAsset());
 
     for (const COutput& coin : availableCoins) {
         CTxDestination address;
@@ -3265,7 +3264,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3404,7 +3403,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3505,8 +3504,7 @@ bool CWallet::CreateTransactionInternal(
     int nChangePosRequest = nChangePosInOut;
     std::map<CAsset, int> vChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
-    CAsset assettosend;
-    CAsset newAsset;
+    CAsset assettosend, newAsset;
     bool fNewAsset = false;
 
     for (const auto& recipient : vecSend)
@@ -3581,7 +3579,7 @@ bool CWallet::CreateTransactionInternal(
         LOCK(cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, true, &coin_control, 1, MAX_MONEY, MAX_MONEY, 0);
+            AvailableCoins(vAvailableCoins, assettosend, true, &coin_control, 1, MAX_MONEY, MAX_MONEY, 0);
             CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
 
             // Create change script that will be used if we need change
@@ -4656,16 +4654,16 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, cons
     // 2. Path to an existing directory.
     // 3. Path to a symlink to a directory.
     // 4. For backwards compatibility, the name of a data file in -walletdir.
-    const fs::path& wallet_path = fs::absolute(name, GetWalletDir());
+    const fs::path wallet_path = fsbridge::AbsPathJoin(GetWalletDir(), fs::PathFromString(name));
     fs::file_type path_type = fs::symlink_status(wallet_path).type();
-    if (!(path_type == fs::file_not_found || path_type == fs::directory_file ||
-          (path_type == fs::symlink_file && fs::is_directory(wallet_path)) ||
-          (path_type == fs::regular_file && fs::path(name).filename() == name))) {
+    if (!(path_type == fs::file_type::not_found || path_type == fs::file_type::directory ||
+          (path_type == fs::file_type::symlink && fs::is_directory(wallet_path)) ||
+          (path_type == fs::file_type::regular && fs::PathFromString(name).filename() == fs::PathFromString(name)))) {
         error_string = Untranslated(strprintf(
               "Invalid -wallet path '%s'. -wallet path should point to a directory where wallet.dat and "
               "database/log.?????????? files can be stored, a location where such a directory could be created, "
               "or (for backwards compatibility) the name of an existing data file in -walletdir (%s)",
-              name, GetWalletDir()));
+              name, fs::quoted(fs::PathToString(GetWalletDir()))));
         status = DatabaseStatus::FAILED_BAD_PATH;
         return nullptr;
     }

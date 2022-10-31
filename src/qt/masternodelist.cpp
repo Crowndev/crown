@@ -844,13 +844,13 @@ void MasternodeList::on_CreateNewMasternode_clicked()
 
         // Get outputs before and after transaction
         std::vector<COutput> vPossibleCoinsBefore;
-        wallets[0]->AvailableCoins(vPossibleCoinsBefore, true, nullptr, ONLY_10000, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+        wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, ONLY_10000, MAX_MONEY, MAX_MONEY, 0);
 
         sendDialog->setModel(walletModel);
         sendDialog->send(recipients);
 
         std::vector<COutput> vPossibleCoinsAfter;
-        wallets[0]->AvailableCoins(vPossibleCoinsAfter, true, NULL, ONLY_10000, MAX_MONEY, MAX_MONEY, 0, Params().GetConsensus().subsidy_asset);
+        wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_10000, MAX_MONEY, MAX_MONEY, 0);
 
         for (auto& out : vPossibleCoinsAfter)
         {
@@ -858,7 +858,7 @@ void MasternodeList::on_CreateNewMasternode_clicked()
             if (it == vPossibleCoinsBefore.end()) {
                 // Not found so this is a new element
 
-                COutPoint outpoint = COutPoint(out.tx->GetHash(), boost::lexical_cast<unsigned int>(out.i));
+                COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
                 wallets[0]->LockCoin(outpoint);
 
                 // Generate a key

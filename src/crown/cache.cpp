@@ -23,11 +23,11 @@ void DumpCaches()
 bool LoadCaches()
 {
     std::string strDBName;
-    boost::filesystem::path pathDB = GetDataDir();
+    fs::path pathDB = GetDataDir();
 
     strDBName = "mncache.dat";
     uiInterface.InitMessage("Loading masternode cache...");
-    CFlatDB<CMasternodeMan> flatdb1(strDBName, "magicMasternodeCache");
+    CFlatDB<CMasternodeMan> flatdb1(fs::PathFromString(strDBName), "magicMasternodeCache");
     if (!flatdb1.Load(mnodeman)) {
         LogPrintf("Failed to load masternode cache.");
         return false;
@@ -35,7 +35,7 @@ bool LoadCaches()
 
     strDBName = "sncache.dat";
     uiInterface.InitMessage("Loading systemnode cache...");
-    CFlatDB<CSystemnodeMan> flatdb2(strDBName, "magicSystemnodeCache");
+    CFlatDB<CSystemnodeMan> flatdb2(fs::PathFromString(strDBName), "magicSystemnodeCache");
     if (!flatdb2.Load(snodeman)) {
         LogPrintf("Failed to load systemnode cache.");
         return false;
@@ -44,7 +44,7 @@ bool LoadCaches()
     if (mnodeman.size()) {
         strDBName = "mnpayments.dat";
         uiInterface.InitMessage("Loading masternode payment cache...");
-        CFlatDB<CMasternodePayments> flatdb3(strDBName, "magicMasternodePaymentsCache");
+        CFlatDB<CMasternodePayments> flatdb3(fs::PathFromString(strDBName), "magicMasternodePaymentsCache");
         if (!flatdb3.Load(masternodePayments)) {
             LogPrintf("Failed to load masternode payments cache.");
             return false;
@@ -54,7 +54,7 @@ bool LoadCaches()
     if (snodeman.size()) {
         strDBName = "snpayments.dat";
         uiInterface.InitMessage("Loading systemnode payment cache...");
-        CFlatDB<CSystemnodePayments> flatdb4(strDBName, "magicSystemnodePaymentsCache");
+        CFlatDB<CSystemnodePayments> flatdb4(fs::PathFromString(strDBName), "magicSystemnodePaymentsCache");
         if (!flatdb4.Load(systemnodePayments)) {
             LogPrintf("Failed to load systemnode payments cache.");
             return false;
@@ -63,7 +63,7 @@ bool LoadCaches()
 
     strDBName = "budget.dat";
     uiInterface.InitMessage("Loading budget cache...");
-    CFlatDB<CBudgetManager> flatdb5(strDBName, "magicBudgetCache");
+    CFlatDB<CBudgetManager> flatdb5(fs::PathFromString(strDBName), "magicBudgetCache");
     if (!flatdb5.Load(budget)) {
         LogPrintf("Failed to load budget cache.");
         return false;
@@ -71,7 +71,7 @@ bool LoadCaches()
 
     strDBName = "netfulfilled.dat";
     uiInterface.InitMessage("Loading fulfilled requests cache...");
-    CFlatDB<CNetFulfilledRequestManager> flatdb6(strDBName, "magicFulfilledCache");
+    CFlatDB<CNetFulfilledRequestManager> flatdb6(fs::PathFromString(strDBName), "magicFulfilledCache");
     if (!flatdb6.Load(netfulfilledman)) {
         LogPrintf("Failed to load fulfilled requests cache.");
         return false;

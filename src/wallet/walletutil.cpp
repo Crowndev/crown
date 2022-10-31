@@ -19,14 +19,14 @@ fs::path GetWalletDir()
     fs::path path;
 
     if (gArgs.IsArgSet("-walletdir")) {
-        path = gArgs.GetArg("-walletdir", "");
+        path = gArgs.GetPathArg("-walletdir");
         if (!fs::is_directory(path)) {
             // If the path specified doesn't exist, we return the deliberately
             // invalid empty string.
             path = "";
         }
     } else {
-        path = GetDataDir();
+        path = gArgs.GetDataDirNet();
         // If a wallets directory exists, use that, otherwise default to GetDataDir
         if (fs::is_directory(path / "wallets")) {
             path /= "wallets";
@@ -39,14 +39,14 @@ fs::path GetWalletDir()
 std::vector<fs::path> ListWalletDir()
 {
     const fs::path wallet_dir = GetWalletDir();
-    const size_t offset = wallet_dir.string().size() + 1;
+    const size_t offset = fs::PathToString(wallet_dir).size() + 1;
     std::vector<fs::path> paths;
-    boost::system::error_code ec;
+    std::error_code ec;
 
     for (auto it = fs::recursive_directory_iterator(wallet_dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
         if (ec) {
             if (fs::is_directory(*it)) {
-                it.no_push();
+                it.disable_recursion_pending();
                 LogPrintf("%s: %s %s -- skipping.\n", __func__, ec.message(), it->path().string());
             } else {
                 LogPrintf("%s: %s %s\n", __func__, ec.message(), it->path().string());
@@ -57,13 +57,13 @@ std::vector<fs::path> ListWalletDir()
         try {
             // Get wallet path relative to walletdir by removing walletdir from the wallet path.
             // This can be replaced by boost::filesystem::lexically_relative once boost is bumped to 1.60.
-            const fs::path path = it->path().string().substr(offset);
+            const fs::path path = fs::PathFromString(fs::PathToString(it->path()).substr(offset));
 
-            if (it->status().type() == fs::directory_file &&
+            if (it->status().type() == fs::file_type::directory &&
                 (ExistsBerkeleyDatabase(it->path()) || ExistsSQLiteDatabase(it->path()))) {
                 // Found a directory which contains wallet.dat btree file, add it as a wallet.
                 paths.emplace_back(path);
-            } else if (it.level() == 0 && it->symlink_status().type() == fs::regular_file && ExistsBerkeleyDatabase(it->path())) {
+            } else if (it.depth() == 0 && it->symlink_status().type() == fs::file_type::regular && ExistsBerkeleyDatabase(it->path())) {
                 if (it->path().filename() == "wallet.dat") {
                     // Found top-level wallet.dat btree file, add top level directory ""
                     // as a wallet.
@@ -78,7 +78,7 @@ std::vector<fs::path> ListWalletDir()
             }
         } catch (const std::exception& e) {
             LogPrintf("%s: Error scanning %s: %s\n", __func__, it->path().string(), e.what());
-            it.no_push();
+            it.disable_recursion_pending();
         }
     }
 

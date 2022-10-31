@@ -1,4 +1,4 @@
-package org.hemis.qt;
+package org.crown.qt;
 
 import android.os.Bundle;
 import android.system.ErrnoException;
@@ -8,14 +8,14 @@ import org.qtproject.qt5.android.bindings.QtActivity;
 
 import java.io.File;
 
-public class HemisQtActivity extends QtActivity
+public class CrownQtActivity extends QtActivity
 {
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
-        final File hemisDir = new File(getFilesDir().getAbsolutePath() + "/.hemis");
-        if (!hemisDir.exists()) {
-            hemisDir.mkdir();
+        final File crownDir = new File(getFilesDir().getAbsolutePath() + "/.crown");
+        if (!crownDir.exists()) {
+            crownDir.mkdir();
         }
 
         try {

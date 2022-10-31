@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <ios>
 #include <limits>
+#include <optional>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>

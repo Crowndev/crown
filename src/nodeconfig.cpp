@@ -11,6 +11,8 @@
 #include <nodeconfig.h>
 #include <util/system.h>
 
+#include <fstream>
+
 
 void CNodeConfig::add(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex)
 {
@@ -27,10 +29,10 @@ bool CNodeConfig::read(std::string& strErr)
 {
     int linenumber = 1;
     const fs::path& pathNodeConfigFile = getNodeConfigFile();
-    boost::filesystem::ifstream streamConfig(pathNodeConfigFile);
+    std::ifstream streamConfig(pathNodeConfigFile);
 
     if (!streamConfig.good()) {
-        FILE* configFile = fopen(pathNodeConfigFile.string().c_str(), "a");
+        FILE* configFile = fopen(fs::PathToString(pathNodeConfigFile).c_str(), "a");
         if (configFile != NULL) {
             fwrite(getHeader().c_str(), std::strlen(getHeader().c_str()), 1, configFile);
             fclose(configFile);
@@ -102,7 +104,7 @@ void CNodeConfig::clear()
 bool CNodeConfig::write()
 {
     fs::path pathNodeConfigFile = getNodeConfigFile();
-    boost::filesystem::ofstream streamConfig(pathNodeConfigFile, std::ofstream::out);
+    std::ofstream streamConfig(fs::PathToString(pathNodeConfigFile), std::ofstream::out);
     streamConfig << getHeader() << "\n";
     for (CNodeEntry sne : getEntries()) {
         streamConfig << sne.getAlias() << " "

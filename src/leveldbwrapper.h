@@ -11,11 +11,9 @@
 #include <util/system.h>
 #include <version.h>
 #include <sync.h>
+#include <fs.h>
 
 #include <typeindex>
-
-#include <boost/filesystem/path.hpp>
-
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 
@@ -92,7 +90,7 @@ private:
     leveldb::DB* pdb;
 
 public:
-    CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    CLevelDBWrapper(const fs::path& m_path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
     ~CLevelDBWrapper();
 
     template <typename K, typename V>

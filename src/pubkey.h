@@ -13,7 +13,7 @@
 #include <uint256.h>
 
 #include <boost/range/adaptor/sliced.hpp>
-
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
