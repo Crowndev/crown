@@ -1,13 +1,8 @@
-OSX_MIN_VERSION=10.14
-OSX_SDK_VERSION=10.15.6
-XCODE_VERSION=12.1
-XCODE_BUILD_ID=12A7403
+OSX_MIN_VERSION=10.15
+OSX_SDK_VERSION=11.0
+XCODE_VERSION=12.2
+XCODE_BUILD_ID=12B45b
 LD64_VERSION=609
-
-# #iOs host can only be built with macOS, so use xcrun to find the SDK
-IOS_MIN_VERSION=13.2
-IOS_SDK_VERSION=13.2
-IOS_SDK=$(shell xcrun --sdk iphoneos --show-sdk-path)
 
 OSX_SDK=$(SDK_PATH)/Xcode-$(XCODE_VERSION)-$(XCODE_BUILD_ID)-extracted-SDK-with-libcxx-headers
 
@@ -22,6 +17,7 @@ darwin_native_toolchain=native_cctools
 
 clang_prog=$(build_prefix)/bin/clang
 clangxx_prog=$(clang_prog)++
+llvm_config_prog=$(build_prefix)/bin/llvm-config
 
 clang_resource_dir=$(build_prefix)/lib/clang/$(native_clang_version)
 else
@@ -39,11 +35,13 @@ darwin_native_toolchain=
 # Source: https://lists.gnu.org/archive/html/bug-make/2017-11/msg00017.html
 clang_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang")
 clangxx_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v clang++")
+llvm_config_prog=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-config")
 
 clang_resource_dir=$(shell clang -print-resource-dir)
+llvm_lib_dir=$(shell $(llvm_config_prog) --libdir)
 endif
 
-cctools_TOOLS=AR RANLIB STRIP NM LIBTOOL OTOOL INSTALL_NAME_TOOL
+cctools_TOOLS=AR RANLIB STRIP NM LIBTOOL OTOOL INSTALL_NAME_TOOL DSYMUTIL
 
 # Make-only lowercase function
 lc = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$1))))))))))))))))))))))))))
@@ -114,11 +112,14 @@ darwin_CXX=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH \
                -Xclang -internal-externc-isystem$(clang_resource_dir)/include \
                -Xclang -internal-externc-isystem$(OSX_SDK)/usr/include
 
-aarch64_darwin_CC=$(shell xcrun -f clang) -target $(host) -arch arm64 -miphoneos-version-min=$(IOS_MIN_VERSION) --sysroot $(IOS_SDK) -mlinker-version=$(LD64_VERSION)
-aarch64_darwin_CXX=$(shell xcrun -f clang++) -target $(host) -arch arm64 -miphoneos-version-min=$(IOS_MIN_VERSION) --sysroot $(IOS_SDK) -mlinker-version=$(LD64_VERSION) -stdlib=libc++
+darwin_CFLAGS=-pipe -std=$(C_STANDARD)
+darwin_CXXFLAGS=-pipe -std=$(CXX_STANDARD)
 
-darwin_CFLAGS=-pipe
-darwin_CXXFLAGS=$(darwin_CFLAGS)
+ifneq ($(LTO),)
+darwin_CFLAGS += -flto
+darwin_CXXFLAGS += -flto
+darwin_LDFLAGS += -flto
+endif
 
 darwin_release_CFLAGS=-O2
 darwin_release_CXXFLAGS=$(darwin_release_CFLAGS)

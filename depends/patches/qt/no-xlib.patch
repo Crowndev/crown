@@ -12,6 +12,16 @@ diff --git a/qtbase/src/plugins/platforms/xcb/qxcbcursor.cpp b/qtbase/src/plugin
 index 7c62c2e2b3..c05c6c0a07 100644
 --- a/qtbase/src/plugins/platforms/xcb/qxcbcursor.cpp
 +++ b/qtbase/src/plugins/platforms/xcb/qxcbcursor.cpp
+@@ -49,7 +49,9 @@
+ #include <QtGui/QWindow>
+ #include <QtGui/QBitmap>
+ #include <QtGui/private/qguiapplication_p.h>
++#if QT_CONFIG(xcb_xlib) && QT_CONFIG(library)
+ #include <X11/cursorfont.h>
++#endif
+ #include <xcb/xfixes.h>
+ #include <xcb/xcb_image.h>
+ 
 @@ -391,6 +391,7 @@ void QXcbCursor::changeCursor(QCursor *cursor, QWindow *window)
      xcb_flush(xcb_connection());
  }
