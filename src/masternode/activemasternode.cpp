@@ -267,7 +267,7 @@ std::vector<COutput> CActiveMasternode::SelectCoinsMasternode()
         return filteredCoins;
 
     // Retrieve all possible outputs
-    m_wallet->AvailableCoins(vCoins);
+    m_wallet->AvailableCoins(vCoins, Params().GetConsensus().subsidy_asset);
 
     // Filter appropriate coins
     for (const COutput& out : vCoins) {

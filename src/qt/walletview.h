@@ -8,7 +8,8 @@
 #include <amount.h>
 #include <qt/masternodelist.h>
 #include <qt/systemnodelist.h>
-
+#include <qt/multisigdialog.h>
+#include <nodeconfig.h>
 #include <QStackedWidget>
 
 class ClientModel;
@@ -17,6 +18,7 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class SendAssetsRecipient;
+class MultisigDialog;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
@@ -54,6 +56,8 @@ public:
     bool handlePaymentRequest(const SendAssetsRecipient& recipient);
 
     void showOutOfSyncWarning(bool fShow);
+    void addSystemnode(CNodeEntry nodeEntry);
+    void addMasternode(CNodeEntry nodeEntry);
 
 private:
     ClientModel *clientModel;
@@ -67,6 +71,7 @@ private:
     SystemnodeList *systemnodeListPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
+    MultisigDialog *multisigPage;
 
     TransactionView *transactionView;
 
@@ -86,6 +91,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to systemnode page */
     void gotoSystemnodePage();
+    /** Switch to multisig page*/
+    void gotoMultisigTab();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -94,6 +101,8 @@ public Q_SLOTS:
     /** Load Partially Signed Crown Transaction */
     void gotoLoadPSBT(bool from_clipboard = false);
 
+    /** Ask to create SN/MN when the amount is equal to collateral*/
+    void checkAndCreateNode(const COutput& out);
     /** Show incoming transaction notification for new transactions.
 
         The new items are those between start and end inclusive, under the given parent item.

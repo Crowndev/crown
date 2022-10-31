@@ -355,7 +355,7 @@ if ENABLE_ZMQ
 crown_qt_ldadd += $(LIBCROWN_ZMQ) $(ZMQ_LIBS)
 endif
 crown_qt_ldadd += $(LIBCROWN_CLI) $(LIBCROWN_COMMON) $(LIBCROWN_UTIL) $(LIBCROWN_CONSENSUS) $(LIBCROWN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
-  $(BOOST_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) \
+  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(SQLITE_LIBS)
 crown_qt_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 crown_qt_libtoolflags = $(AM_LIBTOOLFLAGS) --tag CXX
@@ -405,8 +405,23 @@ CLEANFILES += $(CLEAN_QT)
 
 crown_qt_clean: FORCE
 	rm -f $(CLEAN_QT) $(qt_libcrownqt_a_OBJECTS) $(qt_crown_qt_OBJECTS) qt/crown-qt$(EXEEXT) $(LIBCROWNQT)
+	rm -rf qt/android/build qt/android/libs qt/android/gradle qt/android/.gradle
 
 crown_qt : qt/crown-qt$(EXEEXT)
+
+APK_LIB_DIR = qt/android/libs/$(ANDROID_ARCH)
+QT_BASE_VERSION = $(lastword $(shell $(MOC) --version))
+QT_BASE_PATH = $(shell find ../depends/sources/ -maxdepth 1 -type f -regex ".*qtbase.*$(QT_BASE_VERSION)\.tar.xz")
+QT_BASE_TLD = $(shell tar tf $(QT_BASE_PATH) --exclude='*/*')
+
+crown_qt_apk: FORCE
+	mkdir -p $(APK_LIB_DIR)
+	cp $(dir $(lastword $(CC)))../sysroot/usr/lib/$(host_alias)/libc++_shared.so $(APK_LIB_DIR)
+	tar xf $(QT_BASE_PATH) -C qt/android/src/ $(QT_BASE_TLD)src/android/jar/src --strip-components=5
+	tar xf $(QT_BASE_PATH) -C qt/android/src/ $(QT_BASE_TLD)src/android/java/src --strip-components=5
+	cp qt/crown-qt $(APK_LIB_DIR)/libcrown-qt_$(ANDROID_ARCH).so
+	cd qt/android && gradle wrapper
+	cd qt/android && ./gradlew build
 
 ui_%.h: %.ui
 	@test -f $(UIC)

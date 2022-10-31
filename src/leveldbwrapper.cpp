@@ -40,7 +40,7 @@ static leveldb::Options GetOptions(size_t nCacheSize)
     return options;
 }
 
-CLevelDBWrapper::CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory, bool fWipe)
+CLevelDBWrapper::CLevelDBWrapper(const fs::path& m_path, size_t nCacheSize, bool fMemory, bool fWipe)
 {
     penv = NULL;
     readoptions.verify_checksums = true;
@@ -54,15 +54,15 @@ CLevelDBWrapper::CLevelDBWrapper(const boost::filesystem::path& path, size_t nCa
         options.env = penv;
     } else {
         if (fWipe) {
-            LogPrintf("Wiping LevelDB in %s\n", path.string());
-            leveldb::Status result = leveldb::DestroyDB(path.string(), options);
+            LogPrintf("Wiping LevelDB in %s\n", fs::PathToString(m_path));
+            leveldb::Status result = leveldb::DestroyDB(fs::PathToString(m_path), options);
             HandleError(result);
         }
         // TODO fix
         //TryCreateDirectory(path);
-        LogPrintf("Opening LevelDB in %s\n", path.string());
+        LogPrintf("Opening LevelDB in %s\n", fs::PathToString(m_path));
     }
-    leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
+    leveldb::Status status = leveldb::DB::Open(options, fs::PathToString(m_path), &pdb);
     HandleError(status);
     LogPrintf("Opened LevelDB successfully\n");
 }
@@ -87,7 +87,7 @@ bool CLevelDBWrapper::WriteBatch(CLevelDBBatch& batch, bool fSync) // throw(leve
 }
 
 TransactionLevelDBWrapper::TransactionLevelDBWrapper(const std::string & dbName, size_t nCacheSize, bool fMemory, bool fWipe)
-: m_db(GetDataDir() / dbName, nCacheSize, fMemory, fWipe)
+: m_db(GetDataDir() / fs::PathFromString(dbName), nCacheSize, fMemory, fWipe)
 , m_dbTransaction(m_db)
 {
 }

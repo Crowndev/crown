@@ -11,6 +11,7 @@
 
 #include <base58.h>
 #include <chainparams.h>
+#include <fs.h>
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <policy/policy.h>
@@ -56,7 +57,14 @@
 #include <QUrlQuery>
 #include <QtGlobal>
 
-#if defined(Q_OS_MAC)
+#include <cassert>
+#include <chrono>
+#include <exception>
+#include <fstream>
+#include <string>
+#include <vector>
+
+#if defined(Q_OS_MACOS)
 
 #include <QProcess>
 
@@ -256,7 +264,7 @@ bool hasEntryData(const QAbstractItemView *view, int column, int role)
 
 QString getDefaultDataDirectory()
 {
-    return boostPathToQString(GetDefaultDataDir());
+    return PathToQString(GetDefaultDataDir());
 }
 
 QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,
@@ -389,19 +397,19 @@ void handleCloseWindowShortcut(QWidget* w)
 
 void openDebugLogfile()
 {
-    fs::path pathDebug = GetDataDir() / "debug.log";
+    fs::path pathDebug = gArgs.GetDataDirNet() / "debug.log";
 
     /* Open debug.log with the associated application */
     if (fs::exists(pathDebug))
-        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathDebug)));
+        QDesktopServices::openUrl(QUrl::fromLocalFile(PathToQString(pathDebug)));
 }
 
 bool openCrownConf()
 {
-    fs::path pathConfig = GetConfigFile(gArgs.GetArg("-conf", CROWN_CONF_FILENAME));
+    fs::path pathConfig = GetConfigFile(gArgs.GetPathArg("-conf", CROWN_CONF_FILENAME));
 
     /* Create the file */
-    fsbridge::ofstream configFile(pathConfig, std::ios_base::app);
+    std::ofstream configFile{pathConfig, std::ios_base::app};
 
     if (!configFile.good())
         return false;
@@ -409,11 +417,11 @@ bool openCrownConf()
     configFile.close();
 
     /* Open crown.conf with the associated application */
-    bool res = QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathConfig)));
-#ifdef Q_OS_MAC
+    bool res = QDesktopServices::openUrl(QUrl::fromLocalFile(PathToQString(pathConfig)));
+#ifdef Q_OS_MACOS
     // Workaround for macOS-specific behavior; see #15409.
     if (!res) {
-        res = QProcess::startDetached("/usr/bin/open", QStringList{"-t", boostPathToQString(pathConfig)});
+        res = QProcess::startDetached("/usr/bin/open", QStringList{"-t", PathToQString(pathConfig)});
     }
 #endif
 
@@ -670,12 +678,12 @@ fs::path static GetAutostartFilePath()
     std::string chain = gArgs.GetChainName();
     if (chain == CBaseChainParams::MAIN)
         return GetAutostartDir() / "crown.desktop";
-    return GetAutostartDir() / strprintf("crown-%s.desktop", chain);
+    return GetAutostartDir() / fs::u8path(strprintf("crown-%s.desktop", chain));
 }
 
 bool GetStartOnSystemStartup()
 {
-    fsbridge::ifstream optionFile(GetAutostartFilePath());
+    std::ifstream optionFile{GetAutostartFilePath()};
     if (!optionFile.good())
         return false;
     // Scan through file for "Hidden=true":
@@ -706,7 +714,7 @@ bool SetStartOnSystemStartup(bool fAutoStart)
 
         fs::create_directories(GetAutostartDir());
 
-        fsbridge::ofstream optionFile(GetAutostartFilePath(), std::ios_base::out | std::ios_base::trunc);
+        std::ofstream optionFile{GetAutostartFilePath(), std::ios_base::out | std::ios_base::trunc};
         if (!optionFile.good())
             return false;
         std::string chain = gArgs.GetChainName();
@@ -738,14 +746,14 @@ void setClipboard(const QString& str)
     QApplication::clipboard()->setText(str, QClipboard::Selection);
 }
 
-fs::path qstringToBoostPath(const QString &path)
+fs::path QStringToPath(const QString &path)
 {
-    return fs::path(path.toStdString());
+    return fs::u8path(path.toStdString());
 }
 
-QString boostPathToQString(const fs::path &path)
+QString PathToQString(const fs::path &path)
 {
-    return QString::fromStdString(path.string());
+    return QString::fromStdString(path.u8string());
 }
 
 QString formatDurationStr(int secs)

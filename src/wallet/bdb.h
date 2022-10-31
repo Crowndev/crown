@@ -52,25 +52,26 @@ private:
 
 public:
     std::unique_ptr<DbEnv> dbenv;
-    std::map<std::string, std::reference_wrapper<BerkeleyDatabase>> m_databases;
+    std::map<fs::path, std::reference_wrapper<BerkeleyDatabase>> m_databases;
     std::unordered_map<std::string, WalletDatabaseFileId> m_fileids;
     std::condition_variable_any m_db_in_use;
+    bool m_use_shared_memory;
 
-    BerkeleyEnvironment(const fs::path& env_directory);
+    explicit BerkeleyEnvironment(const fs::path& env_directory, bool use_shared_memory);
     BerkeleyEnvironment();
     ~BerkeleyEnvironment();
     void Reset();
 
     bool IsMock() const { return fMockDb; }
     bool IsInitialized() const { return fDbEnvInit; }
-    fs::path Directory() const { return strPath; }
+    fs::path Directory() const { return fs::PathFromString(strPath); }
 
     bool Open(bilingual_str& error);
     void Close();
     void Flush(bool fShutdown);
     void CheckpointLSN(const std::string& strFile);
 
-    void CloseDb(const std::string& strFile);
+    void CloseDb(const fs::path& filename);
     void ReloadDbEnv();
 
     DbTxn* TxnBegin(int flags = DB_TXN_WRITE_NOSYNC)
@@ -85,7 +86,7 @@ public:
 
 /** Get BerkeleyEnvironment and database filename given a wallet path. */
 std::shared_ptr<BerkeleyEnvironment> GetWalletEnv(const fs::path& wallet_path, std::string& database_filename);
-
+std::shared_ptr<BerkeleyEnvironment> GetBerkeleyEnv(const fs::path& env_directory, bool use_shared_memory);
 /** Check format of database file */
 bool IsBDBFile(const fs::path& path);
 
@@ -100,10 +101,10 @@ public:
     BerkeleyDatabase() = delete;
 
     /** Create DB handle to real database */
-    BerkeleyDatabase(std::shared_ptr<BerkeleyEnvironment> env, std::string filename) :
-        WalletDatabase(), env(std::move(env)), strFile(std::move(filename))
+    BerkeleyDatabase(std::shared_ptr<BerkeleyEnvironment> env, fs::path filename, const DatabaseOptions& options) :
+        WalletDatabase(), env(std::move(env)), m_filename(std::move(filename)), m_max_log_mb(options.max_log_mb)
     {
-        auto inserted = this->env->m_databases.emplace(strFile, std::ref(*this));
+        auto inserted = this->env->m_databases.emplace(m_filename, std::ref(*this));
         assert(inserted.second);
     }
 
@@ -144,7 +145,7 @@ public:
     bool Verify(bilingual_str& error);
 
     /** Return path to main database filename */
-    std::string Filename() override { return (env->Directory() / strFile).string(); }
+    std::string Filename() override { return fs::PathToString(env->Directory() / m_filename); }
 
     std::string Format() override { return "bdb"; }
     /**
@@ -161,7 +162,8 @@ public:
     /** Database pointer. This is initialized lazily and reset during flushes, so it can be null. */
     std::unique_ptr<Db> m_db;
 
-    std::string strFile;
+    fs::path m_filename;
+    int64_t m_max_log_mb;
 
     /** Make a BerkeleyBatch connected to this database */
     std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override;

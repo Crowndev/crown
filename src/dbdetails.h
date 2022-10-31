@@ -103,12 +103,13 @@ namespace details
         uint256 hash = Hash(ssObj);
         ssObj << hash;
 
+        fs::path pathDb = GetDataDir() / fs::PathFromString(filename);
         // open output file, and associate with CAutoFile
-        boost::filesystem::path pathDb = GetDataDir() / filename;
-        FILE *file = fopen(pathDb.string().c_str(), "wb");
+        FILE *file = fopen(fs::PathToString(pathDb).c_str(), "wb");
+
         CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
         if (fileout.IsNull())
-            return error("%s: Failed to open file %s", __func__, pathDb.string());
+            return error("%s: Failed to open file %s", __func__, fs::PathToString(pathDb));
 
         // Write and commit header, data
         try

@@ -1,7 +1,7 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 18)
-define(_CLIENT_VERSION_BUILD, 64)
+define(_CLIENT_VERSION_BUILD, 66)
 define(_CLIENT_VERSION_RC, )
 define(_CLIENT_VERSION_IS_RELEASE, false)
 define(_COPYRIGHT_YEAR, 2022)
@@ -612,7 +612,7 @@ case $host in
        AC_MSG_ERROR("windres not found")
      fi
 
-     CPPFLAGS="$CPPFLAGS -D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -D_WIN32_WINNT=0x0601 -D_WIN32_IE=0x0501 -DWIN32_LEAN_AND_MEAN"
+     CPPFLAGS="$CPPFLAGS -D_MT -DWIN32 -D_WINDOWS -D_WIN32_WINNT=0x0601 -D_WIN32_IE=0x0501 -DWIN32_LEAN_AND_MEAN"
 
      dnl libtool insists upon adding -nostdlib and a list of objects/libs to link against.
      dnl That breaks our ability to build dll's with static libgcc/libstdc++/libssp. Override
@@ -1318,33 +1318,29 @@ else
   use_boost=yes
 fi
 
-if test x$use_boost = xyes; then
+if test "$use_boost" = "yes"; then
 
-dnl Minimum required Boost version
-define(MINIMUM_REQUIRED_BOOST, 1.58.0)
+  dnl Check for Boost headers
+  AX_BOOST_BASE([1.64.0],[],[AC_MSG_ERROR([Boost is not available!])])
+  if test "$want_boost" = "no"; then
+    AC_MSG_ERROR([only libcrownconsensus can be built without Boost])
+  fi
 
-dnl Check for Boost libs
-AX_BOOST_BASE([MINIMUM_REQUIRED_BOOST])
-if test x$want_boost = xno; then
-    AC_MSG_ERROR([[only libcrownconsensus can be built without boost]])
-fi
-AX_BOOST_SYSTEM
-AX_BOOST_FILESYSTEM
-AX_BOOST_THREAD
+  dnl we don't use multi_index serialization
+  BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_DISABLE_SERIALIZATION"
 
-dnl Opt-in to boost-process
-AS_IF([ test x$with_boost_process != x ], [ AX_BOOST_PROCESS ], [ ax_cv_boost_process=no ] )
+  dnl Prevent use of std::unary_function, which was removed in C++17,
+  dnl and will generate warnings with newer compilers.
+  dnl See: https://github.com/boostorg/container_hash/issues/22.
+  BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"
 
-if test x$suppress_external_warnings != xno; then
+  if test "$enable_debug" = "yes" || test "$enable_fuzz" = "yes"; then
+    BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE"
+  fi
+
+  if test "$suppress_external_warnings" != "no"; then
     BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
-fi
-
-dnl Boost 1.56 through 1.62 allow using std::atomic instead of its own atomic
-dnl counter implementations. In 1.63 and later the std::atomic approach is default.
-m4_pattern_allow(DBOOST_AC_USE_STD_ATOMIC) dnl otherwise it's treated like a macro
-BOOST_CPPFLAGS="-DBOOST_SP_USE_STD_ATOMIC -DBOOST_AC_USE_STD_ATOMIC $BOOST_CPPFLAGS"
-
-BOOST_LIBS="$BOOST_LDFLAGS $BOOST_SYSTEM_LIB $BOOST_FILESYSTEM_LIB $BOOST_THREAD_LIB"
+  fi
 fi
 
 dnl Check for reduced exports
@@ -1718,7 +1714,6 @@ AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_SQLITE)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
-AC_SUBST(BOOST_LIBS)
 AC_SUBST(SQLITE_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)

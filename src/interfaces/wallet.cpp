@@ -100,7 +100,7 @@ WalletTxOut MakeWalletTxOut(CWallet& wallet,
     result.time = wtx.GetTxTime();
     result.depth_in_main_chain = depth;
     result.is_spent = wallet.IsSpent(wtx.GetHash(), n);
-    LogPrintf("%s - %s\n", __func__, mtx->vpout[n].ToString());
+    //LogPrintf("%s - %s\n", __func__, mtx->vpout[n].ToString());
 
     return result;
 }
@@ -544,13 +544,13 @@ public:
     }
     std::string getWalletDir() override
     {
-        return GetWalletDir().string();
+        return fs::PathToString(GetWalletDir());
     }
     std::vector<std::string> listWalletDir() override
     {
         std::vector<std::string> paths;
         for (auto& path : ListWalletDir()) {
-            paths.push_back(path.string());
+            paths.push_back(fs::PathToString(path));
         }
         return paths;
     }

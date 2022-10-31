@@ -270,6 +270,7 @@ CROWN_CORE_H = \
   util/check.h \
   util/error.h \
   util/fees.h \
+  util/getuniquepath.h \
   util/golombrice.h \
   util/macros.h \
   util/memory.h \
@@ -671,6 +672,7 @@ libcrown_util_a_SOURCES = \
   util/bytevectorhash.cpp \
   util/error.cpp \
   util/fees.cpp \
+  util/getuniquepath.cpp \
   util/system.cpp \
   util/message.cpp \
   util/moneystr.cpp \
@@ -727,7 +729,7 @@ crown_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-crown_bin_ldadd += $(BOOST_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
+crown_bin_ldadd += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS)
 
 crownd_SOURCES = $(crown_daemon_sources)
 crownd_CPPFLAGS = $(crown_bin_cppflags)
@@ -757,7 +759,7 @@ crown_cli_LDADD = \
   $(LIBCROWN_UTIL) \
   $(LIBCROWN_CRYPTO)
 
-crown_cli_LDADD += $(BOOST_LIBS) $(EVENT_LIBS)
+crown_cli_LDADD += $(EVENT_LIBS)
 #
 
 # crown-tx binary #
@@ -778,7 +780,6 @@ crown_tx_LDADD = \
   $(LIBCROWN_CRYPTO) \
   $(LIBSECP256K1)
 
-crown_tx_LDADD += $(BOOST_LIBS)
 #
 
 # crown-wallet binary #
@@ -802,7 +803,7 @@ crown_wallet_LDADD += \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-crown_wallet_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS)
+crown_wallet_LDADD += $(BDB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS)
 
 if TARGET_WINDOWS
 crown_wallet_SOURCES += crown-wallet-res.rc

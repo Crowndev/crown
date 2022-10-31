@@ -439,7 +439,7 @@ static RPCHelpMan sendtoaddress()
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The crown address to send to."},
                     {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The amount in " + CURRENCY_UNIT + " to send. eg 0.1"},
-                    {"asset", RPCArg::Type::STR, RPCArg::Optional::NO, "The hemis asset to send."},
+                    {"asset", RPCArg::Type::STR, RPCArg::Optional::NO, "The asset to send."},
                     {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment used to store what the transaction is for.\n"
                                          "This is not part of the transaction, just kept in your wallet."},
                     {"comment_to", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment to store the name of the person or organization\n"
@@ -1592,7 +1592,7 @@ static RPCHelpMan listunconfirmed()
                         {RPCResult::Type::OBJ, "", "", Cat(Cat<std::vector<RPCResult>>(
                         {
                             {RPCResult::Type::BOOL, "involvesWatchonly", "Only returns true if imported addresses were involved in transaction."},
-                            {RPCResult::Type::STR, "address", "The hemis address of the transaction."},
+                            {RPCResult::Type::STR, "address", "The address of the transaction."},
                             {RPCResult::Type::STR, "category", "The transaction category.\n"
                                 "\"send\"                  Transactions sent.\n"
                                 "\"receive\"               Non-coinbase transactions received.\n"
@@ -2810,7 +2810,7 @@ static RPCHelpMan listwalletdir()
     UniValue wallets(UniValue::VARR);
     for (const auto& path : ListWalletDir()) {
         UniValue wallet(UniValue::VOBJ);
-        wallet.pushKV("name", path.string());
+        wallet.pushKV("name", fs::PathToString(path));
         wallets.push_back(wallet);
     }
 
@@ -3248,7 +3248,7 @@ static RPCHelpMan listunspent()
         cctl.m_min_depth = nMinDepth;
         cctl.m_max_depth = nMaxDepth;
         LOCK(pwallet->cs_wallet);
-        pwallet->AvailableCoins(vecOutputs, !include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount, asset_filter);
+        pwallet->AvailableCoins(vecOutputs, asset_filter, !include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
     }
 
     LOCK(pwallet->cs_wallet);

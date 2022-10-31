@@ -18,11 +18,20 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
+#include <qt/multisigdialog.h>
+#include <qt/transactionrecord.h>
+#include <qt/createsystemnodedialog.h>
+#include <qt/createmasternodedialog.h>
 
 #include <interfaces/node.h>
 #include <node/ui_interface.h>
 #include <psbt.h>
 #include <util/strencodings.h>
+
+#include <masternode/masternodeconfig.h>
+#include <systemnode/systemnodeconfig.h>
+
+#include <wallet/wallet.h>
 
 #include <QAction>
 #include <QActionGroup>
@@ -33,6 +42,8 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include <fstream>
 
 WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     QStackedWidget(parent),
@@ -145,6 +156,93 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     }
 }
 
+void WalletView::addSystemnode(CNodeEntry nodeEntry)
+{
+    systemnodeConfig.add(nodeEntry);
+    systemnodeConfig.write();
+    Q_EMIT gotoSystemnodePage();
+    systemnodeListPage->updateMyNodeList(true);
+    systemnodeListPage->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
+}
+
+void WalletView::addMasternode(CNodeEntry nodeEntry)
+{
+    masternodeConfig.add(nodeEntry);
+    masternodeConfig.write();
+    Q_EMIT gotoMasternodePage();
+    masternodeListPage->updateMyNodeList(true);
+    masternodeListPage->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
+}
+
+void WalletView::checkAndCreateNode(const COutput& out)
+{
+    bool systemnodePayment = false;
+    bool masternodePayment = false;
+    //CAmount credit = out.tx->vout[out.i].nValue;
+    CAmount credit = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue);
+
+    if (credit == SYSTEMNODE_COLLATERAL * COIN) {
+        systemnodePayment = true;
+    } else if (credit == MASTERNODE_COLLATERAL * COIN) {
+        masternodePayment = true;
+    } else {
+        return;
+    }
+
+    CreateNodeDialog *dialog = new CreateSystemnodeDialog(this);
+    QString title = tr("Payment to yourself - ") +
+        CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), credit);
+    QString body = tr("Do you want to create a new ");
+    if (systemnodePayment)
+    {
+        if (systemnodeListPage->getSendCollateralDialog()->fAutoCreate) {
+            return;
+        }
+        body += "Systemnode?";
+        dialog = new CreateSystemnodeDialog(this);
+    } else if (masternodePayment) {
+        if (masternodeListPage->getSendCollateralDialog()->fAutoCreate) {
+            return;
+        }
+        body += "Masternode?";
+        dialog = new CreateMasternodeDialog(this);
+    }
+    // Display message box
+    QMessageBox::StandardButton retval = QMessageBox::question(this, title, body,
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel);
+
+    if (retval == QMessageBox::Yes)
+    {
+        dialog->setWindowModality(Qt::ApplicationModal);
+        dialog->setEditMode();
+
+        std::string port = "9340";
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            port = "19340";
+        }
+        if (dialog->exec())
+        {
+            std::string alias = dialog->getAlias().toStdString();
+            std::string ip = dialog->getIP().toStdString() + ":" + port;
+            uint256 hash = out.tx->GetHash();
+            COutPoint outpoint = COutPoint(hash, out.i);
+            wallets[0]->LockCoin(outpoint);
+
+            // Generate a key
+            CKey secret;
+            secret.MakeNewKey(false);
+            std::string privateKey = CBitcoinSecret(secret).ToString();
+            CNodeEntry entry(alias, ip, privateKey, hash.ToString(), strprintf("%d", out.i));
+            if (systemnodePayment) {
+                addSystemnode(entry);
+            } else if (masternodePayment) {
+                addMasternode(entry);
+            }
+        }
+    }
+}
+
 void WalletView::processNewTransaction(const QModelIndex& parent, int start, int /*end*/)
 {
     // Prevent balloon-spam when initial block download is in progress
@@ -163,6 +261,17 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
     QString label = GUIUtil::HtmlEscape(ttm->data(index, TransactionTableModel::LabelRole).toString());
 
     Q_EMIT incomingTransaction(date, walletModel->getOptionsModel()->getDisplayUnit(), amount, type, address, label, GUIUtil::HtmlEscape(walletModel->getWalletName()));
+
+    int typeEnum = ttm->index(start, 0, parent).data(TransactionTableModel::TypeRole).toInt();
+    if (typeEnum == TransactionRecord::SendToSelf)
+    {
+        uint256 hash = ttm->index(start, 0, parent).data(TransactionTableModel::TxHashRole).value<uint256>();
+        std::optional<COutput> res = pwalletMain->FindCollateralOutput(hash);
+        if (res) {
+            COutput out = res.get();
+            checkAndCreateNode(out);
+        }
+    }
 }
 
 void WalletView::gotoOverviewPage()
@@ -196,6 +305,15 @@ void WalletView::gotoSendCoinsPage(QString addr)
 
     if (!addr.isEmpty())
         sendCoinsPage->setAddress(addr);
+}
+
+void WalletView::gotoMultisigTab()
+{
+    // calls show() in showTab_SM()
+    MultisigDialog *multisigDialog = new MultisigDialog(this);
+    multisigDialog->setAttribute(Qt::WA_DeleteOnClose);
+    multisigDialog->setModel(walletModel);
+    multisigDialog->showTab(true);
 }
 
 void WalletView::gotoSignMessageTab(QString addr)

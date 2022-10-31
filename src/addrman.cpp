@@ -639,7 +639,7 @@ std::vector<bool> CAddrMan::DecodeAsmap(fs::path path)
     }
     fseek(filestr, 0, SEEK_END);
     int length = ftell(filestr);
-    LogPrintf("Opened asmap file %s (%d bytes) from disk\n", path, length);
+    LogPrintf("Opened asmap file %s (%d bytes) from disk\n", fs::PathToString(path), length);
     fseek(filestr, 0, SEEK_SET);
     char cur_byte;
     for (int i = 0; i < length; ++i) {
@@ -649,7 +649,7 @@ std::vector<bool> CAddrMan::DecodeAsmap(fs::path path)
         }
     }
     if (!SanityCheckASMap(bits)) {
-        LogPrintf("Sanity check of asmap file %s failed\n", path);
+        LogPrintf("Sanity check of asmap file %s failed\n", fs::PathToString(path));
         return {};
     }
     return bits;

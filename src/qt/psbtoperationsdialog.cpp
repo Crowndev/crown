@@ -15,6 +15,7 @@
 #include <qt/optionsmodel.h>
 #include <util/strencodings.h>
 
+#include <fstream>
 #include <iostream>
 
 
@@ -145,7 +146,7 @@ void PSBTOperationsDialog::saveTransaction() {
     if (filename.isEmpty()) {
         return;
     }
-    std::ofstream out(filename.toLocal8Bit().data(), std::ofstream::out | std::ofstream::binary);
+    std::ofstream out{filename.toLocal8Bit().data(), std::ofstream::out | std::ofstream::binary};
     out << ssTx.str();
     out.close();
     showStatus(tr("PSBT saved to disk."), StatusLevel::INFO);

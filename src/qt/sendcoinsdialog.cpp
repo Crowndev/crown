@@ -30,6 +30,7 @@
 #include <wallet/wallet.h>
 
 #include <validation.h>
+#include <fstream>
 
 #include <QFontMetrics>
 #include <QScrollBar>

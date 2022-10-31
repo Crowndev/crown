@@ -5,8 +5,8 @@ dnl file COPYING or http://www.opensource.org/licenses/mit-license.php.
 dnl Helper for cases where a qt dependency is not met.
 dnl Output: If qt version is auto, set crown_enable_qt to false. Else, exit.
 AC_DEFUN([CROWN_QT_FAIL],[
-  if test "x$crown_qt_want_version" = xauto && test "x$crown_qt_force" != xyes; then
-    if test "x$crown_enable_qt" != xno; then
+  if test "$crown_qt_want_version" = "auto" && test "$crown_qt_force" != "yes"; then
+    if test "$crown_enable_qt" != "no"; then
       AC_MSG_WARN([$1; crown-qt frontend will not be built])
     fi
     crown_enable_qt=no
@@ -17,7 +17,7 @@ AC_DEFUN([CROWN_QT_FAIL],[
 ])
 
 AC_DEFUN([CROWN_QT_CHECK],[
-  if test "x$crown_enable_qt" != xno && test "x$crown_qt_want_version" != xno; then
+  if test "$crown_enable_qt" != "no" && test "$crown_qt_want_version" != "no"; then
     true
     $1
   else
@@ -31,16 +31,16 @@ dnl Helper for finding the path of programs needed for Qt.
 dnl Inputs: $1: Variable to be set
 dnl Inputs: $2: List of programs to search for
 dnl Inputs: $3: Look for $2 here before $PATH
-dnl Inputs: $4: If "yes", dont fail if $2 is not found.
+dnl Inputs: $4: If "yes", don't fail if $2 is not found.
 dnl Output: $1 is set to the path of $2 if found. $2 are searched in order.
 AC_DEFUN([CROWN_QT_PATH_PROGS],[
   CROWN_QT_CHECK([
-    if test "x$3" != x; then
-      AC_PATH_PROGS($1,$2,,$3)
+    if test "$3" != ""; then
+      AC_PATH_PROGS([$1], [$2], [], [$3])
     else
-      AC_PATH_PROGS($1,$2)
+      AC_PATH_PROGS([$1], [$2])
     fi
-    if test "x$$1" = x && test "x$4" != xyes; then
+    if test "$$1" = "" && test "$4" != "yes"; then
       CROWN_QT_FAIL([$1 not found])
     fi
   ])
@@ -57,20 +57,26 @@ AC_DEFUN([CROWN_QT_INIT],[
     [build crown-qt GUI (default=auto)])],
     [
      crown_qt_want_version=$withval
-     if test "x$crown_qt_want_version" = xyes; then
+     if test "$crown_qt_want_version" = "yes"; then
        crown_qt_force=yes
        crown_qt_want_version=auto
      fi
     ],
     [crown_qt_want_version=auto])
 
+  AS_IF([test "$with_gui" = "qt5_debug"],
+        [AS_CASE([$host],
+                 [*darwin*], [qt_lib_suffix=_debug],
+                 [qt_lib_suffix= ]); crown_qt_want_version=qt5],
+        [qt_lib_suffix= ])
+
+  AS_CASE([$host], [*android*], [qt_lib_suffix=_$ANDROID_ARCH])
+
   AC_ARG_WITH([qt-incdir],[AS_HELP_STRING([--with-qt-incdir=INC_DIR],[specify qt include path (overridden by pkgconfig)])], [qt_include_path=$withval], [])
   AC_ARG_WITH([qt-libdir],[AS_HELP_STRING([--with-qt-libdir=LIB_DIR],[specify qt lib path (overridden by pkgconfig)])], [qt_lib_path=$withval], [])
   AC_ARG_WITH([qt-plugindir],[AS_HELP_STRING([--with-qt-plugindir=PLUGIN_DIR],[specify qt plugin path (overridden by pkgconfig)])], [qt_plugin_path=$withval], [])
   AC_ARG_WITH([qt-translationdir],[AS_HELP_STRING([--with-qt-translationdir=PLUGIN_DIR],[specify qt translation path (overridden by pkgconfig)])], [qt_translation_path=$withval], [])
   AC_ARG_WITH([qt-bindir],[AS_HELP_STRING([--with-qt-bindir=BIN_DIR],[specify qt bin path])], [qt_bin_path=$withval], [])
-  AC_ARG_WITH([qt-qmldir],[AS_HELP_STRING([--with-qt-qmldir=QML_DIR],[specify qt qml path])], [qt_qml_path=$withval], [])
-
 
   AC_ARG_WITH([qtdbus],
     [AS_HELP_STRING([--with-qtdbus],
@@ -78,10 +84,10 @@ AC_DEFUN([CROWN_QT_INIT],[
     [use_dbus=$withval],
     [use_dbus=auto])
 
-  dnl Android doesnt support D-Bus and certainly doesnt use it for notifications
+  dnl Android doesn't support D-Bus and certainly doesn't use it for notifications
   case $host in
     *android*)
-      if test "x$use_dbus" != xyes; then
+      if test "$use_dbus" != "yes"; then
         use_dbus=no
       fi
     ;;
@@ -103,73 +109,77 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
   CROWN_QT_CHECK([_CROWN_QT_FIND_LIBS])
 
   dnl This is ugly and complicated. Yuck. Works as follows:
-  dnl Check a header to find out whether Qt is built statically. When Qt is built
-  dnl statically, some plugins must be linked into the final binary as well.
-  dnl _CROWN_QT_CHECK_STATIC_PLUGINS does a quick link-check and appends the
-  dnl results to QT_LIBS.
+  dnl We check a header to find out whether Qt is built statically.
+  dnl When Qt is built statically, some plugins must be linked into
+  dnl the final binary as well. _CROWN_QT_CHECK_STATIC_PLUGIN does
+  dnl a quick link-check and appends the results to QT_LIBS.
   CROWN_QT_CHECK([
   TEMP_CPPFLAGS=$CPPFLAGS
   TEMP_CXXFLAGS=$CXXFLAGS
-  CPPFLAGS="$QT_INCLUDES $CPPFLAGS"
-  CXXFLAGS="$PIC_FLAGS $CXXFLAGS"
+  CPPFLAGS="$QT_INCLUDES $CORE_CPPFLAGS $CPPFLAGS"
+  CXXFLAGS="$PIC_FLAGS $CORE_CXXFLAGS $CXXFLAGS"
   _CROWN_QT_IS_STATIC
-  if test "x$crown_cv_static_qt" = xyes; then
-    _CROWN_QT_FIND_STATIC_PLUGINS
-    AC_DEFINE(QT_STATICPLUGIN, 1, [Define this symbol if qt plugins are static])
-    if test "x$TARGET_OS" != xandroid; then
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QMinimalIntegrationPlugin)],[-lqminimal])
-      AC_DEFINE(QT_QPA_PLATFORM_MINIMAL, 1, [Define this symbol if the minimal qt platform exists])
+  if test "$crown_cv_static_qt" = "yes"; then
+    _CROWN_QT_CHECK_STATIC_LIBS
+
+    if test "$qt_plugin_path" != ""; then
+      if test -d "$qt_plugin_path/platforms"; then
+        QT_LIBS="$QT_LIBS -L$qt_plugin_path/platforms"
+      fi
+      if test -d "$qt_plugin_path/styles"; then
+        QT_LIBS="$QT_LIBS -L$qt_plugin_path/styles"
+      fi
+      if test -d "$qt_plugin_path/accessible"; then
+        QT_LIBS="$QT_LIBS -L$qt_plugin_path/accessible"
+      fi
+      if test -d "$qt_plugin_path/platforms/android"; then
+        QT_LIBS="$QT_LIBS -L$qt_plugin_path/platforms/android -lqtfreetype -lEGL"
+      fi
     fi
-    if test "x$TARGET_OS" = xwindows; then
+
+    AC_DEFINE([QT_STATICPLUGIN], [1], [Define this symbol if qt plugins are static])
+    if test "$TARGET_OS" != "android"; then
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QMinimalIntegrationPlugin], [-lqminimal])
+      AC_DEFINE([QT_QPA_PLATFORM_MINIMAL], [1], [Define this symbol if the minimal qt platform exists])
+    fi
+    if test "$TARGET_OS" = "windows"; then
       dnl Linking against wtsapi32 is required. See #17749 and
       dnl https://bugreports.qt.io/browse/QTBUG-27097.
-      AX_CHECK_LINK_FLAG([[-lwtsapi32]],[QT_LIBS="$QT_LIBS -lwtsapi32"],[AC_MSG_ERROR(could not link against -lwtsapi32)])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)],[-lqwindows])
-      AC_DEFINE(QT_QPA_PLATFORM_WINDOWS, 1, [Define this symbol if the qt platform is windows])
-    elif test "x$TARGET_OS" = xlinux; then
-      dnl workaround for https://bugreports.qt.io/browse/QTBUG-74874
-      AX_CHECK_LINK_FLAG([[-lxcb-shm]],[QT_LIBS="$QT_LIBS -lxcb-shm"],[AC_MSG_ERROR(could not link against -lxcb-shm)])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)],[-lqxcb])
-      AC_DEFINE(QT_QPA_PLATFORM_XCB, 1, [Define this symbol if the qt platform is xcb])
-    elif test "x$TARGET_OS" = xdarwin; then
-      dnl Linking against various frameworks is required when using qcocoa.
-      dnl See platforms/cocoa.pro in the Qt source.
-      AX_CHECK_LINK_FLAG([[-framework Carbon]],[QT_LIBS="$QT_LIBS -framework Carbon"],[AC_MSG_ERROR(could not link against Carbon framework)])
-      AX_CHECK_LINK_FLAG([[-framework QuartzCore]],[QT_LIBS="$QT_LIBS -framework QuartzCore"],[AC_MSG_ERROR(could not link against QuartzCore framework)])
-      AX_CHECK_LINK_FLAG([[-framework IOSurface]],[QT_LIBS="$QT_LIBS -framework IOSurface"],[AC_MSG_ERROR(could not link against IOSurface framework)])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)],[-lqcocoa])
-      AC_DEFINE(QT_QPA_PLATFORM_COCOA, 1, [Define this symbol if the qt platform is cocoa])
-    elif test "x$TARGET_OS" = xandroid; then
-      QT_LIBS="-Wl,--export-dynamic,--undefined=JNI_OnLoad -lqtforandroid -ljnigraphics -lqtfreetype -lQt5EglSupport -lQt5VulkanSupport $QT_LIBS"
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QAndroidPlatformIntegrationPlugin)],[-landroid])
-      AC_DEFINE(QT_QPA_PLATFORM_ANDROID, 1, [Define this symbol if the qt platform is android])
+      AX_CHECK_LINK_FLAG([-lwtsapi32], [QT_LIBS="$QT_LIBS -lwtsapi32"], [AC_MSG_ERROR([could not link against -lwtsapi32])])
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QWindowsIntegrationPlugin], [-lqwindows])
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QWindowsVistaStylePlugin], [-lqwindowsvistastyle])
+      AC_DEFINE([QT_QPA_PLATFORM_WINDOWS], [1], [Define this symbol if the qt platform is windows])
+    elif test "$TARGET_OS" = "linux"; then
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QXcbIntegrationPlugin], [-lqxcb])
+      AC_DEFINE([QT_QPA_PLATFORM_XCB], [1], [Define this symbol if the qt platform is xcb])
+    elif test "$TARGET_OS" = "darwin"; then
+      AX_CHECK_LINK_FLAG([-framework Carbon], [QT_LIBS="$QT_LIBS -framework Carbon"], [AC_MSG_ERROR(could not link against Carbon framework)])
+      AX_CHECK_LINK_FLAG([-framework IOSurface], [QT_LIBS="$QT_LIBS -framework IOSurface"], [AC_MSG_ERROR(could not link against IOSurface framework)])
+      AX_CHECK_LINK_FLAG([-framework Metal], [QT_LIBS="$QT_LIBS -framework Metal"], [AC_MSG_ERROR(could not link against Metal framework)])
+      AX_CHECK_LINK_FLAG([-framework QuartzCore], [QT_LIBS="$QT_LIBS -framework QuartzCore"], [AC_MSG_ERROR(could not link against QuartzCore framework)])
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QCocoaIntegrationPlugin], [-lqcocoa])
+      _CROWN_QT_CHECK_STATIC_PLUGIN([QMacStylePlugin], [-lqmacstyle])
+      AC_DEFINE([QT_QPA_PLATFORM_COCOA], [1], [Define this symbol if the qt platform is cocoa])
+    elif test "$TARGET_OS" = "android"; then
+      QT_LIBS="-Wl,--export-dynamic,--undefined=JNI_OnLoad -lplugins_platforms_qtforandroid${qt_lib_suffix} -ljnigraphics -landroid -lqtfreetype${qt_lib_suffix} $QT_LIBS"
+      AC_DEFINE([QT_QPA_PLATFORM_ANDROID], [1], [Define this symbol if the qt platform is android])
     fi
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtQuick2Plugin)],[-lqtquick2plugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtQuick2WindowPlugin)],[-lwindowplugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtQuickControls2Plugin)],[-lqtquickcontrols2plugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtQuickLayoutsPlugin)],[-lqquicklayoutsplugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QmlSettingsPlugin)],[-lqmlsettingsplugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtGraphicalEffectsPlugin)],[-lqtgraphicaleffectsplugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtQuickTemplates2Plugin)],[-lqtquicktemplates2plugin])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtGraphicalEffectsPrivatePlugin)],[-lqtgraphicaleffectsprivate])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtChartsQml2Plugin)],[-lqtchartsqml2])
-      _CROWN_QT_CHECK_STATIC_PLUGINS([Q_IMPORT_PLUGIN(QtLabsPlatformPlugin)],[-lqtlabsplatformplugin])
   fi
   CPPFLAGS=$TEMP_CPPFLAGS
   CXXFLAGS=$TEMP_CXXFLAGS
   ])
 
-  if test "x$qt_bin_path" = x; then
-    qt_bin_path="`$PKG_CONFIG --variable=host_bins Qt5Core 2>/dev/null`"
+  if test "$qt_bin_path" = ""; then
+    qt_bin_path="`$PKG_CONFIG --variable=host_bins ${qt_lib_prefix}Core 2>/dev/null`"
   fi
 
-  if test "x$use_hardening" != xno; then
+  if test "$use_hardening" != "no"; then
     CROWN_QT_CHECK([
-    AC_MSG_CHECKING(whether -fPIE can be used with this Qt config)
+    AC_MSG_CHECKING([whether -fPIE can be used with this Qt config])
     TEMP_CPPFLAGS=$CPPFLAGS
     TEMP_CXXFLAGS=$CXXFLAGS
-    CPPFLAGS="$QT_INCLUDES $CPPFLAGS"
-    CXXFLAGS="$PIE_FLAGS $CXXFLAGS"
+    CPPFLAGS="$QT_INCLUDES $CORE_CPPFLAGS $CPPFLAGS"
+    CXXFLAGS="$PIE_FLAGS $CORE_CXXFLAGS $CXXFLAGS"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <QtCore/qconfig.h>
         #ifndef QT_VERSION
@@ -181,17 +191,17 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
         choke
         #endif
       ]])],
-      [ AC_MSG_RESULT(yes); QT_PIE_FLAGS=$PIE_FLAGS ],
-      [ AC_MSG_RESULT(no); QT_PIE_FLAGS=$PIC_FLAGS]
+      [ AC_MSG_RESULT([yes]); QT_PIE_FLAGS=$PIE_FLAGS ],
+      [ AC_MSG_RESULT([no]); QT_PIE_FLAGS=$PIC_FLAGS]
     )
     CPPFLAGS=$TEMP_CPPFLAGS
     CXXFLAGS=$TEMP_CXXFLAGS
     ])
   else
     CROWN_QT_CHECK([
-    AC_MSG_CHECKING(whether -fPIC is needed with this Qt config)
+    AC_MSG_CHECKING([whether -fPIC is needed with this Qt config])
     TEMP_CPPFLAGS=$CPPFLAGS
-    CPPFLAGS="$QT_INCLUDES $CPPFLAGS"
+    CPPFLAGS="$QT_INCLUDES $CORE_CPPFLAGS $CPPFLAGS"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
         #include <QtCore/qconfig.h>
         #ifndef QT_VERSION
@@ -203,8 +213,8 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
         choke
         #endif
       ]])],
-      [ AC_MSG_RESULT(no)],
-      [ AC_MSG_RESULT(yes); QT_PIE_FLAGS=$PIC_FLAGS]
+      [ AC_MSG_RESULT([no])],
+      [ AC_MSG_RESULT([yes]); QT_PIE_FLAGS=$PIC_FLAGS]
     )
     CPPFLAGS=$TEMP_CPPFLAGS
     ])
@@ -215,19 +225,20 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
   CROWN_QT_PATH_PROGS([RCC], [rcc-qt5 rcc5 rcc], $qt_bin_path)
   CROWN_QT_PATH_PROGS([LRELEASE], [lrelease-qt5 lrelease5 lrelease], $qt_bin_path)
   CROWN_QT_PATH_PROGS([LUPDATE], [lupdate-qt5 lupdate5 lupdate],$qt_bin_path, yes)
+  CROWN_QT_PATH_PROGS([LCONVERT], [lconvert-qt5 lconvert5 lconvert], $qt_bin_path, yes)
 
   MOC_DEFS='-DHAVE_CONFIG_H -I$(srcdir)'
   case $host in
     *darwin*)
      CROWN_QT_CHECK([
        MOC_DEFS="${MOC_DEFS} -DQ_OS_MAC"
-       base_frameworks="-framework Foundation -framework ApplicationServices -framework AppKit"
-       AX_CHECK_LINK_FLAG([[$base_frameworks]],[QT_LIBS="$QT_LIBS $base_frameworks"],[AC_MSG_ERROR(could not find base frameworks)])
+       base_frameworks="-framework Foundation -framework AppKit"
+       AX_CHECK_LINK_FLAG([$base_frameworks], [QT_LIBS="$QT_LIBS $base_frameworks"], [AC_MSG_ERROR(could not find base frameworks)])
      ])
     ;;
     *mingw*)
        CROWN_QT_CHECK([
-         AX_CHECK_LINK_FLAG([[-mwindows]],[QT_LDFLAGS="$QT_LDFLAGS -mwindows"],[AC_MSG_WARN(-mwindows linker support not detected)])
+         AX_CHECK_LINK_FLAG([-mwindows], [QT_LDFLAGS="$QT_LDFLAGS -mwindows"], [AC_MSG_WARN([-mwindows linker support not detected])])
        ])
   esac
 
@@ -237,23 +248,26 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
   CROWN_QT_CHECK([
     crown_enable_qt=yes
     crown_enable_qt_test=yes
-    if test "x$have_qt_test" = xno; then
+    if test "$have_qt_test" = "no"; then
       crown_enable_qt_test=no
     fi
     crown_enable_qt_dbus=no
-    if test "x$use_dbus" != xno && test "x$have_qt_dbus" = xyes; then
+    if test "$use_dbus" != "no" && test "$have_qt_dbus" = "yes"; then
       crown_enable_qt_dbus=yes
     fi
-    if test "x$use_dbus" = xyes && test "x$have_qt_dbus" = xno; then
+    if test "$use_dbus" = "yes" && test "$have_qt_dbus" = "no"; then
       AC_MSG_ERROR([libQtDBus not found. Install libQtDBus or remove --with-qtdbus.])
     fi
-    if test "x$LUPDATE" = x; then
-      AC_MSG_WARN([lupdate is required to update qt translations])
+    if test "$LUPDATE" = ""; then
+      AC_MSG_WARN([lupdate tool is required to update Qt translations.])
+    fi
+    if test "$LCONVERT" = ""; then
+      AC_MSG_WARN([lconvert tool is required to update Qt translations.])
     fi
   ],[
     crown_enable_qt=no
   ])
-  if test x$crown_enable_qt = xyes; then
+  if test $crown_enable_qt = "yes"; then
     AC_MSG_RESULT([$crown_enable_qt ($qt_lib_prefix)])
   else
     AC_MSG_RESULT([$crown_enable_qt])
@@ -264,17 +278,18 @@ AC_DEFUN([CROWN_QT_CONFIGURE],[
   AC_SUBST(QT_LIBS)
   AC_SUBST(QT_LDFLAGS)
   AC_SUBST(QT_DBUS_INCLUDES)
-  AC_SUBST(QT_DBUS_LIBS)
   AC_SUBST(QT_TEST_INCLUDES)
-  AC_SUBST(QT_TEST_LIBS)
   AC_SUBST(QT_SELECT, qt5)
   AC_SUBST(MOC_DEFS)
 ])
 
 dnl All macros below are internal and should _not_ be used from configure.ac.
-dnl ----
 
-dnl Internal. Check if the linked version of Qt was built as static libs.
+dnl Internal. Check if the linked version of Qt was built statically.
+dnl
+dnl _CROWN_QT_IS_STATIC
+dnl ---------------------
+dnl
 dnl Requires: INCLUDES and LIBS must be populated as necessary.
 dnl Output: crown_cv_static_qt=yes|no
 AC_DEFUN([_CROWN_QT_IS_STATIC],[
@@ -293,86 +308,90 @@ AC_DEFUN([_CROWN_QT_IS_STATIC],[
       [crown_cv_static_qt=yes],
       [crown_cv_static_qt=no])
     ])
-  if test "x$crown_cv_static_qt" = xyes; then
-    AC_DEFINE(QT_STATICPLUGIN, 1, [Define this symbol for static Qt plugins])
-  fi
 ])
 
-dnl Internal. Check if the link-requirements for static plugins are met.
+dnl Internal. Check if the link-requirements for a static plugin are met.
+dnl
+dnl _CROWN_QT_CHECK_STATIC_PLUGIN(PLUGIN, LIBRARIES)
+dnl --------------------------------------------------
+dnl
 dnl Requires: INCLUDES and LIBS must be populated as necessary.
-dnl Inputs: $1: A series of Q_IMPORT_PLUGIN().
+dnl Inputs: $1: A static plugin name.
 dnl Inputs: $2: The libraries that resolve $1.
 dnl Output: QT_LIBS is prepended or configure exits.
-AC_DEFUN([_CROWN_QT_CHECK_STATIC_PLUGINS],[
-  AC_MSG_CHECKING(for static Qt plugins: $2)
+AC_DEFUN([_CROWN_QT_CHECK_STATIC_PLUGIN], [
+  AC_MSG_CHECKING([for $1 ($2)])
   CHECK_STATIC_PLUGINS_TEMP_LIBS="$LIBS"
-  LIBS="$2 $QT_LIBS $LIBS"
+  LIBS="$2${qt_lib_suffix} $QT_LIBS $LIBS"
   AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-    #define QT_STATICPLUGIN
-    #include <QtPlugin>
-    $1]],
-    [[return 0;]])],
-    [AC_MSG_RESULT(yes); QT_LIBS="$2 $QT_LIBS"],
-    [AC_MSG_RESULT(no); CROWN_QT_FAIL(Could not resolve: $2)])
+      #include <QtPlugin>
+      Q_IMPORT_PLUGIN($1)
+    ]])],
+    [AC_MSG_RESULT([yes]); QT_LIBS="$2${qt_lib_suffix} $QT_LIBS"],
+    [AC_MSG_RESULT([no]); CROWN_QT_FAIL([$1 not found.])])
   LIBS="$CHECK_STATIC_PLUGINS_TEMP_LIBS"
 ])
 
-dnl Internal. Find paths necessary for linking qt static plugins
-dnl Inputs: qt_plugin_path. optional.
-dnl Outputs: QT_LIBS is appended
-AC_DEFUN([_CROWN_QT_FIND_STATIC_PLUGINS],[
-    if test "x$qt_plugin_path" != x; then
-      QT_LIBS="$QT_LIBS -L$qt_plugin_path/platforms -L$qt_plugin_path/../qml/Qt/labs/settings -L$qt_plugin_path/../qml/Qt/labs/qmlmodels -L$qt_plugin_path/../qml/Qt/labs/platform -L$qt_plugin_path/../qml/Qt/labs/sharedimage -L$qt_plugin_path/../qml/Qt/labs/wavefrontmesh -L$qt_plugin_path/../qml/Qt/labs/folderlistmodel -L$qt_plugin_path/../qml/Qt/labs/calender -L$qt_plugin_path/../qml/QtCharts -L$qt_plugin_path/../qml/QtGraphicalEffects -L$qt_plugin_path/../qml/QtGraphicalEffects/private -L$qt_plugin_path/../qml/QtQml/Models.2 -L$qt_plugin_path/../qml/QtQuick/Controls.2 -L$qt_plugin_path/../qml/QtQuick/Layouts -L$qt_plugin_path/../qml/QtQuick/LocalStorage -L$qt_plugin_path/../qml/QtQuick/Particles.2 -L$qt_plugin_path/../qml/QtQuick/Shapes -L$qt_plugin_path/../qml/QtQuick/Templates.2 -L$qt_plugin_path/../qml/QtQuick/Window.2 -L$qt_plugin_path/../qml/QtQuick.2 -L$qt_plugin_path/../qml/QtTest -L$qt_plugin_path/../qml/QtGraphicalEffects -L$qt_plugin_path/../qml/QtGraphicalEffects/private"
-      if test -d "$qt_plugin_path/accessible"; then
-        QT_LIBS="$QT_LIBS -L$qt_plugin_path/accessible"
-      fi
-      if test -d "$qt_plugin_path/platforms/android"; then
-        QT_LIBS="$QT_LIBS -L$qt_plugin_path/platforms/android -lqtfreetype -lEGL"
-      fi
-      PKG_CHECK_MODULES([QTACCESSIBILITY], [Qt5AccessibilitySupport], [QT_LIBS="-lQt5AccessibilitySupport $QT_LIBS"])
-      PKG_CHECK_MODULES([QTDEVICEDISCOVERY], [Qt5DeviceDiscoverySupport], [QT_LIBS="-lQt5DeviceDiscoverySupport $QT_LIBS"])
-      if test "x$TARGET_OS" != xandroid; then
-        PKG_CHECK_MODULES([QTEDID], [Qt5EdidSupport], [QT_LIBS="-lQt5EdidSupport $QT_LIBS"])
-      fi
-      PKG_CHECK_MODULES([QTEVENTDISPATCHER], [Qt5EventDispatcherSupport], [QT_LIBS="-lQt5EventDispatcherSupport $QT_LIBS"])
-      PKG_CHECK_MODULES([QTFB], [Qt5FbSupport], [QT_LIBS="-lQt5FbSupport $QT_LIBS"])
-      PKG_CHECK_MODULES([QTFONTDATABASE], [Qt5FontDatabaseSupport], [QT_LIBS="-lQt5FontDatabaseSupport $QT_LIBS"])
-      PKG_CHECK_MODULES([QTTHEME], [Qt5ThemeSupport], [QT_LIBS="-lQt5ThemeSupport $QT_LIBS"])
-      if test "x$TARGET_OS" = xlinux; then
-        PKG_CHECK_MODULES([QTSERVICE], [Qt5ServiceSupport], [QT_LIBS="-lQt5ServiceSupport $QT_LIBS"])
-        PKG_CHECK_MODULES([QTXCBQPA], [Qt5XcbQpa], [QT_LIBS="$QTXCBQPA_LIBS $QT_LIBS"])
-      elif test "x$TARGET_OS" = xandroid; then
-        PKG_CHECK_MODULES([QTANDROIDEXTRAS], [Qt5AndroidExtras], [QT_LIBS="-lQt5AndroidExtras $QT_LIBS"])
-      elif test "x$TARGET_OS" = xdarwin; then
-        PKG_CHECK_MODULES([QTCLIPBOARD], [Qt5ClipboardSupport], [QT_LIBS="-lQt5ClipboardSupport $QT_LIBS"])
-        PKG_CHECK_MODULES([QTGRAPHICS], [Qt5GraphicsSupport], [QT_LIBS="-lQt5GraphicsSupport $QT_LIBS"])
-        PKG_CHECK_MODULES([QTCGL], [Qt5CglSupport], [QT_LIBS="-lQt5CglSupport $QT_LIBS"])
-      elif test "x$TARGET_OS" = xwindows; then
-        PKG_CHECK_MODULES([QTWINDOWSUIAUTOMATION], [Qt5WindowsUIAutomationSupport], [QT_LIBS="-lQt5WindowsUIAutomationSupport $QT_LIBS"])
-      fi
-    fi
+dnl Internal. Check Qt static libs with PKG_CHECK_MODULES.
+dnl
+dnl _CROWN_QT_CHECK_STATIC_LIBS
+dnl -----------------------------
+dnl
+dnl Outputs: QT_LIBS is prepended.
+AC_DEFUN([_CROWN_QT_CHECK_STATIC_LIBS], [
+  PKG_CHECK_MODULES([QT_ACCESSIBILITY], [${qt_lib_prefix}AccessibilitySupport${qt_lib_suffix}], [QT_LIBS="$QT_ACCESSIBILITY_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_DEVICEDISCOVERY], [${qt_lib_prefix}DeviceDiscoverySupport${qt_lib_suffix}], [QT_LIBS="$QT_DEVICEDISCOVERY_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_EDID], [${qt_lib_prefix}EdidSupport${qt_lib_suffix}], [QT_LIBS="$QT_EDID_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_EVENTDISPATCHER], [${qt_lib_prefix}EventDispatcherSupport${qt_lib_suffix}], [QT_LIBS="$QT_EVENTDISPATCHER_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_FB], [${qt_lib_prefix}FbSupport${qt_lib_suffix}], [QT_LIBS="$QT_FB_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_FONTDATABASE], [${qt_lib_prefix}FontDatabaseSupport${qt_lib_suffix}], [QT_LIBS="$QT_FONTDATABASE_LIBS $QT_LIBS"])
+  PKG_CHECK_MODULES([QT_THEME], [${qt_lib_prefix}ThemeSupport${qt_lib_suffix}], [QT_LIBS="$QT_THEME_LIBS $QT_LIBS"])
+  if test "$TARGET_OS" = "linux"; then
+    PKG_CHECK_MODULES([QT_INPUT], [${qt_lib_prefix}InputSupport], [QT_LIBS="$QT_INPUT_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_SERVICE], [${qt_lib_prefix}ServiceSupport], [QT_LIBS="$QT_SERVICE_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_XCBQPA], [${qt_lib_prefix}XcbQpa], [QT_LIBS="$QT_XCBQPA_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_XKBCOMMON], [${qt_lib_prefix}XkbCommonSupport], [QT_LIBS="$QT_XKBCOMMON_LIBS $QT_LIBS"])
+  elif test "$TARGET_OS" = "darwin"; then
+    PKG_CHECK_MODULES([QT_CLIPBOARD], [${qt_lib_prefix}ClipboardSupport${qt_lib_suffix}], [QT_LIBS="$QT_CLIPBOARD_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_GRAPHICS], [${qt_lib_prefix}GraphicsSupport${qt_lib_suffix}], [QT_LIBS="$QT_GRAPHICS_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_SERVICE], [${qt_lib_prefix}ServiceSupport${qt_lib_suffix}], [QT_LIBS="$QT_SERVICE_LIBS $QT_LIBS"])
+  elif test "$TARGET_OS" = "windows"; then
+    PKG_CHECK_MODULES([QT_WINDOWSUIAUTOMATION], [${qt_lib_prefix}WindowsUIAutomationSupport${qt_lib_suffix}], [QT_LIBS="$QT_WINDOWSUIAUTOMATION_LIBS $QT_LIBS"])
+  elif test "$TARGET_OS" = "android"; then
+    PKG_CHECK_MODULES([QT_EGL], [${qt_lib_prefix}EglSupport${qt_lib_suffix}], [QT_LIBS="$QT_EGL_LIBS $QT_LIBS"])
+    PKG_CHECK_MODULES([QT_SERVICE], [${qt_lib_prefix}ServiceSupport${qt_lib_suffix}], [QT_LIBS="$QT_SERVICE_LIBS $QT_LIBS"])
+  fi
 ])
 
 dnl Internal. Find Qt libraries using pkg-config.
+dnl
+dnl _CROWN_QT_FIND_LIBS
+dnl ---------------------
+dnl
 dnl Outputs: All necessary QT_* variables are set.
 dnl Outputs: have_qt_test and have_qt_dbus are set (if applicable) to yes|no.
 AC_DEFUN([_CROWN_QT_FIND_LIBS],[
-  m4_ifdef([PKG_CHECK_MODULES],[
-    QT_LIB_PREFIX=Qt5
-    qt5_modules="Qt5Core Qt5Gui Qt5Network Qt5Widgets Qt5Charts Qt5Qml Qt5Quick Qt5QuickControls2"
-    CROWN_QT_CHECK([
-      PKG_CHECK_MODULES([QT5], [$qt5_modules], [QT_INCLUDES="$QT5_CFLAGS"; QT_LIBS="$QT5_LIBS" have_qt=yes],[have_qt=no])
-      if test "x$have_qt" != xyes; then
-        have_qt=no
-        CROWN_QT_FAIL([Qt dependencies not found])
-      fi
-    ])
-    CROWN_QT_CHECK([
-      PKG_CHECK_MODULES([QT_TEST], [${QT_LIB_PREFIX}Test], [QT_TEST_INCLUDES="$QT_TEST_CFLAGS"; have_qt_test=yes], [have_qt_test=no])
-      if test "x$use_dbus" != xno; then
-        PKG_CHECK_MODULES([QT_DBUS], [${QT_LIB_PREFIX}DBus], [QT_DBUS_INCLUDES="$QT_DBUS_CFLAGS"; have_qt_dbus=yes], [have_qt_dbus=no])
-      fi
-    ])
+  CROWN_QT_CHECK([
+    PKG_CHECK_MODULES([QT_CORE], [${qt_lib_prefix}Core${qt_lib_suffix} $qt_version], [QT_INCLUDES="$QT_CORE_CFLAGS $QT_INCLUDES" QT_LIBS="$QT_CORE_LIBS $QT_LIBS"],
+                      [CROWN_QT_FAIL([${qt_lib_prefix}Core${qt_lib_suffix} $qt_version not found])])
   ])
-  true; dnl
+  CROWN_QT_CHECK([
+    PKG_CHECK_MODULES([QT_GUI], [${qt_lib_prefix}Gui${qt_lib_suffix} $qt_version], [QT_INCLUDES="$QT_GUI_CFLAGS $QT_INCLUDES" QT_LIBS="$QT_GUI_LIBS $QT_LIBS"],
+                      [CROWN_QT_FAIL([${qt_lib_prefix}Gui${qt_lib_suffix} $qt_version not found])])
+  ])
+  CROWN_QT_CHECK([
+    PKG_CHECK_MODULES([QT_WIDGETS], [${qt_lib_prefix}Widgets${qt_lib_suffix} $qt_version], [QT_INCLUDES="$QT_WIDGETS_CFLAGS $QT_INCLUDES" QT_LIBS="$QT_WIDGETS_LIBS $QT_LIBS"],
+                      [CROWN_QT_FAIL([${qt_lib_prefix}Widgets${qt_lib_suffix} $qt_version not found])])
+  ])
+  CROWN_QT_CHECK([
+    PKG_CHECK_MODULES([QT_NETWORK], [${qt_lib_prefix}Network${qt_lib_suffix} $qt_version], [QT_INCLUDES="$QT_NETWORK_CFLAGS $QT_INCLUDES" QT_LIBS="$QT_NETWORK_LIBS $QT_LIBS"],
+                      [CROWN_QT_FAIL([${qt_lib_prefix}Network${qt_lib_suffix} $qt_version not found])])
+  ])
+
+  CROWN_QT_CHECK([
+    PKG_CHECK_MODULES([QT_TEST], [${qt_lib_prefix}Test${qt_lib_suffix} $qt_version], [QT_TEST_INCLUDES="$QT_TEST_CFLAGS"; have_qt_test=yes], [have_qt_test=no])
+    if test "$use_dbus" != "no"; then
+      PKG_CHECK_MODULES([QT_DBUS], [${qt_lib_prefix}DBus $qt_version], [QT_DBUS_INCLUDES="$QT_DBUS_CFLAGS"; have_qt_dbus=yes], [have_qt_dbus=no])
+    fi
+  ])
 ])

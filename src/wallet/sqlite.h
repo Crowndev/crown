@@ -67,7 +67,7 @@ public:
     SQLiteDatabase() = delete;
 
     /** Create DB handle to real database */
-    SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, bool mock = false);
+    SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, const DatabaseOptions& options, bool mock = false);
 
     ~SQLiteDatabase();
 
@@ -111,6 +111,7 @@ public:
     std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override;
 
     sqlite3* m_db{nullptr};
+    bool m_use_unsafe_sync;
 };
 
 bool ExistsSQLiteDatabase(const fs::path& path);

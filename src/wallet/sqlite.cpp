@@ -9,6 +9,8 @@
 #include <logging.h>
 #include <sync.h>
 #include <memory>
+#include <fstream>
+
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/translation.h>
@@ -34,8 +36,8 @@ static void ErrorLogCallback(void* arg, int code, const char* msg)
     LogPrintf("SQLite Error. Code: %d. Message: %s\n", code, msg);
 }
 
-SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, bool mock)
-    : WalletDatabase(), m_mock(mock), m_dir_path(dir_path.string()), m_file_path(file_path.string())
+SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, const DatabaseOptions& options, bool mock)
+    : WalletDatabase(), m_mock(mock), m_dir_path(fs::PathToString(dir_path)), m_file_path(fs::PathToString(file_path)), m_use_unsafe_sync(options.use_unsafe_sync)
 {
     {
         LOCK(g_sqlite_mutex);
@@ -206,7 +208,7 @@ void SQLiteDatabase::Open()
     }
 
     if (m_db == nullptr) {
-        TryCreateDirectories(m_dir_path);
+        TryCreateDirectories(fs::PathFromString(m_dir_path));
         int ret = sqlite3_open_v2(m_file_path.c_str(), &m_db, flags, nullptr);
         if (ret != SQLITE_OK) {
             throw std::runtime_error(strprintf("SQLiteDatabase: Failed to open database: %s\n", sqlite3_errstr(ret)));
@@ -569,14 +571,14 @@ bool SQLiteBatch::TxnAbort()
 bool ExistsSQLiteDatabase(const fs::path& path)
 {
     const fs::path file = path / DATABASE_FILENAME;
-    return fs::symlink_status(file).type() == fs::regular_file && IsSQLiteFile(file);
+    return fs::symlink_status(file).type() == fs::file_type::regular && IsSQLiteFile(file);
 }
 
 std::unique_ptr<SQLiteDatabase> MakeSQLiteDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error)
 {
     const fs::path file = path / DATABASE_FILENAME;
     try {
-        auto db = std::make_unique<SQLiteDatabase>(path, file);
+        auto db = std::make_unique<SQLiteDatabase>(path, file, options);
         if (options.verify && !db->Verify(error)) {
             status = DatabaseStatus::FAILED_VERIFY;
             return nullptr;
@@ -600,12 +602,12 @@ bool IsSQLiteFile(const fs::path& path)
     if (!fs::exists(path)) return false;
 
     // A SQLite Database file is at least 512 bytes.
-    boost::system::error_code ec;
+    std::error_code ec;
     auto size = fs::file_size(path, ec);
-    if (ec) LogPrintf("%s: %s %s\n", __func__, ec.message(), path.string());
+    if (ec) LogPrintf("%s: %s %s\n", __func__, ec.message(), fs::PathToString(path));
     if (size < 512) return false;
 
-    fsbridge::ifstream file(path, std::ios::binary);
+    std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) return false;
 
     // Magic is at beginning and is 16 bytes long

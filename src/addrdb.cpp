@@ -43,13 +43,13 @@ bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data
     std::string tmpfn = strprintf("%s.%04x", prefix, randv);
 
     // open temp output file, and associate with CAutoFile
-    fs::path pathTmp = GetDataDir() / tmpfn;
+    fs::path pathTmp = gArgs.GetDataDirNet() / fs::u8path(tmpfn);
     FILE *file = fsbridge::fopen(pathTmp, "wb");
     CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull()) {
         fileout.fclose();
         remove(pathTmp);
-        return error("%s: Failed to open file %s", __func__, pathTmp.string());
+        return error("%s: Failed to open file %s", __func__, fs::PathToString(pathTmp));
     }
 
     // Serialize
@@ -61,7 +61,7 @@ bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data
     if (!FileCommit(fileout.Get())) {
         fileout.fclose();
         remove(pathTmp);
-        return error("%s: Failed to flush file %s", __func__, pathTmp.string());
+        return error("%s: Failed to flush file %s", __func__, fs::PathToString(pathTmp));
     }
     fileout.fclose();
 
@@ -112,8 +112,7 @@ bool DeserializeFileDB(const fs::path& path, Data& data)
     FILE *file = fsbridge::fopen(path, "rb");
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
-        return error("%s: Failed to open file %s", __func__, path.string());
-
+        return error("%s: Failed to open file %s", __func__, fs::PathToString(path));
     return DeserializeDB(filein, data);
 }
 
@@ -168,7 +167,7 @@ std::vector<CAddress> ReadAnchors(const fs::path& anchors_db_path)
 {
     std::vector<CAddress> anchors;
     if (DeserializeFileDB(anchors_db_path, anchors)) {
-        LogPrintf("Loaded %i addresses from %s\n", anchors.size(), anchors_db_path.filename());
+        LogPrintf("Loaded %i addresses from %s\n", anchors.size(), fs::quoted(fs::PathToString(anchors_db_path.filename())));
     } else {
         anchors.clear();
     }

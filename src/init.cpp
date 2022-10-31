@@ -68,6 +68,11 @@
 #include <validationinterface.h>
 #include <walletinitinterface.h>
 
+#include <algorithm>
+#include <condition_variable>
+#include <cstdint>
+#include <cstdio>
+#include <fstream>
 #include <functional>
 #include <set>
 #include <stdint.h>
@@ -123,12 +128,12 @@ static const char* CROWN_PID_FILENAME = "crownd.pid";
 
 static fs::path GetPidFile(const ArgsManager& args)
 {
-    return AbsPathForConfigVal(fs::path(args.GetArg("-pid", CROWN_PID_FILENAME)));
+    return AbsPathForConfigVal(args.GetPathArg("-pid", CROWN_PID_FILENAME));
 }
 
 NODISCARD static bool CreatePidFile(const ArgsManager& args)
 {
-    fsbridge::ofstream file{GetPidFile(args)};
+    std::ofstream file{GetPidFile(args)};
     if (file) {
 #ifdef WIN32
         tfm::format(file, "%d\n", GetCurrentProcessId());
@@ -137,7 +142,7 @@ NODISCARD static bool CreatePidFile(const ArgsManager& args)
 #endif
         return true;
     } else {
-        return InitError(strprintf(_("Unable to create the PID file '%s': %s"), GetPidFile(args).string(), std::strerror(errno)));
+        //return InitError(strprintf(_("Unable to create the PID file '%s': %s"), fs::PathToString(GetPidFile(args)), SysErrorString(errno)));
     }
 }
 
@@ -258,7 +263,7 @@ void Shutdown(NodeContext& node)
         if (!est_fileout.IsNull())
             ::feeEstimator.Write(est_fileout);
         else
-            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, est_path.string());
+            LogPrintf("%s: Failed to write fee estimates to %s\n", __func__, fs::PathToString(est_path));
         fFeeEstimatesInitialized = false;
     }
 
@@ -783,14 +788,14 @@ static void ThreadImport(ChainstateManager& chainman, std::vector<fs::path> vImp
     for (const fs::path& path : vImportFiles) {
         FILE *file = fsbridge::fopen(path, "rb");
         if (file) {
-            LogPrintf("Importing blocks file %s...\n", path.string());
+            LogPrintf("Importing blocks file %s...\n", fs::PathToString(path));
             LoadExternalBlockFile(chainparams, file);
             if (ShutdownRequested()) {
                 LogPrintf("Shutdown requested. Exit %s\n", __func__);
                 return;
             }
         } else {
-            LogPrintf("Warning: Could not open blocks file %s\n", path.string());
+            LogPrintf("Warning: Could not open blocks file %s\n", fs::PathToString(path));
         }
     }
 
@@ -938,7 +943,7 @@ void InitParameterInteraction(ArgsManager& args)
 void InitLogging(const ArgsManager& args)
 {
     LogInstance().m_print_to_file = !args.IsArgNegated("-debuglogfile");
-    LogInstance().m_file_path = AbsPathForConfigVal(args.GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE));
+    LogInstance().m_file_path = AbsPathForConfigVal(fs::PathFromString(args.GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE)));
     LogInstance().m_print_to_console = args.GetBoolArg("-printtoconsole", !args.GetBoolArg("-daemon", false));
     LogInstance().m_log_timestamps = args.GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     LogInstance().m_log_time_micros = args.GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
@@ -1281,10 +1286,10 @@ static bool LockDataDirectory(bool probeOnly)
     // Make sure only a single Crown process is using the data directory.
     fs::path datadir = GetDataDir();
     if (!DirIsWritable(datadir)) {
-        return InitError(strprintf(_("Cannot write to data directory '%s'; check permissions."), datadir.string()));
+        return InitError(strprintf(_("Cannot write to data directory '%s'; check permissions."), fs::PathToString(datadir)));
     }
     if (!LockDirectory(datadir, ".lock", probeOnly)) {
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running."), datadir.string(), PACKAGE_NAME));
+        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running."), fs::PathToString(datadir), PACKAGE_NAME));
     }
     return true;
 }
@@ -1351,22 +1356,22 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }
     if (!LogInstance().StartLogging()) {
             return InitError(strprintf(Untranslated("Could not open debug log file %s"),
-                LogInstance().m_file_path.string()));
+                fs::PathToString(LogInstance().m_file_path)));
     }
 
     if (!LogInstance().m_log_timestamps)
         LogPrintf("Startup time: %s\n", FormatISO8601DateTime(GetTime()));
-    LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
-    LogPrintf("Using data directory %s\n", GetDataDir().string());
+    LogPrintf("Default data directory %s\n", fs::PathToString(GetDefaultDataDir()));
+    LogPrintf("Using data directory %s\n", fs::PathToString(GetDataDir()));
 
     // Only log conf file usage message if conf file actually exists.
-    fs::path config_file_path = GetConfigFile(args.GetArg("-conf", CROWN_CONF_FILENAME));
+    fs::path config_file_path = GetConfigFile(fs::PathFromString(args.GetArg("-conf", CROWN_CONF_FILENAME)));
 
     if (!fs::exists(config_file_path)) {
 		std::string sentence = "daemon=1\nserver=1\ntxindex=1\n[test]\naddnode=92.60.46.27\naddnode=92.60.46.28\naddnode=92.60.46.29\naddnode=92.60.46.26\naddnode=92.60.46.30\naddnode=92.60.46.31";
         FILE *fp;
-        if (!(fp = fopen(config_file_path.string().c_str(), "w")))
-            InitWarning(strprintf(_("Failed to create %s \n"), config_file_path.string()));
+        if (!(fp = fopen(fs::PathToString(config_file_path).c_str(), "w")))
+            InitWarning(strprintf(_("Failed to create %s \n"), fs::PathToString(config_file_path)));
         else 
             fputs (sentence.c_str(),fp);
 
@@ -1374,13 +1379,13 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }
 
     if (fs::exists(config_file_path)) {
-        LogPrintf("Config file: %s\n", config_file_path.string());
+        LogPrintf("Config file: %s\n", fs::PathToString(config_file_path));
     } else if (args.IsArgSet("-conf")) {
         // Warn if no conf file exists at path provided by user
-        InitWarning(strprintf(_("The specified config file %s does not exist\n"), config_file_path.string()));
+        InitWarning(strprintf(_("The specified config file %s does not exist\n"), fs::PathToString(config_file_path)));
     } else {
         // Not categorizing as "Warning" because it's the default behavior
-        LogPrintf("Config file: %s (not found, skipping)\n", config_file_path.string());
+        LogPrintf("Config file: %s (not found, skipping)\n", fs::PathToString(config_file_path));
     }
 
     // Log the config arguments to debug.log
@@ -1389,7 +1394,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 
     // Warn about relative -datadir path.
-    if (args.IsArgSet("-datadir") && !fs::path(args.GetArg("-datadir", "")).is_absolute()) {
+    if (args.IsArgSet("-datadir") && !fs::path(fs::PathFromString(args.GetArg("-datadir", ""))).is_absolute()) {
         LogPrintf("Warning: relative datadir option '%s' specified, which will be interpreted relative to the " /* Continued */
                   "current working directory '%s'. This is fragile, because if crown is started in the future "
                   "from a different location, it will be unable to locate the current data files. There could "
@@ -1584,7 +1589,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     // Read asmap file if configured
     if (args.IsArgSet("-asmap")) {
-        fs::path asmap_path = fs::path(args.GetArg("-asmap", ""));
+        fs::path asmap_path = fs::path(fs::PathFromString(args.GetArg("-asmap", "")));
         if (asmap_path.empty()) {
             asmap_path = DEFAULT_ASMAP_FILENAME;
         }
@@ -1592,12 +1597,12 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
             asmap_path = GetDataDir() / asmap_path;
         }
         if (!fs::exists(asmap_path)) {
-            InitError(strprintf(_("Could not find asmap file %s"), asmap_path));
+            InitError(strprintf(_("Could not find asmap file %s"), fs::PathToString(asmap_path)));
             return false;
         }
         std::vector<bool> asmap = CAddrMan::DecodeAsmap(asmap_path);
         if (asmap.size() == 0) {
-            InitError(strprintf(_("Could not parse asmap file %s"), asmap_path));
+            InitError(strprintf(_("Could not parse asmap file %s"), fs::PathToString(asmap_path)));
             return false;
         }
         const uint256 asmap_version = SerializeHash(asmap);
@@ -2011,11 +2016,11 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     // ********************************************************* Step 11: import blocks
 
     if (!CheckDiskSpace(GetDataDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetDataDir()));
+        InitError(strprintf(_("Error: Disk space is low for %s"), fs::PathToString(GetDataDir())));
         return false;
     }
     if (!CheckDiskSpace(GetBlocksDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetBlocksDir()));
+        InitError(strprintf(_("Error: Disk space is low for %s"), fs::PathToString(GetBlocksDir())));
         return false;
     }
 
@@ -2043,7 +2048,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     std::vector<fs::path> vImportFiles;
     for (const std::string& strFile : args.GetArgs("-loadblock")) {
-        vImportFiles.push_back(strFile);
+        vImportFiles.push_back(fs::PathFromString(strFile));
     }
 
     g_load_block = std::thread(&TraceThread<std::function<void()>>, "loadblk", [=, &chainman, &args] {

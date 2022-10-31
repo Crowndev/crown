@@ -8,17 +8,17 @@ namespace details
 {
     ReadResult ReadStream(CDataStream& stream, const std::string& filename)
     {
-        boost::filesystem::path pathDb = GetDataDir() / filename;
+        fs::path pathDb = GetDataDir() / fs::PathFromString(filename);
         // open input file, and associate with CAutoFile
-        FILE *file = fopen(pathDb.string().c_str(), "rb");
+        FILE *file = fopen(fs::PathToString(pathDb).c_str(), "rb");
         CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
         if (filein.IsNull())
         {
-            error("%s: Failed to open file %s", __func__, pathDb.string());
+            error("%s: Failed to open file %s", __func__, fs::PathToString(pathDb));
             return FileError;
         }
         // use file size to size memory buffer
-        int fileSize = boost::filesystem::file_size(pathDb);
+        int fileSize = 10;//boost::filesystem::file_size(pathDb);
         int dataSize = fileSize - sizeof(uint256);
         // Don't try to resize to a negative number if file is small
         if (dataSize < 0)

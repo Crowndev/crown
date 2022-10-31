@@ -73,8 +73,8 @@ bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
 bool RenameOver(fs::path src, fs::path dest);
-bool LockDirectory(const fs::path& directory, const std::string lockfile_name, bool probe_only=false);
-void UnlockDirectory(const fs::path& directory, const std::string& lockfile_name);
+bool LockDirectory(const fs::path& directory, const fs::path lockfile_name, bool probe_only=false);
+void UnlockDirectory(const fs::path& directory, const fs::path& lockfile_name);
 bool DirIsWritable(const fs::path& directory);
 bool CheckDiskSpace(const fs::path& dir, uint64_t additional_bytes = 0);
 
@@ -100,7 +100,7 @@ const fs::path &GetDataDir(bool fNetSpecific = true);
 bool CheckDataDirOption();
 /** Tests only */
 void ClearDatadirCache();
-fs::path GetConfigFile(const std::string& confPath);
+fs::path GetConfigFile(const fs::path& confPath);
 fs::path GetMasternodeConfigFile();
 fs::path GetSystemnodeConfigFile();
 
@@ -198,12 +198,17 @@ protected:
 
     mutable RecursiveMutex cs_args;
     util::Settings m_settings GUARDED_BY(cs_args);
+    std::vector<std::string> m_command GUARDED_BY(cs_args);
     std::string m_network GUARDED_BY(cs_args);
     std::set<std::string> m_network_only_args GUARDED_BY(cs_args);
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
+    bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
+    mutable fs::path m_cached_blocks_path GUARDED_BY(cs_args);
+    mutable fs::path m_cached_datadir_path GUARDED_BY(cs_args);
+    mutable fs::path m_cached_network_datadir_path GUARDED_BY(cs_args);
 
-    NODISCARD bool ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys = false);
+    [[nodiscard]] bool ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys = false);
 
     /**
      * Returns true if settings values from the default section should be used,
@@ -212,6 +217,7 @@ protected:
      */
     bool UseDefaultSection(const std::string& arg) const EXCLUSIVE_LOCKS_REQUIRED(cs_args);
 
+ public:
     /**
      * Get setting value.
      *
@@ -226,7 +232,6 @@ protected:
      */
     std::vector<util::SettingsValue> GetSettingsList(const std::string& arg) const;
 
-public:
     ArgsManager();
     ~ArgsManager();
 
@@ -235,8 +240,8 @@ public:
      */
     void SelectConfigNetwork(const std::string& network);
 
-    NODISCARD bool ParseParameters(int argc, const char* const argv[], std::string& error);
-    NODISCARD bool ReadConfigFiles(std::string& error, bool ignore_invalid_keys = false);
+    [[nodiscard]] bool ParseParameters(int argc, const char* const argv[], std::string& error);
+    [[nodiscard]] bool ReadConfigFiles(std::string& error, bool ignore_invalid_keys = false);
 
     /**
      * Log warnings for options in m_section_only_args when
@@ -250,6 +255,48 @@ public:
      * Log warnings for unrecognized section names in the config file.
      */
     const std::list<SectionInfo> GetUnrecognizedSections() const;
+
+    struct Command {
+        /** The command (if one has been registered with AddCommand), or empty */
+        std::string command;
+        /**
+         * If command is non-empty: Any args that followed it
+         * If command is empty: The unregistered command and any args that followed it
+         */
+        std::vector<std::string> args;
+    };
+    /**
+     * Get the command and command args (returns std::nullopt if no command provided)
+     */
+    std::optional<const Command> GetCommand() const;
+
+    /**
+     * Get blocks directory path
+     *
+     * @return Blocks path which is network specific
+     */
+    const fs::path& GetBlocksDirPath() const;
+
+    /**
+     * Get data directory path
+     *
+     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
+     * @post Returned directory path is created unless it is empty
+     */
+    const fs::path& GetDataDirBase() const { return GetDataDir(false); }
+
+    /**
+     * Get data directory path with appended network identifier
+     *
+     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
+     * @post Returned directory path is created unless it is empty
+     */
+    const fs::path& GetDataDirNet() const { return GetDataDir(true); }
+
+    /**
+     * Clear cached directory paths
+     */
+    void ClearPathCache();
 
     /**
      * Return a vector of strings of the given argument
@@ -284,6 +331,19 @@ public:
      * @return command-line argument or default value
      */
     std::string GetArg(const std::string& strArg, const std::string& strDefault) const;
+    std::optional<std::string> GetArg(const std::string& strArg) const;
+
+    /**
+     * Return path argument or default value
+     *
+     * @param arg Argument to get a path from (e.g., "-datadir", "-blocksdir" or "-walletdir")
+     * @param default_value Optional default value to return instead of the empty path.
+     * @return normalized path if argument is set, with redundant "." and ".."
+     * path components and trailing separators removed (see patharg unit test
+     * for examples or implementation for details). If argument is empty or not
+     * set, default_value is returned unchanged.
+     */
+    fs::path GetPathArg(std::string arg, const fs::path& default_value = {}) const;
 
     /**
      * Return integer argument or default value
@@ -337,6 +397,11 @@ public:
     void AddArg(const std::string& name, const std::string& help, unsigned int flags, const OptionsCategory& cat);
 
     /**
+     * Add subcommand
+     */
+    void AddCommand(const std::string& cmd, const std::string& help);
+
+    /**
      * Add many hidden arguments
      */
     void AddHiddenArgs(const std::vector<std::string>& args);
@@ -372,7 +437,7 @@ public:
      * Get settings file path, or return false if read-write settings were
      * disabled with -nosettings.
      */
-    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false) const;
+    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false, bool backup = false) const;
 
     /**
      * Read settings file. Push errors to vector, or log them if null.
@@ -401,6 +466,15 @@ public:
     void LogArgs() const;
 
 private:
+    /**
+     * Get data directory path
+     *
+     * @param net_specific Append network identifier to the returned path
+     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
+     * @post Returned directory path is created unless it is empty
+     */
+    const fs::path& GetDataDir(bool net_specific) const;
+
     // Helper function for LogArgs().
     void logArgsPrefix(
         const std::string& prefix,
