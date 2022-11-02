@@ -2359,6 +2359,25 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 static int64_t nBlocksTotal = 0;
 
+static CAmount CheckMoneySupply(CBlockIndex *pindex){
+
+    CAmount actualSupply;
+
+    for(auto &a : pindex->nMoneySupply){
+        if(a.first == Params().GetConsensus().subsidy_asset)
+            actualSupply += a.second;
+        else{
+            for(auto const& x : passetsCache->GetItemsMap()){
+                CAsset checkasset = x.second->second.asset;
+                if(a.first == checkasset)
+                    actualSupply += x.second->second.inputAmount;
+            }
+        }
+    }
+
+    return actualSupply;
+}
+
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
@@ -2567,6 +2586,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     std::vector<PrecomputedTransactionData> txsdata(block.vtx.size());
 
     std::vector<int> prevheights;
+    CAmountMap fee_map;
     CAmount nFees = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
@@ -2698,6 +2718,11 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             }
         }
 
+        nValueOutMap += tx.GetValueOutMap();
+
+        if(!tx.IsCoinBase())
+            nValueInMap += view.GetValueInMap(tx);
+
         CTxUndo undoDummy;
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
@@ -2752,6 +2777,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             pindex->nMoneySupply =  pindex->pprev->nMoneySupply + results;
         else
             pindex->nMoneySupply = results;
+
+        CAmount currentSupply = CheckMoneySupply(pindex);
+        CAmount expectedSupply = 0;
+
     }
 
     //Asset DB

@@ -646,6 +646,38 @@ static RPCHelpMan echo(const std::string& name)
 static RPCHelpMan echo() { return echo("echo"); }
 static RPCHelpMan echojson() { return echo("echojson"); }
 
+
+static RPCHelpMan dumpassetlabels()
+{
+    return RPCHelpMan{"dumpassetlabels",
+                "\nReturns all changes for an address (requires addressindex to be enabled).\n",
+                {
+
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "asset", "The asset id"},
+                    }
+                },
+                RPCExamples{
+            "\nView the details\n"
+            + HelpExampleCli("dumpassetlabels", "txid") +
+            "\nVerify the signature\n"
+            + HelpExampleRpc("dumpassetlabels", "txid")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+
+    UniValue obj(UniValue::VOBJ);
+    for (const auto& as : ::ChainActive().Tip()->nMoneySupply) {
+        obj.pushKV(as.first.getAssetName(), as.first.assetID.ToString());
+    }
+    return obj;
+},
+    };
+}
+
 static UniValue SummaryToJSON(const IndexSummary&& summary, std::string index_name)
 {
     UniValue ret_summary(UniValue::VOBJ);

@@ -103,6 +103,8 @@ public:
     // Remove address.
     virtual bool delAddressBook(const CTxDestination& dest) = 0;
 
+    virtual bool isMine(CTxDestination& dest) = 0;
+
     //! Look up address in wallet, return whether exists.
     virtual bool getAddress(const CTxDestination& dest,
         std::string* name,
@@ -132,6 +134,20 @@ public:
 
     //! List locked coins.
     virtual void listLockedCoins(std::vector<COutPoint>& outputs) = 0;
+    
+    virtual std::map<CTxDestination, CAmountMap> getAddressBalances() =0;
+    
+    virtual bool createContract(CContract& contract, CTransactionRef& tx,
+        std::string &address, std::string &contract_url, std::string &website_url,
+        std::string &description, CScript &script, std::string& name,
+        std::string& shortname, std::string& strFailReason) =0;
+
+    virtual bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
+         std::string& shortname, CAmount& amountin, CAmount& amountout,
+         int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, 
+         bool transferable, bool convertable, bool restricted, bool limited) =0;
+
+    virtual CContract getContract(std::string& name) =0;    
 
     //! Create transaction.
     virtual CTransactionRef createTransaction(const std::vector<CRecipient>& recipients,

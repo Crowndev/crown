@@ -83,14 +83,8 @@ void CActiveSystemnode::ManageStatus()
             service = CService(LookupNumeric(strSystemNodeAddr, Params().GetDefaultPort()));
         }
 
-        if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
-            if(service.GetPort() != Params().GetDefaultPort()) {
-                notCapableReason = strprintf("Invalid port: %u - only 9340 is supported on mainnet.", service.GetPort());
-                LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
-                return;
-            }
-        } else if(service.GetPort() == Params().GetDefaultPort()) {
-            notCapableReason = strprintf("Invalid port: %u - 9340 is only supported on mainnet.", service.GetPort());
+        if(service.GetPort() == Params().GetDefaultPort()) {
+            notCapableReason = strprintf("Invalid port: %u vs %u", service.GetPort(), Params().GetDefaultPort());
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
         }

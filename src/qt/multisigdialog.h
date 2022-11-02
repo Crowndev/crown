@@ -5,14 +5,14 @@
 #ifndef MULTISIGDIALOG_H
 #define MULTISIGDIALOG_H
 
+#include <qt/platformstyle.h>
+
 #include <QDialog>
 
-#include "multisigaddressentry.h"
-#include "multisiginputentry.h"
-#include "sendcoinsentry.h"
-#include "walletmodel.h"
-
-#include <vector>
+class MultisigAddressEntry;
+class MultisigInputEntry;
+class WalletModel;
+class SendCoinsEntry;
 
 namespace Ui
 {
@@ -24,31 +24,28 @@ class MultisigDialog : public QDialog
     Q_OBJECT;
 
   public:
-    explicit MultisigDialog(QWidget *parent = 0);
+    explicit MultisigDialog(const PlatformStyle *_platformStyle, QWidget *parent = 0);
     ~MultisigDialog();
-
     void setModel(WalletModel *model);
-    bool AdvertisePublicKeyForMultiSig(const std::string& address, const std::string& publickey);
-
-    typedef std::vector<CScript> redeemScripts;
 
   public Q_SLOTS:
     MultisigAddressEntry * addPubKey();
     void clear();
-    void showTab(bool fShow);
     void updateRemoveEnabled();
     MultisigInputEntry * addInput();
     SendCoinsEntry * addOutput();
 
-  private:
+private:
     Ui::MultisigDialog *ui;
     WalletModel *model;
-    bool fSetTxString;
+    const PlatformStyle *platformStyle;
 
   private Q_SLOTS:
     void on_createAddressButton_clicked();
     void on_copyMultisigAddressButton_clicked();
     void on_copyRedeemScriptButton_clicked();
+    void on_saveRedeemScriptButton_clicked();
+    void on_saveMultisigAddressButton_clicked();
     void removeEntry(MultisigAddressEntry *entry);
     void on_createTransactionButton_clicked();
     void on_transaction_textChanged();

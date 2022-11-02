@@ -9,6 +9,10 @@
 #include <qt/walletmodel.h>
 
 #include <qt/addresstablemodel.h>
+#include <qt/assettablemodel.h>
+#include <qt/coincontrolmodel.h>
+#include <qt/contracttablemodel.h>
+
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
@@ -119,6 +123,11 @@ void WalletModel::checkBalanceChanged(const interfaces::WalletBalances& new_bala
     }
 }
 
+bool WalletModel::IsMine(CTxDestination& dest)
+{
+	return m_wallet->isMine(dest);
+}
+
 void WalletModel::updateTransaction()
 {
     // Balance and number of transactions might have changed
@@ -141,6 +150,74 @@ void WalletModel::updateWatchOnlyFlag(bool fHaveWatchonly)
 bool WalletModel::validateAddress(const QString &address)
 {
     return IsValidDestinationString(address.toStdString());
+}
+
+
+bool WalletModel::CreateContract(QString &strchainID, QString &strcontract_url, QString &strwebsite_url, QString &strdescription, QString &strscript, QString &strname, QString &strshortname, std::string& strFailReason)
+{
+    std::string name = strname.toStdString();
+    std::string shortname = strshortname.toStdString();
+    std::string contract_url = strcontract_url.toStdString();
+    std::string website_url = strwebsite_url.toStdString();
+    std::string description = strdescription.toStdString();
+    std::string scriptcode = strscript.toStdString();
+    std::vector<unsigned char> scriptcodedata(ParseHex(scriptcode));
+    CScript script(scriptcodedata.begin(), scriptcodedata.end());
+    std::string strID = strchainID.toStdString();
+
+    CTransactionRef tx;
+    CContract contract;
+
+    return m_wallet->createContract(contract, tx, strID, contract_url, website_url, description, script, name, shortname, strFailReason);
+}
+
+bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString assettype,  QString assetcontract,  bool transferable, bool convertable, bool restricted, bool limited, QDateTime expiryDate , std::string& strFailReason)
+{
+    std::string contractstr = assetcontract.toStdString();
+    CContract contract = m_wallet->getContract(contractstr);
+
+    if(contract.IsEmpty()){
+        strFailReason = "Invalid contract for asset creation";
+        return false;
+    }
+
+    std::string name = contract.asset_name;
+    std::string shortname = contract.asset_symbol;
+	std::string typ = assettype.toStdString();
+
+    int type =0;
+    {
+        if(typ=="Token")
+            type = 1;
+        if(typ=="Unique")
+            type = 2;
+        if(typ=="Equity")
+            type = 3;
+        if(typ=="Points")
+            type = 4;
+        if(typ=="Credits")
+            type = 5;
+    }
+
+    int64_t expiry = expiryDate.toTime_t();
+
+    CAmount amountin = 0;
+    CAmount amountout = 0;
+    if (!ParseFixedPoint(inputamount.toStdString(), 8, &amountin)){
+        strFailReason ="failed to parse input amount";
+        return false;
+    }
+
+    if (!ParseFixedPoint(outputamount.toStdString(), 8, &amountout)){
+        strFailReason ="failed to parse output amount";
+        return false;
+    }
+
+    CTransactionRef tx;
+    CAsset asset;
+
+    return m_wallet->createAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited);
+
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl)

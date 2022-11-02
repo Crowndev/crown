@@ -642,8 +642,6 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos) const
 
 bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
 {
-    LogPrintf("%s - 1\n", __func__);
-
     // we are a masternode with the same vin (i.e. already activated) and this mnb is ours (matches our Masternode privkey)
     // so nothing to do here for us
     if(fMasterNode && vin.prevout == activeMasternode.vin.prevout && pubkey2 == activeMasternode.pubKeyMasternode)
@@ -652,8 +650,6 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
     // incorrect ping or its sigTime
     if(lastPing == CMasternodePing() || !lastPing.CheckAndUpdate(nDoS, false, true))
         return false;
-
-    LogPrintf("%s - 2\n", __func__);
 
     // search existing Masternode list
     CMasternode* pmn = mnodeman.Find(vin);
@@ -664,32 +660,6 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         // if it's not enabled, remove old MN first and continue
         else mnodeman.Remove(pmn->vin);
     }
-
-/*    TxValidationState state;
-    CMutableTransaction tx;
-    CTxOutAsset vout = CTxOutAsset(Params().GetConsensus().subsidy_asset, (Params().MasternodeCollateral() - 0.01)*COIN, legacySigner.collateralPubKey);
-    tx.vin.push_back(vin);
-    if(tx.nVersion >= TX_ELE_VERSION)
-        tx.vpout.push_back(vout);
-    else
-        tx.vout.push_back(vout);
-
-    {
-        TRY_LOCK(cs_main, lockMain);
-        if(!lockMain) {
-            // not mnb fault, let it to be checked again later
-            mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
-            masternodeSync.mapSeenSyncMNB.erase(GetHash());
-            return false;
-        }
-
-        if(!AcceptToMemoryPool(*g_mempool, state, MakeTransactionRef(tx), NULL, NULL, true, 0)) {
-            //set nDos
-            //state.IsInvalid(nDoS);
-            return false;
-        }
-    }*/
-    LogPrintf("%s - 3\n", __func__);
 
     LogPrint(BCLog::NET, "masternode", "mnb - Accepted Masternode entry\n");
 
@@ -713,7 +683,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS) const
         CBlockIndex* pConfIndex = ::ChainActive()[pMNIndex->nHeight + MASTERNODE_MIN_CONFIRMATIONS - 1]; // block where tx got MASTERNODE_MIN_CONFIRMATIONS
         if(pConfIndex->GetBlockTime() > sigTime)
         {
-            LogPrintf("mnb - Bad sigTime %d for Masternode %20s %105s (%i conf block is at %d)\n",
+            LogPrintf("mnb - Bad sigTime %d for Masternode %s %s (%d conf block is at %d)\n",
                       sigTime, addr.ToString(), vin.ToString(), MASTERNODE_MIN_CONFIRMATIONS, pConfIndex->GetBlockTime());
             return false;
         }

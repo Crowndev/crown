@@ -182,6 +182,20 @@ void SystemnodeList::StartAll(std::string strCommand)
     updateMyNodeList(true);
 }
 
+void SystemnodeList::selectAliasRow(const QString& alias)
+{
+    for(int i=0; i < ui->tableWidgetMySystemnodes->rowCount(); i++)
+    {
+        if(ui->tableWidgetMySystemnodes->item(i, 0)->text() == alias)
+        {
+            ui->tableWidgetMySystemnodes->selectRow(i);
+            ui->tableWidgetMySystemnodes->setFocus();
+            ui->tabWidget->setCurrentIndex(0);
+            return;
+        }
+    }
+}
+
 void SystemnodeList::updateMySystemnodeInfo(QString alias, QString addr, QString privkey, QString txHash, QString txIndex, CSystemnode *pmn)
 {
     LOCK(cs_mnlistupdate);
@@ -377,7 +391,7 @@ void SystemnodeList::on_editButton_clicked()
         // OK pressed
         std::string port = "9340";
         if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-            port = "19340";
+            port = "18333";
         }
         BOOST_FOREACH(CNodeEntry &sne, systemnodeConfig.getEntries()) {
             if (sne.getAlias() == strAlias.toStdString())
@@ -518,7 +532,7 @@ void SystemnodeList::on_CreateNewSystemnode_clicked()
                 std::string privateKey = EncodeSecret(secret);
                 std::string port = "9340";
                 if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-                    port = "19340";
+                    port = "18333";
                 }
 
                 systemnodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 

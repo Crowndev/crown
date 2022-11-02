@@ -136,6 +136,11 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
+    UniValue supplyobj(UniValue::VOBJ);
+	for(auto elem : blockindex->nMoneySupply){
+		supplyobj.pushKV(elem.first.getAssetName(),  ValueFromAmount(elem.second));	
+	}
+    result.pushKV("moneysupply",           supplyobj);
 
     if (blockindex->pprev)
         result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
@@ -1314,6 +1319,7 @@ RPCHelpMan getblockchaininfo()
                         {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
                         {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
                         {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},
+                        {RPCResult::Type::STR, "moneysupply", "the total amount of coin in the network"},
                         {RPCResult::Type::NUM, "difficulty", "the current difficulty"},
                         {RPCResult::Type::NUM, "mediantime", "median time for the current best block"},
                         {RPCResult::Type::NUM, "verificationprogress", "estimate of verification progress [0..1]"},
@@ -1366,6 +1372,11 @@ RPCHelpMan getblockchaininfo()
     obj.pushKV("blocks",                (int)::ChainActive().Height());
     obj.pushKV("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1);
     obj.pushKV("bestblockhash",         tip->GetBlockHash().GetHex());
+    UniValue supplyobj(UniValue::VOBJ);
+	for(auto elem : tip->nMoneySupply){
+		supplyobj.pushKV(elem.first.getAssetName(),  ValueFromAmount(elem.second));	
+	}
+    obj.pushKV("moneysupply",           supplyobj);
     obj.pushKV("difficulty",            (double)GetDifficulty(tip));
     obj.pushKV("mediantime",            (int64_t)tip->GetMedianTimePast());
     obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), tip));

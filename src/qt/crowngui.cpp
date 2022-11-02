@@ -179,10 +179,10 @@ CrownGUI::CrownGUI(interfaces::Node& node, const PlatformStyle *_platformStyle, 
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
-    progressBarLabel->setVisible(false);
+    progressBarLabel->setVisible(true);
     progressBar = new GUIUtil::ProgressBar();
     progressBar->setAlignment(Qt::AlignCenter);
-    progressBar->setVisible(false);
+    progressBar->setVisible(true);
 
     // Override style sheet for progress bar for styles that have a segmented progress bar,
     // as they make the text unreadable (workaround for issue #1071)
@@ -299,6 +299,12 @@ void CrownGUI::createActions()
     systemnodeAction->setCheckable(true);
     tabGroup->addAction(systemnodeAction);
 
+    assetManagerAction = new QAction(platformStyle->SingleColorIcon(":/icons/address-book"), tr("&Asset Manager"), this);
+    assetManagerAction->setStatusTip(tr("Manage Assets"));
+    assetManagerAction->setToolTip(systemnodeAction->statusTip());
+    assetManagerAction->setCheckable(true);
+    tabGroup->addAction(assetManagerAction);
+
 #ifdef ENABLE_WALLET
 
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -319,6 +325,8 @@ void CrownGUI::createActions()
     connect(masternodeAction, &QAction::triggered, this, &CrownGUI::gotoMasternodePage);
     connect(systemnodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(systemnodeAction, &QAction::triggered, this, &CrownGUI::gotoSystemnodePage);
+    connect(assetManagerAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(assetManagerAction, &QAction::triggered, this, &CrownGUI::gotoAssetManager);
 
 #endif // ENABLE_WALLET
 
@@ -580,6 +588,7 @@ void CrownGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(masternodeAction);
         toolbar->addAction(systemnodeAction);
+        toolbar->addAction(assetManagerAction);
         overviewAction->setChecked(true);
 
 #ifdef ENABLE_WALLET
@@ -770,6 +779,7 @@ void CrownGUI::setWalletActionsEnabled(bool enabled)
     historyAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     systemnodeAction->setEnabled(enabled);
+    assetManagerAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -915,6 +925,12 @@ void CrownGUI::gotoSystemnodePage()
     if (walletFrame) walletFrame->gotoSystemnodePage();
 }
 
+void CrownGUI::gotoAssetManager()
+{
+    assetManagerAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoAssetManager();
+}
+
 void CrownGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
@@ -987,7 +1003,18 @@ void CrownGUI::updateHeadersSyncProgressLabel()
     int headersTipHeight = clientModel->getHeaderTipHeight();
     int estHeadersLeft = (GetTime() - headersTipTime) / Params().GetConsensus().nPowTargetSpacing;
     if (estHeadersLeft > HEADER_HEIGHT_DELTA_SYNC)
-        progressBarLabel->setText(tr("Syncing Headers (%1%)...").arg(QString::number(100.0 / (headersTipHeight+estHeadersLeft)*headersTipHeight, 'f', 1)));
+        progressBarLabel->setText(tr("Syncing Blocks (%1%)...").arg(QString::number(100.0 / (headersTipHeight+estHeadersLeft)*headersTipHeight, 'f', 1)));
+}
+
+void CrownGUI::updateProgressBarVisibility()
+{
+    if (!clientModel)
+        return;
+
+    // Masternode list will always finish last, so use it definitely as sign things are done
+    bool fShowProgressBar = !masternodeSync.IsSynced();
+    progressBarLabel->setVisible(fShowProgressBar);
+    progressBar->setVisible(fShowProgressBar);
 }
 
 void CrownGUI::openOptionsDialogWithTab(OptionsDialog::Tab tab)
@@ -1021,6 +1048,8 @@ void CrownGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerif
     }
     if (!clientModel)
         return;
+
+    updateProgressBarVisibility();
 
     // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbled text)
     statusBar()->clearMessage();
@@ -1062,20 +1091,43 @@ void CrownGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerif
     tooltip = tr("Processed %n block(s) of transaction history.", "", count);
 
     // Set icon state: spinning if catching up, tick otherwise
-    if (secs < MAX_BLOCK_TIME_GAP) {
+    if (masternodeSync.IsBlockchainSynced())
+    {
+        QString strSyncStatus;
         tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-        labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+
+        if (masternodeSync.IsSynced() && systemnodeSync.IsSynced()) {
+            progressBarLabel->setVisible(false);
+            progressBar->setVisible(false);
+            labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        } else {
+            int nAttemptMN;
+            int nAttemptSN;
+            int progress = 0;
+            labelBlocksIcon->setPixmap(QIcon(QString(
+                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
+                .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
 
 #ifdef ENABLE_WALLET
-        if(walletFrame)
-        {
-            walletFrame->showOutOfSyncWarning(false);
-            modalOverlay->showHide(true, true);
-        }
+            if(walletFrame)
+                walletFrame->showOutOfSyncWarning(false);
 #endif // ENABLE_WALLET
 
-        progressBarLabel->setVisible(false);
-        progressBar->setVisible(false);
+            nAttemptMN = masternodeSync.RequestedMasternodeAttempt < MASTERNODE_SYNC_THRESHOLD ?
+                         masternodeSync.RequestedMasternodeAttempt + 1 : MASTERNODE_SYNC_THRESHOLD;
+            nAttemptSN = systemnodeSync.RequestedSystemnodeAttempt < SYSTEMNODE_SYNC_THRESHOLD ?
+                         systemnodeSync.RequestedSystemnodeAttempt + 1 : SYSTEMNODE_SYNC_THRESHOLD;
+            progress = nAttemptMN + (masternodeSync.RequestedMasternodeAssets - 1) * MASTERNODE_SYNC_THRESHOLD +
+                       nAttemptSN + (systemnodeSync.RequestedSystemnodeAssets - 1) * SYSTEMNODE_SYNC_THRESHOLD;
+            progressBar->setMaximum(4 * MASTERNODE_SYNC_THRESHOLD + 3 * SYSTEMNODE_SYNC_THRESHOLD);
+            progressBar->setFormat(tr("Synchronizing additional data: %p%"));
+            progressBar->setValue(progress);
+        }
+
+        strSyncStatus = QString(currentSyncStatus().c_str());
+        progressBarLabel->setText(strSyncStatus);
+        tooltip = strSyncStatus + QString("<br>") + tooltip;
     }
     else
     {
@@ -1151,6 +1203,7 @@ void CrownGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         walletFrame->showOutOfSyncWarning(false);
 #endif // ENABLE_WALLET
 
+    updateProgressBarVisibility();
 
     if(masternodeSync.IsSynced() && systemnodeSync.IsSynced()) {
         labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));

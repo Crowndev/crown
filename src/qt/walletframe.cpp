@@ -189,6 +189,13 @@ void WalletFrame::gotoSystemnodePage()
         i.value()->gotoSystemnodePage();
 }
 
+void WalletFrame::gotoAssetManager()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoAssetManager();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<WalletModel*, WalletView*>::const_iterator i;

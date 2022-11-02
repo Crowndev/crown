@@ -2394,6 +2394,47 @@ CAmountMap CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     return balance;
 }
 
+std::optional<COutput> CWallet::FindCollateralOutput(uint256 hash) const
+{
+    const CWalletTx* tx = GetWalletTx(hash);
+
+    if (tx != NULL)
+    {
+        int nDepth = tx->GetDepthInMainChain();
+
+        if (tx->IsTrusted() && !(tx->IsCoinBase() && tx->GetBlocksToMaturity() > 0))
+        {
+            for(unsigned int i = 0; i < (tx->tx->nVersion >= TX_ELE_VERSION ? tx->tx->vpout.size() : tx->tx->vout.size()) ; i++){
+                CTxOutAsset txout = (tx->tx->nVersion >= TX_ELE_VERSION ? tx->tx->vpout[i] : tx->tx->vout[i]);
+
+                if (IsChange(txout))
+                    continue;
+                isminetype mine = IsMine(txout);
+                std::set<uint256> trusted_parents;
+
+                std::unique_ptr<SigningProvider> provider = GetSolvingProvider(txout.scriptPubKey);
+				bool safeTx = IsTrusted(*tx, trusted_parents);
+
+				if (nDepth == 0 && tx->mapValue.count("replaces_txid")) {
+					safeTx = false;
+				}
+
+				if (nDepth == 0 && tx->mapValue.count("replaced_by_txid")) {
+					safeTx = false;
+				}
+                bool solvable = provider ? IsSolvable(*provider, txout.scriptPubKey) : false;
+                bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && true);
+
+                if (txout.nValue == Params().SystemnodeCollateral() || txout.nValue == Params().MasternodeCollateral())
+                {
+                    return COutput(tx, i, nDepth, spendable, solvable, safeTx, false);
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
 {
     AssertLockHeld(cs_wallet);
@@ -2469,26 +2510,26 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
             continue;
         }
 
-        for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
+        for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? entry.second.tx->vpout.size() :entry.second.tx->vout.size()) ; i++){
             // Only consider selected coins if add_inputs is false
-            CTxOutAsset out = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+            const CTxOutAsset txout = (entry.second.tx->nVersion >= TX_ELE_VERSION ? entry.second.tx->vpout[i] : entry.second.tx->vout[i]);
 
             if (coinControl && !coinControl->m_add_inputs && !coinControl->IsSelected(COutPoint(entry.first, i))) {
                 continue;
             }
 
-            if (out.nValue < nMinimumAmount || out.nValue > nMaximumAmount)
+            if (txout.nValue < nMinimumAmount || txout.nValue > nMaximumAmount)
                 continue;
-
-            CAsset asset = wtx.tx->nVersion >= TX_ELE_VERSION ? out.nAsset : Params().GetConsensus().subsidy_asset;
-
-            if(asset_filter != CAsset() && asset != asset_filter)
+                
+            CAsset asset = (entry.second.tx->nVersion >= TX_ELE_VERSION ? entry.second.tx->vpout[i].nAsset : Params().GetConsensus().subsidy_asset);
+                
+            if(asset_filter != CAsset() && asset != asset_filter)			
                 continue;
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
 
-            if (IsLockedCoin(entry.first, i) && (out.nValue == 10000*COIN  ||  out.nValue == 500*COIN))
+            if (IsLockedCoin(entry.first, i) && (txout.nValue == 10000*COIN  ||  txout.nValue == 500*COIN))
                 continue;
 
             if (IsLockedCoin(entry.first, i))
@@ -2497,7 +2538,7 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
             if (IsSpent(wtxid, i))
                 continue;
 
-            isminetype mine = IsMine(out);
+            isminetype mine = IsMine(txout);
 
             if (mine == ISMINE_NO) {
                 continue;
@@ -2507,16 +2548,16 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
                 continue;
             }
 
-            std::unique_ptr<SigningProvider> provider = GetSolvingProvider(out.scriptPubKey);
+            std::unique_ptr<SigningProvider> provider = GetSolvingProvider(txout.scriptPubKey);
 
-            bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;
+            bool solvable = provider ? IsSolvable(*provider, txout.scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
             vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
 
             // Checks the sum amount of all UTXO's.
             if (nMinimumSumAmount != MAX_MONEY) {
-                nTotal += out.nValue;
+                nTotal += txout.nValue;
 
                 if (nTotal >= nMinimumSumAmount) {
                     return;
@@ -5445,3 +5486,4 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
 
     return ret;
 }
+

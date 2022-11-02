@@ -149,6 +149,11 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->IsMine(dest) & ISMINE_SPENDABLE;
     }
+    bool isMine(CTxDestination& dest) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->IsMine(dest);
+    }
     bool haveWatchOnly() override
     {
         auto spk_man = m_wallet->GetLegacyScriptPubKeyMan();
@@ -233,6 +238,28 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListLockedCoins(outputs);
     }
+    bool createContract(CContract& contract, CTransactionRef& tx,
+         std::string& address, std::string &contract_url, std::string &website_url,
+         std::string &description, CScript &script, std::string& name,
+         std::string& shortname, std::string& strFailReason) override
+    {
+        return m_wallet->CreateContract(contract, tx, address, contract_url, website_url, description, script, name, shortname, strFailReason);
+    }
+
+    bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
+         std::string& shortname, CAmount& amountin, CAmount& amountout,
+         int64_t& expiry, int& type, CContract& contract, std::string& strFailReason,
+         bool transferable, bool convertable, bool restricted, bool limited) override
+    {
+        return m_wallet->CreateAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited);
+    }
+
+    CContract getContract(std::string& name) override
+    {
+        CContract contract = m_wallet->chain().getContract(name);
+        return contract;
+    }
+
     CTransactionRef createTransaction(const std::vector<CRecipient>& recipients,
         const CCoinControl& coin_control,
         bool sign,
@@ -420,6 +447,12 @@ public:
         }
         return result;
     }
+
+    std::map<CTxDestination, CAmountMap> getAddressBalances() override
+    {
+        return m_wallet->GetAddressBalances();
+    }
+
     std::vector<WalletTxOut> getCoins(const std::vector<COutPoint>& outputs) override
     {
         LOCK(m_wallet->cs_wallet);
