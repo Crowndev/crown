@@ -157,6 +157,7 @@ public:
     interfaces::Node& node() const { return m_node; }
     interfaces::Wallet& wallet() const { return *m_wallet; }
     ClientModel& clientModel() const { return *m_client_model; }
+    ClientModel* getClientModel() const { return m_client_model; }
     void setClientModel(ClientModel* client_model);
 
     QString getWalletName() const;
@@ -166,13 +167,14 @@ public:
 
     AddressTableModel* getAddressTableModel() const { return addressTableModel; }
     
-    ContractTableModel* getContractTableModel() const { return contractTableModel; }
+    //ContractTableModel* getContractTableModel() const { return contractTableModel; }
+    //AssetTableModel* getAssetTableModel() const { return assetTableModel; }
     
-    IDTableModel* getIDTableModel() const { return idTableModel; }
-
     void refresh(bool pk_hash_only = false);
 
     uint256 getLastBlockProcessed() const;
+    
+    bool IsMine(CTxDestination& dest);
 
 private:
     std::unique_ptr<interfaces::Wallet> m_wallet;
@@ -195,10 +197,7 @@ private:
 
     AddressTableModel *addressTableModel;
     TransactionTableModel *transactionTableModel;
-    AssetTableModel *assetTableModel;
-    ContractTableModel *contractTableModel;
-    IDTableModel * idTableModel;
-    CoinControlModel *coinControlModel;
+
     RecentRequestsTableModel *recentRequestsTableModel;
 
     // Cache some values to be able to detect changes

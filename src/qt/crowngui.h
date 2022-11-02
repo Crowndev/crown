@@ -138,6 +138,8 @@ private:
     QAction* historyAction = nullptr;
     QAction* masternodeAction = nullptr;
     QAction* systemnodeAction = nullptr;
+    QAction* assetManagerAction = nullptr;
+    
     QAction* quitAction = nullptr;
     QAction* sendCoinsAction = nullptr;
     QAction* sendCoinsMenuAction = nullptr;
@@ -210,6 +212,8 @@ private:
     void updateNetworkState();
 
     void updateHeadersSyncProgressLabel();
+
+    void updateProgressBarVisibility();
 
     /** Open the OptionsDialog on the specified tab index */
     void openOptionsDialogWithTab(OptionsDialog::Tab tab);
@@ -294,7 +298,7 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to systemnode manager page */
     void gotoSystemnodePage();
-
+    void gotoAssetManager();
     /** Show open dialog */
     void openClicked();
 #endif // ENABLE_WALLET

@@ -7,8 +7,8 @@
 
 #include <QFrame>
 
-
 class WalletModel;
+class PlatformStyle;
 
 namespace Ui
 {
@@ -24,7 +24,7 @@ class MultisigAddressEntry : public QFrame
     ~MultisigAddressEntry();
     void setModel(WalletModel *model);
     bool validate();
-    QString getPubKey();
+    QString getPubkey();
 
   public Q_SLOTS:
     void setRemoveEnabled(bool enabled);
@@ -36,12 +36,13 @@ class MultisigAddressEntry : public QFrame
   private:
     Ui::MultisigAddressEntry *ui;
     WalletModel *model;
+    const PlatformStyle *platformStyle;
 
   private Q_SLOTS:
-    void on_walletaddress_textChanged(const QString &address);
     void on_pubkey_textChanged(const QString &pubkey);
     void on_pasteButton_clicked();
     void on_deleteButton_clicked();
+    void on_address_textChanged(const QString &address);
     void on_addressBookButton_clicked();
 };
 

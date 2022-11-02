@@ -35,7 +35,7 @@
             <x>0</x>
             <y>0</y>
             <width>1283</width>
-            <height>345</height>
+            <height>310</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -284,6 +284,26 @@
            </property>
           </spacer>
          </item>
+         <item>
+          <widget class="QPushButton" name="saveRedeemScriptButton">
+           <property name="toolTip">
+            <string>The redeem script will be required to spend the funds sent to the multisig address</string>
+           </property>
+           <property name="text">
+            <string>Save redeem script</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="saveMultisigAddressButton">
+           <property name="toolTip">
+            <string>Add the multisig address to your personal addresses</string>
+           </property>
+           <property name="text">
+            <string>Add address to wallet</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>
@@ -319,8 +339,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>616</width>
-                   <height>271</height>
+                   <width>613</width>
+                   <height>221</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -379,7 +399,7 @@
                 <item>
                  <widget class="QLabel" name="label">
                   <property name="text">
-                   <string>CRW</string>
+                   <string>PPC</string>
                   </property>
                  </widget>
                 </item>
@@ -438,8 +458,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>615</width>
-                   <height>243</height>
+                   <width>612</width>
+                   <height>193</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -498,7 +518,7 @@
                 <item>
                  <widget class="QLabel" name="label_2">
                   <property name="text">
-                   <string>CRW</string>
+                   <string>PPC</string>
                   </property>
                  </widget>
                 </item>
@@ -536,7 +556,7 @@
                 <item>
                  <widget class="QLabel" name="label_3">
                   <property name="text">
-                   <string>CRW</string>
+                   <string>PPC</string>
                   </property>
                  </widget>
                 </item>

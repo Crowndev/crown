@@ -7,15 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "base58.h"
-#include "multisiginputentry.h"
-#include "ui_multisiginputentry.h"
-#include "main.h"
-#include "script/script.h"
-#include "util.h"
-#include "wallet.h"
-#include "walletmodel.h"
-#include "chainparamsbase.h"
+#include <base58.h>
+#include <qt/multisiginputentry.h>
+#include <qt/forms/ui_multisiginputentry.h>
+#include <script/script.h>
+#include <util/system.h>
+#include <wallet/wallet.h>
+#include <qt/walletmodel.h>
+#include <chainparamsbase.h>
 
 
 MultisigInputEntry::MultisigInputEntry(QWidget *parent) : QFrame(parent), ui(new Ui::MultisigInputEntry), model(0)
@@ -57,15 +56,15 @@ CTxIn MultisigInputEntry::getInput()
 CAmount MultisigInputEntry::getAmount()
 {
     CAmount amount = 0;
-    unsigned int nOutput = ui->transactionOutput->currentIndex();
-    CTransaction tx;
-    uint256 blockHash = uint256S("0");
+    int nOutput = ui->transactionOutput->currentIndex();
+    CTransactionRef tx;
+    uint256 blockHash = uint256();
 
-    if(GetTransaction(txHash, tx, blockHash))
+    if(GetTransaction(txHash, tx, Params().GetConsensus(), blockHash))
     {
-        if(nOutput < tx.vout.size())
+        if(nOutput < tx->vout.size())
         {
-            const CTxOut& txOut = tx.vout[nOutput];
+            const CTxOut& txOut = tx->vout[nOutput];
             amount = txOut.nValue;
         }
     }

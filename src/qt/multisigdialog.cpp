@@ -1,35 +1,26 @@
+#include <qt/multisigdialog.h>
+#include <qt/forms/ui_multisigdialog.h>
+
+#include <qt/multisigaddressentry.h>
+#include <qt/multisiginputentry.h>
+#include <qt/sendcoinsentry.h>
+
+#include <wallet/wallet.h>
+#include <policy/policy.h>
+#include <validation.h>
+#include <txmempool.h>
+#include <consensus/validation.h>
+#include <net.h>
+
 #include <QClipboard>
-#include <QWidget>
-#include <QMessageBox>
 #include <QScrollBar>
-#include <vector>
+#include <QMessageBox>
 
-#include "multisigdialog.h"
-#include "ui_multisigdialog.h"
-#include "addresstablemodel.h"
-#include "base58.h"
-#include "key.h"
-#include "main.h"
-#include "multisigaddressentry.h"
-#include "multisiginputentry.h"
-#include "script/script.h"
-#include "sendcoinsentry.h"
-#include "util.h"
-#include "wallet.h"
-#include "walletmodel.h"
-#include "script/standard.h"
-#include "script/sign.h"
-#include "rpcserver.h"
-#include "txmempool.h"
-#include "core_io.h"
-#include "chainparamsbase.h"
 
-MultisigDialog::MultisigDialog(QWidget *parent) :
-    QDialog(parent),
-	ui(new Ui::MultisigDialog), 
-	model(0)
+MultisigDialog::MultisigDialog(const PlatformStyle *_platformStyle, QWidget *parent) : QDialog(parent), ui(new Ui::MultisigDialog), model(0)
 {
     ui->setupUi(this);
+    platformStyle = _platformStyle;
 
 #ifdef Q_WS_MAC // Icons on push buttons are very uncommon on Mac
     ui->addPubKeyButton->setIcon(QIcon());
@@ -48,7 +39,6 @@ MultisigDialog::MultisigDialog(QWidget *parent) :
 
     addInput();
     addOutput();
-    updateAmounts();
 
     connect(ui->addInputButton, SIGNAL(clicked()), this, SLOT(addInput()));
     connect(ui->addOutputButton, SIGNAL(clicked()), this, SLOT(addOutput()));
@@ -88,6 +78,8 @@ void MultisigDialog::setModel(WalletModel *model)
         if(entry)
             entry->setModel(model);
     }
+
+    updateAmounts();
 }
 
 void MultisigDialog::updateRemoveEnabled()
@@ -122,6 +114,8 @@ void MultisigDialog::updateRemoveEnabled()
         if(entry)
             entry->setRemoveEnabled(enabled);
     }
+
+    updateAmounts();
 }
 
 void MultisigDialog::on_createAddressButton_clicked()
@@ -134,62 +128,28 @@ void MultisigDialog::on_createAddressButton_clicked()
 
     std::vector<CPubKey> pubkeys;
     pubkeys.resize(ui->pubkeyEntries->count());
+
     unsigned int required = ui->requiredSignatures->text().toUInt();
-    
+
     for(int i = 0; i < ui->pubkeyEntries->count(); i++)
     {
         MultisigAddressEntry *entry = qobject_cast<MultisigAddressEntry *>(ui->pubkeyEntries->itemAt(i)->widget());
-	std::string strAddressEntered = entry->getPubKey().toUtf8().constData();
-        CBitcoinAddress address(strAddressEntered);
-        if(pwalletMain && address.IsValid())
-        {
-            bool fError = false;
-            CKeyID keyID;
-            if (!address.GetKeyID(keyID))
-                QMessageBox::critical(this, tr("Multisig: Public key does not refer to a key!"), tr("Invalid public key: %1").arg(strAddressEntered.c_str()));
-            CPubKey vchPubKey;
-            if (!pwalletMain->GetPubKey(keyID, vchPubKey))
-                QMessageBox::critical(this, tr("Multisig: No full public key for this address!"), tr("Invalid public key: %1").arg(strAddressEntered.c_str()));
-
-            if (!vchPubKey.IsFullyValid())
-            {
-                QMessageBox::critical(this, tr("Multisig: Invalid Public Key Entered 1!"), tr("Invalid public key: %1").arg(strAddressEntered.c_str()));
-                fError = true;
-            }
-            if (fError)
-                return;
-            else
-                pubkeys[i] = vchPubKey;
-        } else {
-            if (IsHex(strAddressEntered))
-            {
-                CPubKey vchPubKey(ParseHex(strAddressEntered));
-                if (!vchPubKey.IsFullyValid())
-                    QMessageBox::critical(this, tr("Multisig: Invalid Public Key Entered 2!"), tr("Invalid public key: %1").arg(strAddressEntered.c_str()));
-                pubkeys[i] = vchPubKey;
-            } else {
-                QMessageBox::critical(this, tr("Multisig: Invalid Public Key Entered 3!"), tr("Invalid public key: %1").arg(strAddressEntered.c_str()));
-            }
-        }
+        if(!entry->validate())
+            return;
+        QString str = entry->getPubkey();
+        CPubKey vchPubKey(ParseHex(str.toStdString()));
+        pubkeys[i] = vchPubKey;
+        if(!vchPubKey.IsValid())
+            return;
     }
 
     if((required == 0) || (required > pubkeys.size()))
-       QMessageBox::critical(this, tr("Multisig: Invalid Number of Signatures!"), tr("Invaled Number of Signatures: Must be larger than 1 and smaller than or equal to %1").arg(pubkeys.size())); 
+       return;
 
-    CScript script = GetScriptForMultisig(required, pubkeys);
-    CScriptID scriptID = GetScriptID(script);
-    CBitcoinAddress address(scriptID);
+    CScript script;
+    script.SetMultisig(required, pubkeys);
 
-    std::string label("multisig");
-
-    LOCK(pwalletMain->cs_wallet);
-    if(!pwalletMain->HaveCScript(scriptID))
-        pwalletMain->AddCScript(script);
-
-    if(!pwalletMain->mapAddressBook.count(address.Get()))
-        pwalletMain->SetAddressBook(address.Get(), label, "send"); 
-
-    ui->multisigAddress->setText(address.ToString().c_str());
+    ui->multisigAddress->setText(EncodeDestination(script).c_str());
     ui->redeemScript->setText(HexStr(script.begin(), script.end()).c_str());
 }
 
@@ -201,6 +161,45 @@ void MultisigDialog::on_copyMultisigAddressButton_clicked()
 void MultisigDialog::on_copyRedeemScriptButton_clicked()
 {
     QApplication::clipboard()->setText(ui->redeemScript->text());
+}
+
+void MultisigDialog::on_saveRedeemScriptButton_clicked()
+{
+    if(!model || vpwallets.empty())
+        return;
+
+    CWallet *wallet = vpwallets[0];
+    std::string redeemScript = ui->redeemScript->text().toStdString();
+    std::vector<unsigned char> scriptData(ParseHex(redeemScript));
+    CScript script(scriptData.begin(), scriptData.end());
+
+
+    LOCK(wallet->cs_wallet);
+    if(!wallet->HaveCScript(CScriptID(script)))
+        wallet->AddCScript(script);
+}
+
+void MultisigDialog::on_saveMultisigAddressButton_clicked()
+{
+    if(!model || vpwallets.empty())
+        return;
+
+    CWallet *wallet = vpwallets[0];
+    std::string redeemScript = ui->redeemScript->text().toStdString();
+    std::string address = ui->multisigAddress->text().toStdString();
+    std::string label("multisig");
+
+    if(!model->validateAddress(QString(address.c_str())))
+        return;
+
+    std::vector<unsigned char> scriptData(ParseHex(redeemScript));
+    CScript script(scriptData.begin(), scriptData.end());
+
+    LOCK(wallet->cs_wallet);
+    if(!wallet->HaveCScript(CScriptID(script)))
+        wallet->AddCScript(script);
+    if(!wallet->mapAddressBook.count(DecodeDestination(address)))
+        wallet->SetAddressBook(DecodeDestination(address), label, "");  //ppcTODO - maybe add purpose instead of empty string?
 }
 
 void MultisigDialog::clear()
@@ -266,9 +265,9 @@ void MultisigDialog::on_createTransactionButton_clicked()
             if(entry->validate())
             {
                 SendCoinsRecipient recipient = entry->getValue();
-                CBitcoinAddress address(recipient.address.toStdString());
-                CScript scriptPubKey = GetScriptForDestination(address.Get());
-                CAmount amount = recipient.amount;
+                CTxDestination destination = DecodeDestination(recipient.address.toStdString());
+                CScript scriptPubKey = GetScriptForDestination(destination);
+                int64_t amount = recipient.amount;
                 CTxOut output(amount, scriptPubKey);
                 transaction.vout.push_back(output);
             }
@@ -280,14 +279,13 @@ void MultisigDialog::on_createTransactionButton_clicked()
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << transaction;
     ui->transaction->setText(HexStr(ss.begin(), ss.end()).c_str());
-    if(ui->transaction->text().size() > 0)
-        ui->signTransactionButton->setEnabled(true);
-    else
-        ui->signTransactionButton->setEnabled(false);
 }
 
 void MultisigDialog::on_transaction_textChanged()
 {
+    ui->fee->setStyleSheet("");
+    ui->statusLabel->setText("");
+
     while(ui->inputs->count())
         delete ui->inputs->takeAt(0)->widget();
     while(ui->outputs->count())
@@ -301,19 +299,19 @@ void MultisigDialog::on_transaction_textChanged()
     // Decode the raw transaction
     std::vector<unsigned char> txData(ParseHex(ui->transaction->text().toStdString()));
     CDataStream ss(txData, SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
+    CTransactionRef tx;
     try
-   {
+    {
         ss >> tx;
     }
     catch(std::exception &e)
     {
         return;
-   }
+    }
 
     // Fill input list
     int index = -1;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+    for (const CTxIn& txin : tx->vin)
     {
         uint256 prevoutHash = txin.prevout.hash;
         addInput();
@@ -328,14 +326,13 @@ void MultisigDialog::on_transaction_textChanged()
 
     // Fill output list
     index = -1;
-    BOOST_FOREACH(const CTxOut& txout, tx.vout)
+    for (const CTxOut& txout : tx->vout)
     {
         CScript scriptPubKey = txout.scriptPubKey;
         CTxDestination addr;
         ExtractDestination(scriptPubKey, addr);
-        CBitcoinAddress address(addr);
         SendCoinsRecipient recipient;
-        recipient.address = QString(address.ToString().c_str());
+        recipient.address = QString(EncodeDestination(addr).c_str());
         recipient.amount = txout.nValue;
         addOutput();
         index++;
@@ -347,11 +344,29 @@ void MultisigDialog::on_transaction_textChanged()
     }
 
     updateRemoveEnabled();
+
+    // Check the fee
+    int64_t transactionSize = ui->transaction->text().size() / 2;
+    if(transactionSize == 0)
+        return;
+    transactionSize += ui->inputs->count() * 73; // Future ECDSA signatures in DER format
+    int64_t fee = (int64_t ) (ui->fee->text().toDouble() * COIN);
+    int64_t minFee = (int64_t)(transactionSize * (PERKB_TX_FEE / 1000));
+    if(fee < minFee)
+    {
+        ui->fee->setStyleSheet("color:red;");
+        ui->statusLabel->setText(tr("The transaction fee might be too small."));
+    }
+    else if(fee > minFee)
+    {
+        ui->fee->setStyleSheet("color:red;");
+        ui->statusLabel->setText(tr("The transaction fee might be too big. Don't forget to add an output for the change address."));
+    }
 }
 
 void MultisigDialog::on_copyTransactionButton_clicked()
 {
-   QApplication::clipboard()->setText(ui->transaction->text());
+    QApplication::clipboard()->setText(ui->transaction->text());
 }
 
 void MultisigDialog::on_pasteTransactionButton_clicked()
@@ -361,55 +376,28 @@ void MultisigDialog::on_pasteTransactionButton_clicked()
 
 void MultisigDialog::on_signTransactionButton_clicked()
 {
-  ui->signedTransaction->clear();
+    ui->signedTransaction->clear();
 
-    if(!model)
+    if(!model || vpwallets.empty())
         return;
 
-    CWallet *pwalletMain = model->getWallet();
-
-    std::string strSignatureHex = ui->transaction->text().toStdString();
-    // Check input for valid hex string
-    if (!IsHex(strSignatureHex))
-        return;
+    CWallet *wallet = vpwallets[0];
 
     // Decode the raw transaction
-    std::vector<unsigned char> txData(ParseHex(strSignatureHex));
-    CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
-    std::vector<CMutableTransaction> txVariants;
-    while (!ssData.empty()) {
-        try {
-            CMutableTransaction tx;
-            ssData >> tx;
-            txVariants.push_back(tx);
-        }
-        catch (const std::exception &) {
-            QMessageBox::critical(this, tr("Multisig: Sign Button failed!"), tr("TX decodefailed"));
-        }
+    std::vector<unsigned char> txData(ParseHex(ui->transaction->text().toStdString()));
+    CDataStream ss(txData, SER_NETWORK, PROTOCOL_VERSION);
+    CTransactionRef tx;
+    try
+    {
+        ss >> tx;
     }
+    catch(std::exception &e)
+    {
+        return;
+    }
+    CMutableTransaction mergedTx(*tx);
 
-    if (txVariants.empty())
-		QMessageBox::critical(this, tr("Multisig: Sign Button failed!"), tr("Missing transaction"));
-		
-	/**
-	 * 
-	 * Patch by Empinel:
-	 * 
-	 * TODO: Remove this tag, although this is the explanation incase it doesn't work out
-	 * 
-	 * I have derived this fuctionality from rpcrawtransaction.cpp, more specifically from
-	 * signrawtransaction's function which handles a similar situation, the commits will be
-	 * a bit messy as testing and changing will be evident
-	 * 
-	 * 09431c45193a85fa347c117d4add5150496272ffe28fab74c18822e8a4e58783, so - yeah
-	 * 
-	 **/
-
-    // mergedTx will end up with all the signatures; it
-    // starts as a clone of the rawtx:
-    CMutableTransaction mergedTx(txVariants[0]);
     // Fetch previous transactions (inputs):
-    redeemScripts redeemScripts;
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
@@ -417,34 +405,70 @@ void MultisigDialog::on_signTransactionButton_clicked()
         CCoinsViewCache &viewChain = *pcoinsTip;
         CCoinsViewMemPool viewMempool(&viewChain, mempool);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
-        unsigned int x = 0;
-        BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {
-            
-            const uint256& prevHash = txin.prevout.hash;
-            CCoins coins;
-            view.AccessCoins(prevHash); // this is certainly allowed to fail
-            MultisigInputEntry *entry = qobject_cast<MultisigInputEntry *>(ui->inputs->itemAt(x)->widget());
+
+        for (const CTxIn& txin : mergedTx.vin) {
+            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
+        }
+
+        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
+    }
+
+    // Add the redeem scripts to the wallet keystore
+    for(int i = 0; i < ui->inputs->count(); i++)
+    {
+        MultisigInputEntry *entry = qobject_cast<MultisigInputEntry *>(ui->inputs->itemAt(i)->widget());
+        if(entry)
+        {
             QString redeemScriptStr = entry->getRedeemScript();
             if(redeemScriptStr.size() > 0)
             {
                 std::vector<unsigned char> scriptData(ParseHex(redeemScriptStr.toStdString()));
                 CScript redeemScript(scriptData.begin(), scriptData.end());
-                pwalletMain->AddCScript(redeemScript);
-                redeemScripts.push_back(redeemScript);
-            }
-            else
-            {
-                CScript emptyScript;
-                redeemScripts.push_back(emptyScript);
+                wallet->AddCScript(redeemScript);
             }
         }
-
-        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
     }
-/*
+
+    WalletModel::UnlockContext ctx(model->requestUnlock());
+    if(!ctx.isValid())
+        return;
+
+    //ppcTODO - not sure how to fix this properly
     // Sign what we can
-    const CKeyStore& keystore = *pwalletMain;
-	bool fComplete = true;
+    bool fComplete = true;
+    const CTransaction txConst(mergedTx);
+    for(int i = 0; i < mergedTx.vin.size(); i++)
+    {
+        CTxIn& txin = mergedTx.vin[i];
+        const Coin& coin = view.AccessCoin(txin.prevout);
+        if (coin.IsSpent()) {
+            fComplete = false;
+            continue;
+        }
+        const CScript& prevPubKey = coin.out.scriptPubKey;
+        const CAmount& amount = coin.out.nValue;
+
+        SignatureData sigdata;
+
+        const CMutableTransaction& txv = mergedTx;
+
+        if (txv.vin.size() > i) {
+            sigdata = CombineSignatures(prevPubKey, TransactionSignatureChecker(&txConst, i, amount), sigdata, DataFromTransaction(txv, i));
+        }
+
+        UpdateTransaction(mergedTx, i, sigdata);
+
+        ScriptError serror = SCRIPT_ERR_OK;
+        if (!VerifyScript(txin.scriptSig, prevPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount), &serror)) {
+            fComplete = false;
+            if (serror == SCRIPT_ERR_INVALID_STACK_OPERATION) {
+                // Unable to sign input and verification failed (possible attempt to partially sign).
+                LogPrintf("unable to sign\n");
+            } else {
+                LogPrintf("unable to sign with error %s\n", ScriptErrorString(serror));
+            }
+        }
+    }
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << mergedTx;
@@ -452,69 +476,13 @@ void MultisigDialog::on_signTransactionButton_clicked()
 
     if(fComplete)
     {
-        ui->statusLabel->setText(tr("Transaction signature is complete"));
+        ui->statusLabel->setText(tr("The transaction signature is complete."));
         ui->sendTransactionButton->setEnabled(true);
     }
     else
     {
-        ui->statusLabel->setText(tr("Transaction is NOT completely signed"));
+        ui->statusLabel->setText(tr("The transaction is NOT completely signed."));
         ui->sendTransactionButton->setEnabled(false);
-    }
-*/
-
-    // Sign what we can
-    const CKeyStore& keystore = *pwalletMain;
-    int nHashType = SIGHASH_ALL;
-    bool fComplete = true;
-
-    //bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
-    bool fHashSingle = true;
-    bool fSigned = true;
-    for(unsigned int i = 0; i < mergedTx.vin.size(); i++)
-    {
-        CScript redeemScript = redeemScripts[i];
-        CTxIn& txin = mergedTx.vin[i];
-        const CCoins* coins = view.AccessCoins(txin.prevout.hash);
-        if (coins == NULL || !coins->IsAvailable(txin.prevout.n)) {
-            QMessageBox::critical(this, tr("Multisig: Sign Button failed!"), tr("Input not found or already spent in coins"));
-            fComplete = false;
-            continue;
-        }
-
-        const CScript& prevPubKey = coins->vout[txin.prevout.n].scriptPubKey;
-
-        txin.scriptSig.clear();
-
-        // Only sign SIGHASH_SINGLE if there's a corresponding output:
-        if (!fHashSingle || (i < mergedTx.vout.size()))
-        {
-            SignSignature(keystore, prevPubKey, mergedTx, i, nHashType);
-        }
-        // ... and merge in other signatures:
-        BOOST_FOREACH(const CMutableTransaction& txv, txVariants) {
-            txin.scriptSig = CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
-        }
-
-        if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&mergedTx, i)))
-        {
-            fComplete = false;
-            fSigned = false;
-        }
-    }
-
-    ui->signedTransaction->setText(EncodeHexTx(mergedTx).c_str());
-    ui->sendTransactionButton->setEnabled(fComplete);
-    if(fComplete)
-    {
-        ui->statusLabel->setText(tr("Transaction completely signed"));
-    }
-    else if (!fSigned)
-    {
-        ui->statusLabel->setText(tr("Transaction needs more signatures"));
-    }
-    else
-    {
-        ui->statusLabel->setText(tr("Transaction did NOT sign correctly"));
     }
 }
 
@@ -530,17 +498,17 @@ void MultisigDialog::on_sendTransactionButton_clicked()
         return;
 
     // Check the fee
-    int64_t fee = (int64_t) (ui->fee->text().toDouble() * COIN);
-    int64_t minFee = 10000 * (1 + (int64_t) transactionSize / 1000);
+    int64_t fee = (int64_t ) (ui->fee->text().toDouble() * COIN);
+    int64_t minFee = (int64_t)(transactionSize * (PERKB_TX_FEE / 1000));
     if(fee < minFee)
     {
-        QMessageBox::StandardButton ret = QMessageBox::question(this, tr("Confirm send transaction"), tr("The fee of the transaction (%1 CRW) is smaller than the expected fee (%2 CRW). Do you want to send the transaction anyway?").arg((double) fee / COIN).arg((double) minFee / COIN), QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+        QMessageBox::StandardButton ret = QMessageBox::question(this, tr("Confirm sending transaction"), tr("The fee of the transaction (%1 PPC) is smaller than the expected fee (%2 PPC). Do you want to send the transaction anyway?").arg((double) fee / COIN).arg((double) minFee / COIN), QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
         if(ret != QMessageBox::Yes)
             return;
     }
     else if(fee > minFee)
     {
-        QMessageBox::StandardButton ret = QMessageBox::question(this, tr("Confirm send transaction"), tr("The fee of the transaction (%1 CRW) is bigger than the expected fee (%2 CRW). Do you want to send the transaction anyway?").arg((double) fee / COIN).arg((double) minFee / COIN), QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+        QMessageBox::StandardButton ret = QMessageBox::question(this, tr("Confirm sending transaction"), tr("The fee of the transaction (%1 PPC) is bigger than the expected fee (%2 PPC). Do you want to send the transaction anyway?").arg((double) fee / COIN).arg((double) minFee / COIN), QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
         if(ret != QMessageBox::Yes)
             return;
     }
@@ -548,7 +516,7 @@ void MultisigDialog::on_sendTransactionButton_clicked()
     // Decode the raw transaction
     std::vector<unsigned char> txData(ParseHex(ui->signedTransaction->text().toStdString()));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
+    CTransactionRef tx;
     try
     {
         ssData >> tx;
@@ -557,32 +525,30 @@ void MultisigDialog::on_sendTransactionButton_clicked()
     {
         return;
     }
-    uint256 txHash = tx.GetHash();
+    uint256 txHash = tx->GetHash();
 
     // Check if the transaction is already in the blockchain
-    CTransaction existingTx;
-    uint256 blockHash = uint256S("0");
-    if(GetTransaction(txHash, existingTx, blockHash))
+    CTransactionRef existingTx;
+    uint256 blockHash = uint256();
+    if(GetTransaction(txHash, existingTx, Params().GetConsensus(), blockHash))
     {
         if(blockHash != uint256())
             return;
     }
 
     // Send the transaction to the local node
-    //   CTxDB txdb("r");
     bool fMissingInputs = false;
-    CValidationState state;
-    if(!AcceptToMemoryPool(mempool, state, tx, true, &fMissingInputs)){
-        QString Reason = QString::fromStdString(state.GetRejectReason());
-        if(state.IsInvalid())
-            QMessageBox::critical(this, tr("Multisig: Rejected from memory pool!"), tr("Rejected from memory pool (more signatures needed?) Code: %1, Reason: %2").arg(state.GetRejectCode()).arg(Reason)); 
-        else
-           QMessageBox::critical(this, tr("Multisig: Memory pool error!"), tr("Memory pool error (more signatures needed?) Reason: %1").arg(Reason)); 
-    } else { 
-        SyncWithWallets(tx, NULL);
-        //(CInv(MSG_TX, txHash), tx);
-        RelayTransaction(tx);
-    }
+    BlockValidationState state;
+    if (!AcceptToMemoryPool(mempool, state, tx, &fMissingInputs, false /* bypass_limits */))
+        return;
+
+    CInv inv(MSG_TX, tx->GetHash());
+    g_connman->ForEachNode([&inv](CNode* pnode)
+    {
+        pnode->PushInventory(inv);
+    });
+
+    ui->statusLabel->setText(tr("The transaction is sent to peercoin network."));
 }
 
 MultisigInputEntry * MultisigDialog::addInput()
@@ -611,7 +577,7 @@ void MultisigDialog::removeEntry(MultisigInputEntry *entry)
 
 SendCoinsEntry * MultisigDialog::addOutput()
 {
-    SendCoinsEntry *entry = new SendCoinsEntry(this);
+    SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
 
     entry->setModel(model);
     ui->outputs->addWidget(entry);
@@ -659,7 +625,7 @@ void MultisigDialog::updateAmounts()
     outputsAmountStr.sprintf("%.6f", (double) outputsAmount / COIN);
     ui->outputsAmount->setText(outputsAmountStr);
 
-    // Update Fee amount
+    // Update fee amount
     int64_t fee = inputsAmount - outputsAmount;
     QString feeStr;
     feeStr.sprintf("%.6f", (double) fee / COIN);

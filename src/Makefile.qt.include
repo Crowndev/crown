@@ -36,13 +36,23 @@ QT_FORMS_UI = \
   qt/forms/systemnodelist.ui \
   qt/forms/transactiondescdialog.ui \
   qt/forms/createnodedialog.ui \
-  qt/forms/startmissingdialog.ui
+  qt/forms/startmissingdialog.ui \
+  qt/forms/assetmanagerpage.ui \
+  qt/forms/newcontractpage.ui \
+  qt/forms/newassetpage.ui
+# \
+#  qt/forms/multisigaddressentry.ui \
+#  qt/forms/multisigdialog.ui \
+#  qt/forms/multisiginputentry.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
   qt/moc_addresstablemodel.cpp \
+  qt/moc_assetfilterproxy.cpp \
+  qt/moc_assettablemodel.cpp \
   qt/moc_askpassphrasedialog.cpp \
   qt/moc_createwalletdialog.cpp \
+  qt/moc_contracttablemodel.cpp \
   qt/moc_bantablemodel.cpp \
   qt/moc_crownaddressvalidator.cpp \
   qt/moc_crownamountfield.cpp \
@@ -50,8 +60,11 @@ QT_MOC_CPP = \
   qt/moc_crowngui.cpp \
   qt/moc_crownunits.cpp \
   qt/moc_clientmodel.cpp \
+  qt/moc_coincontrolmodel.cpp \
   qt/moc_coincontroldialog.cpp \
   qt/moc_coincontroltreewidget.cpp \
+  qt/moc_contractfilterproxy.cpp \
+  qt/moc_coincontrolfilterproxy.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
   qt/moc_guiutil.cpp \
@@ -98,7 +111,14 @@ QT_MOC_CPP = \
   qt/moc_createnodedialog.cpp \
   qt/moc_startmissingdialog.cpp \
   qt/moc_walletmodel.cpp \
-  qt/moc_walletview.cpp
+  qt/moc_walletview.cpp \
+  qt/moc_assetmanagerpage.cpp \
+  qt/moc_newcontractpage.cpp \
+  qt/moc_newassetpage.cpp
+# \
+#  qt/moc_multisigaddressentry.cpp \
+#  qt/moc_multisigdialog.cpp \
+#  qt/moc_multisiginputentry.cpp
 
 CROWN_MM = \
   qt/macdockiconhandler.mm \
@@ -117,8 +137,11 @@ QT_QRC_LOCALE_CPP = qt/qrc_crown_locale.cpp
 QT_QRC_LOCALE = qt/crown_locale.qrc
 
 CROWN_QT_H = \
+  qt/addressfilterproxymodel.h \
   qt/addressbookpage.h \
   qt/addresstablemodel.h \
+  qt/assetfilterproxy.h \
+  qt/assettablemodel.h \
   qt/askpassphrasedialog.h \
   qt/bantablemodel.h \
   qt/crownaddressvalidator.h \
@@ -132,6 +155,8 @@ CROWN_QT_H = \
   qt/createwalletdialog.h \
   qt/csvmodelwriter.h \
   qt/editaddressdialog.h \
+  qt/contractfilterproxy.h \
+  qt/coincontrolfilterproxy.h \
   qt/guiconstants.h \
   qt/guiutil.h \
   qt/intro.h \
@@ -184,7 +209,14 @@ CROWN_QT_H = \
   qt/walletmodel.h \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
-  qt/winshutdownmonitor.h
+  qt/winshutdownmonitor.h \
+  qt/assetmanagerpage.h \
+  qt/newcontractpage.h \
+  qt/newassetpage.h
+# \
+#  qt/multisigaddressentry.h \
+#  qt/multisigdialog.h \
+#  qt/multisiginputentry.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -245,6 +277,7 @@ CROWN_QT_BASE_CPP = \
   qt/crownunits.cpp \
   qt/clientmodel.cpp \
   qt/csvmodelwriter.cpp \
+  qt/contracttablemodel.cpp \
   qt/guiutil.cpp \
   qt/intro.cpp \
   qt/modaloverlay.cpp \
@@ -266,6 +299,11 @@ CROWN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 CROWN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/addresstablemodel.cpp \
+  qt/assetfilterproxy.cpp \
+  qt/assettablemodel.cpp \
+  qt/coincontrolmodel.cpp \
+  qt/coincontrolfilterproxy.cpp \
+  qt/contractfilterproxy.cpp \
   qt/askpassphrasedialog.cpp \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
@@ -301,7 +339,14 @@ CROWN_QT_WALLET_CPP = \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
   qt/privatekeywidget.cpp \
-  qt/walletview.cpp
+  qt/walletview.cpp \
+  qt/assetmanagerpage.cpp \
+  qt/newcontractpage.cpp \
+  qt/newassetpage.cpp    
+# \
+#  qt/multisigaddressentry.cpp \
+#  qt/multisigdialog.cpp \
+#  qt/multisiginputentry.cpp
 
 CROWN_QT_CPP = $(CROWN_QT_BASE_CPP)
 if TARGET_WINDOWS

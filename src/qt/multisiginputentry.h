@@ -3,8 +3,8 @@
 
 #include <QFrame>
 
-#include "uint256.h"
-#include "amount.h"
+#include <uint256.h>
+#include <amount.h>
 
 class CTxIn;
 class WalletModel;

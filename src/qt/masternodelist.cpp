@@ -429,7 +429,7 @@ void MasternodeList::on_editButton_clicked()
         // OK pressed
         std::string port = "9340";
         if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-            port = "19340";
+            port = "18333";
         }
         BOOST_FOREACH(CNodeEntry &mne, masternodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias.toStdString())
@@ -844,13 +844,13 @@ void MasternodeList::on_CreateNewMasternode_clicked()
 
         // Get outputs before and after transaction
         std::vector<COutput> vPossibleCoinsBefore;
-        wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, ONLY_10000, MAX_MONEY, MAX_MONEY, 0);
+        wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
 
         sendDialog->setModel(walletModel);
         sendDialog->send(recipients);
 
         std::vector<COutput> vPossibleCoinsAfter;
-        wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_10000, MAX_MONEY, MAX_MONEY, 0);
+        wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
 
         for (auto& out : vPossibleCoinsAfter)
         {
@@ -867,7 +867,7 @@ void MasternodeList::on_CreateNewMasternode_clicked()
                 std::string privateKey = EncodeSecret(secret);
                 std::string port = "9340";
                 if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-                    port = "19340";
+                    port = "18333";
                 }
 
                 masternodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 

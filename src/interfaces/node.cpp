@@ -168,6 +168,11 @@ public:
         }
         return false;
     }
+    CAmountMap getMoneySupply() override
+    {
+        const CBlockIndex* tip = WITH_LOCK(::cs_main, return ::ChainActive().Tip());
+        return tip->nMoneySupply;
+    }
     int getNumBlocks() override
     {
         LOCK(::cs_main);

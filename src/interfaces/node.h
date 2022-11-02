@@ -127,6 +127,8 @@ public:
     //! Get num blocks.
     virtual int getNumBlocks() = 0;
 
+    virtual CAmountMap getMoneySupply()=0;
+
     //! Get best block hash.
     virtual uint256 getBestBlockHash() = 0;
 

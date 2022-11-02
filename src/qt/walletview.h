@@ -8,7 +8,6 @@
 #include <amount.h>
 #include <qt/masternodelist.h>
 #include <qt/systemnodelist.h>
-#include <qt/multisigdialog.h>
 #include <nodeconfig.h>
 #include <QStackedWidget>
 
@@ -22,6 +21,11 @@ class MultisigDialog;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
+class AssetManagerPage;
+class AssetTableModel;
+class ContractTableModel;
+class CoinControlModel;
+class CoinControlFilterProxy;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -72,9 +76,9 @@ private:
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     MultisigDialog *multisigPage;
-
+    AssetManagerPage *assetManagerPage;
     TransactionView *transactionView;
-
+    CoinControlFilterProxy * coincontrolfilter = nullptr;
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
 
@@ -93,6 +97,8 @@ public Q_SLOTS:
     void gotoSystemnodePage();
     /** Switch to multisig page*/
     void gotoMultisigTab();
+    
+    void gotoAssetManager();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
