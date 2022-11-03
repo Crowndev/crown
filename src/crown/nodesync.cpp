@@ -21,13 +21,7 @@
 #include <wallet/rpcwallet.h>
 #include <wallet/wallet.h>
 
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <algorithm>
-#include <boost/assign/list_of.hpp>
 
 std::string currentSyncStatus()
 {
@@ -67,7 +61,7 @@ void ThreadNodeSync(CConnman& connman)
 
         c1++;
 
-        mnodeman.Check();
+        //mnodeman.Check();
 
         // check if we should activate or ping every few minutes,
         // start right after sync is considered to be done
@@ -86,7 +80,7 @@ void ThreadNodeSync(CConnman& connman)
 
         c2++;
 
-        snodeman.Check();
+        //snodeman.Check();
 
         // check if we should activate or ping every few minutes,
         // start right after sync is considered to be done

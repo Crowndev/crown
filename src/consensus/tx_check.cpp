@@ -24,80 +24,9 @@ static bool CheckData(TxValidationState &state, const CTxData *p)
     return true;
 }
 
-
 static bool CheckContract(TxValidationState &state, const CContract *p)
 {
     return true;
-}
-
-static bool CheckAsset(TxValidationState &state, CAsset& asset){
-
-    //check version
-
-    if (asset.nVersion > 1)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset version %d \n", asset.nVersion));
-
-    if(asset.getAssetName() == "" || asset.getAssetName().length() < 4)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset name %s \n", asset.sAssetName));
-
-    if(asset.getShortName() == "" || asset.getShortName().length() < 3)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset symbol %s \n", asset.sAssetShortName));
-
-    //check type and it's rules
-
-    if (asset.nType < 1 || asset.nType > 5)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset type %d \n", asset.nVersion));
-
-    //check properties
-    //token
-    if (asset.nType == 1){
-        if(!asset.isTransferable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked Transferable \n", AssetTypeToString(asset.nType)));
-    }
-
-    //unique
-    if (asset.nType == 2){
-
-        if(asset.isInflatable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
-
-        if(asset.isStakeable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Stakeable \n", AssetTypeToString(asset.nType)));
-
-        if(asset.isConvertable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked convertible \n", AssetTypeToString(asset.nType)));
-
-        if(!asset.isLimited())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked limited \n", AssetTypeToString(asset.nType)));
-
-        if(!asset.isRestricted())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked restricted \n", AssetTypeToString(asset.nType)));
-
-        //check expiry
-        //if (asset.nExpiry != 0 && asset.nExpiry < GetTime())
-
-    }
-
-    //equity
-    if (asset.nType == 3){
-        if(asset.contract_hash == uint256())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has no contract \n", AssetTypeToString(asset.nType)));
-
-    }
-
-    //points
-    if (asset.nType == 4){
-        if(asset.isInflatable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
-
-    }
-
-    //credits
-    if (asset.nType == 5){
-        if(asset.isInflatable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
-
-    }
 }
 
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
@@ -120,12 +49,12 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 
     // Check for negative or overflow output values (see CVE-2010-5139)
     CAmount nValueOut = 0;
-    int q = (tx.nVersion == TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size());
-    for (unsigned int k = 0; k < q; k++) {
-        CTxOutAsset txout = (tx.nVersion == TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+    for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+        const CTxOutAsset &txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
 
         if (txout.nValue < 0)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
+
         if (txout.nValue > MAX_MONEY)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge");
 
@@ -134,15 +63,6 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
     }
 
-/*
-    if(tx.nVersion >= TX_ELE_VERSION){
-		for (unsigned int k = 0; k < tx.vpout.size(); k++) {
-		    if(!tx.vpout[k].IsEmpty())
-                if(tx.vpout[k].nAsset.IsEmpty())
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
-         }
-    }
-*/
     if(tx.nVersion >= TX_ELE_VERSION){
         size_t nContractOutputs = 0, nDataOutputs = 0, nIDOutputs = 0;
         for (unsigned int i = 0; i < tx.vdata.size(); i++){

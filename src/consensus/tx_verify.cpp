@@ -254,23 +254,24 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
                 CTxDestination address1;
                 ExtractDestination(input_addresses.front(), address1);
+                CTxDestination issuer = DecodeDestination(contract.sIssuingaddress);
+                CScript script = GetScriptForDestination(issuer);
                 if(asset.isRestricted()){
                     if(input_addresses.size() != 1)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer", strprintf("Inputs for this restricted asset must come from (%s) only", contract.sIssuingaddress));
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer-multiple", strprintf("Inputs for this restricted asset must come from (%s) only", contract.sIssuingaddress));
 
-                    if(contract.sIssuingaddress != EncodeDestination(address1))
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
+                    if(script != input_addresses.front()) // Go deeper
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issuer-mismatch", strprintf("(%s) vs (%s) only", EncodeDestination(issuer), EncodeDestination(address1)));
+
+                    //if(std::get<PKHash>(issuer) != std::get<PKHash>(address1))
+                    //  continue;
                 }
 
                 // check asset inflation
                 if(asset.isInflatable()){
-                    if(contract.sIssuingaddress != EncodeDestination(address1))
+                    if(EncodeDestination(issuer) != EncodeDestination(address1))
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inflation-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
-
                 }
-                //else
-                    //return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-ouput-asset-not-inflatable");
-
             }
 
             //check asset creation
@@ -285,23 +286,75 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 //if(inputAssets[subsidy_asset] < 10 * COIN)
                 //    return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-amount", strprintf("found (%d) (%s), min (%d) CRW", inputAssets[subsidy_asset], inputAssets.begin()->first.getShortName(), 10));
 
+                if (asset.nVersion > 1)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset version %d \n", asset.nVersion));
+
+                if(asset.getAssetName() == "" || asset.getAssetName().length() < 4)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset name %s \n", asset.sAssetName));
+
+                if(asset.getShortName() == "" || asset.getShortName().length() < 3)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset symbol %s \n", asset.sAssetShortName));
+
                 if(assetNameExists(asset.getAssetName()) || assetNameExists(asset.getShortName()))
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-name", strprintf("asset name/shortname %s / %s  already in use", asset.getAssetName(), asset.getShortName()));
 
                 if(asset.nExpiry != 0 && asset.nExpiry < tx.nTime)// TODO (Why on earth do transactions not have time ?
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-expiry");
 
+                if (asset.nType < 1 || asset.nType > 5)
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset type %d \n", asset.nVersion));
+
+                //check properties
+                //token
+                if (asset.nType == 1){
+                    if(!asset.isTransferable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked Transferable \n", AssetTypeToString(asset.nType)));
+                }
+
                 if(asset.nType == 2){
                     if(asset.isConvertable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-convertable");
                     if(asset.isInflatable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-inflatable");
+
+                    if(!asset.isLimited())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked limited \n", AssetTypeToString(asset.nType)));
+
+                    if(!asset.isRestricted())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked restricted \n", AssetTypeToString(asset.nType)));
+
+                    if(asset.isStakeable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Stakeable \n", AssetTypeToString(asset.nType)));
+
+                }
+
+                //equity
+                if (asset.nType == 3){
+                    if(asset.contract_hash == uint256())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has no contract \n", AssetTypeToString(asset.nType)));
+                }
+
+                //points
+                if (asset.nType == 4){
+                    if(asset.isInflatable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
+                }
+
+                //credits
+                if (asset.nType == 5){
+                    if(asset.isInflatable())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
                 }
             }
         }
     }
 
     if(tx.nVersion >= TX_ELE_VERSION){
+
+        for (unsigned int k = 0; k < tx.vpout.size(); k++)
+            if(tx.vpout[k].nAsset.IsEmpty())
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
+
         if(outputAssets.size() == 1)
             if(inputAssets.begin()->second < outputAssets.begin()->second)
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-below-out", strprintf("value in (%s) < value out (%s)", FormatMoney(inputAssets.begin()->second), FormatMoney(outputAssets.begin()->second)));
