@@ -6,17 +6,17 @@
 
 void DumpCaches()
 {
-    CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
+    CFlatDB<CMasternodeMan> flatdb1(fs::PathFromString("mncache.dat"), "magicMasternodeCache");
     flatdb1.Dump(mnodeman);
-    CFlatDB<CSystemnodeMan> flatdb2("sncache.dat", "magicSystemnodeCache");
+    CFlatDB<CSystemnodeMan> flatdb2(fs::PathFromString("sncache.dat"), "magicSystemnodeCache");
     flatdb2.Dump(snodeman);
-    CFlatDB<CMasternodePayments> flatdb3("mnpayments.dat", "magicMasternodePaymentsCache");
+    CFlatDB<CMasternodePayments> flatdb3(fs::PathFromString("mnpayments.dat"), "magicMasternodePaymentsCache");
     flatdb3.Dump(masternodePayments);
-    CFlatDB<CSystemnodePayments> flatdb4("snpayments.dat", "magicSystemnodePaymentsCache");
+    CFlatDB<CSystemnodePayments> flatdb4(fs::PathFromString("snpayments.dat"), "magicSystemnodePaymentsCache");
     flatdb4.Dump(systemnodePayments);
-    CFlatDB<CBudgetManager> flatdb5("budget.dat", "magicBudgetCache");
+    CFlatDB<CBudgetManager> flatdb5(fs::PathFromString("budget.dat"), "magicBudgetCache");
     flatdb5.Dump(budget);
-    CFlatDB<CNetFulfilledRequestManager> flatdb6("netfulfilled.dat", "magicFulfilledCache");
+    CFlatDB<CNetFulfilledRequestManager> flatdb6(fs::PathFromString("netfulfilled.dat"), "magicFulfilledCache");
     flatdb6.Dump(netfulfilledman);
 }
 
