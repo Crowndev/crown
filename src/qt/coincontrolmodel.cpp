@@ -57,7 +57,6 @@ public:
 
     // loads all current balances into cache
     void refreshWallet() {
-        qDebug() << "CoinControlPriv::refreshWallet";
         cachedRecords.clear();
 
         // Keep up to date with wallet
