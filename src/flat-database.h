@@ -166,7 +166,7 @@ public:
     CFlatDB(fs::path strFilenameIn, std::string strMagicMessageIn)
     {
         pathDB = GetDataDir() / strFilenameIn;
-        strFilename = strFilenameIn;
+        strFilename = fs::PathToString(strFilenameIn);
         strMagicMessage = strMagicMessageIn;
     }
 
