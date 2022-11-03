@@ -55,7 +55,6 @@ public:
 
     // loads all current balances into cache
     void refreshWallet() {
-        qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size();
         cachedContracts.clear();
         //iterate ALL chain Contracts
         //Fill values, where we hold balances
@@ -77,7 +76,7 @@ public:
 
             cachedContracts.append(rec);
         }
-        qDebug() << "contracts cache size " << size();
+        qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size();
 
     }
 

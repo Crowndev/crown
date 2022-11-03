@@ -69,7 +69,6 @@ public:
 
     // loads all current balances into cache
     void refreshWallet() {
-        qDebug() << "AssetTablePriv::refreshWallet cache size" << passetsCache->Size();
         cachedAssets.clear();
         //iterate ALL chain Assets
         //Fill values, where we hold balances
@@ -126,6 +125,8 @@ public:
             rec.fIsAdministrator = fIsAdministrator;
             cachedAssets.append(rec);
         }
+        qDebug() << "AssetTablePriv::refreshWallet cache size" << passetsCache->Size();
+
     }
 
     int size() {
