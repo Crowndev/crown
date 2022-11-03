@@ -252,19 +252,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 if(contract.IsEmpty())
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "contract-not-found", strprintf("contract retrieval failed %s", asset.contract_hash.ToString()));
 
-                CTxDestination address1;
+                CTxDestination address1, issuer;
                 ExtractDestination(input_addresses.front(), address1);
-                CTxDestination issuer = DecodeDestination(contract.sIssuingaddress);
-                CScript script = GetScriptForDestination(issuer);
+                ExtractDestination(GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), issuer);
+
                 if(asset.isRestricted()){
                     if(input_addresses.size() != 1)
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer-multiple", strprintf("Inputs for this restricted asset must come from (%s) only", contract.sIssuingaddress));
 
-                    if(script != input_addresses.front()) // Go deeper
+                    if(std::get<PKHash>(issuer) != std::get<PKHash>(address1)) // Go deeper
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issuer-mismatch", strprintf("(%s) vs (%s) only", EncodeDestination(issuer), EncodeDestination(address1)));
 
-                    //if(std::get<PKHash>(issuer) != std::get<PKHash>(address1))
-                    //  continue;
                 }
 
                 // check asset inflation
