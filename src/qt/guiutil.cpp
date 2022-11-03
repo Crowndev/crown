@@ -597,7 +597,7 @@ fs::path static StartupShortcutPath()
         return GetSpecialFolderPath(CSIDL_STARTUP) / "Crown.lnk";
     if (chain == CBaseChainParams::TESTNET) // Remove this special case when CBaseChainParams::TESTNET = "testnet4"
         return GetSpecialFolderPath(CSIDL_STARTUP) / "Crown (testnet).lnk";
-    return GetSpecialFolderPath(CSIDL_STARTUP) / strprintf("Crown (%s).lnk", chain);
+    return GetSpecialFolderPath(CSIDL_STARTUP) / fs::PathFromString(strprintf("Crown (%s).lnk", chain));
 }
 
 bool GetStartOnSystemStartup()
