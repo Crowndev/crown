@@ -202,11 +202,11 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         case Label:
             if(rec->label.isEmpty() && role == Qt::DisplayRole)
             {
-                return tr("(no label)");
+                return tr("(no label) ") + rec->address;
             }
             else
             {
-                return rec->label;
+                return rec->label + " " + rec->address;
             }
         case Address:
             return rec->address;
@@ -231,6 +231,10 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             return Receive;
         default: break;
         }
+    }
+    else if (role == AddressRole)
+    {
+        return rec->address;
     }
     return QVariant();
 }

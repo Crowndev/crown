@@ -21,35 +21,88 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QComboBox" name="contractcomboBox"/>
+          <widget class="QLineEdit" name="name">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string>Name</string>
+           </property>
+          </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="typecomboBox"/>
+          <widget class="QComboBox" name="typecomboBox">
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="insertPolicy">
+            <enum>QComboBox::NoInsert</enum>
+           </property>
+           <item>
+            <property name="text">
+             <string>Token</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Unique</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Equity</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Points</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Credits</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDateTimeEdit" name="expiry">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
-          <widget class="QLineEdit" name="name"/>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="symbol"/>
-         </item>
-        </layout>
+        <layout class="QHBoxLayout" name="horizontalLayout_2"/>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QLineEdit" name="inputAmount"/>
+          <widget class="QLineEdit" name="inputAmount">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string extracomment="Input Amount">0.00</string>
+           </property>
+          </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="outputAmount"/>
+          <widget class="QLineEdit" name="outputAmount">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string extracomment="Output Amount">0.00</string>
+           </property>
+          </widget>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="expiry"/>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -114,14 +167,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="text">
-          <string>Cancel</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="createAssetButton">
+        <widget class="QPushButton" name="Create">
          <property name="text">
           <string>Create</string>
          </property>

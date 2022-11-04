@@ -2,6 +2,9 @@
 #define NEWASSETPAGE_H
 
 #include <QDialog>
+class WalletModel;
+class ContractFilterProxy;
+class ContractTableModel;
 
 namespace Ui {
 class NewAssetPage;
@@ -16,7 +19,7 @@ public:
     ~NewAssetPage();
 
 	QString getinputamount();
-	QString outputamount();
+	QString getoutputamount();
 	QString getassettype();
 	QString getassetcontract();
 	bool gettransferable();
@@ -24,9 +27,15 @@ public:
 	bool getrestricted();
 	bool getlimited();
 	QString getexpiry();
+    void setWalletModel(WalletModel* walletModel);
+    ContractFilterProxy *mycontractFilter = nullptr;
+    ContractTableModel *contractTableModel;
 
 private:
+    WalletModel* walletModel;
     Ui::NewAssetPage *ui;
+private Q_SLOTS:
+    void on_Create_clicked();
 };
 
 #endif // NEWASSETPAGE_H

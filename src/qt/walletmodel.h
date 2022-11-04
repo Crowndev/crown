@@ -34,7 +34,6 @@ class TransactionTableModel;
 class AssetTableModel;
 class CoinControlModel;
 class WalletModelTransaction;
-class ContractTableModel;
 
 class CCoinControl;
 class CKeyID;
@@ -167,8 +166,6 @@ public:
 
     AddressTableModel* getAddressTableModel() const { return addressTableModel; }
     
-    //ContractTableModel* getContractTableModel() const { return contractTableModel; }
-    //AssetTableModel* getAssetTableModel() const { return assetTableModel; }
     
     void refresh(bool pk_hash_only = false);
 
@@ -198,6 +195,7 @@ private:
     AddressTableModel *addressTableModel;
     TransactionTableModel *transactionTableModel;
 
+    CoinControlModel *coinControlModel;
     RecentRequestsTableModel *recentRequestsTableModel;
 
     // Cache some values to be able to detect changes

@@ -58,12 +58,14 @@ public:
         cachedContracts.clear();
         //iterate ALL chain Contracts
         //Fill values, where we hold balances
+        int minecount =0;
 
         for(auto const& x : pcontractCache->GetItemsMap()){
 
             ContractRecord rec(QString::fromStdString(x.first));
             CContract contract = x.second->second.contract;
-            CTxDestination dest = DecodeDestination(contract.sIssuingaddress);
+            CTxDestination dest;
+            ExtractDestination(GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), dest);
 
             rec.sContractName = QString::fromStdString(contract.asset_name);
             rec.sContractShortName = QString::fromStdString(contract.asset_symbol);
@@ -72,11 +74,14 @@ public:
             rec.description = QString::fromStdString(contract.description);
             rec.website_url = QString::fromStdString(contract.website_url);
             rec.scriptcode = QString::fromStdString(HexStr(contract.scriptcode));
-            rec.mine = walletModel->IsMine(dest);
+            bool minew = walletModel->IsMine(dest);
+            if(minew)
+                minecount++;
+            rec.mine = minew;
 
             cachedContracts.append(rec);
         }
-        qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size();
+        qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size()  <<  "MINE : "  << minecount;
 
     }
 
