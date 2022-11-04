@@ -131,7 +131,7 @@ void MultisigInputEntry::on_transactionId_textChanged(const QString &transaction
         CTxDestination addr;
         if(ExtractDestination(script, addr))
         {
-            CBitcoinAddress address(addr);
+            CCrownAddress address(addr);
             QString addressStr(address.ToString().c_str());
             ui->transactionOutput->addItem(idStr + QString(" - ") + addressStr + QString(" - ") + amountStr + QString(" CRW"));
         }

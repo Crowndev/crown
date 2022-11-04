@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2015 The Crown Core developers
 // Copyright (c) 2017-2021 The Particl Core developers
 // Copyright (c) 2017-2021 The Crown Core developers
 // Distributed under the MIT software license, see the accompanying
