@@ -66,7 +66,7 @@ uint256 ComputeFastMerkleRoot(const std::vector<uint256>& hashes) {
 
     while (count != (((uint32_t)1) << level)) {
         // If we reach this point, hash is an inner value that is not the top.
-        // We combine it with itself (Bitcoin's special rule for odd levels in
+        // We combine it with itself (Crown's special rule for odd levels in
         // the tree) to produce a higher level one.
 
         // Increment count to the value it would have if two entries at this
