@@ -19,7 +19,14 @@
      <item>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
-        <widget class="QComboBox" name="addresscomboBox"/>
+        <widget class="QComboBox" name="addresscomboBox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="addresslineEdit"/>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
@@ -147,14 +154,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="cancelButton">
-         <property name="text">
-          <string>Cancel</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="createButton">
+        <widget class="QPushButton" name="Create">
          <property name="text">
           <string>Create</string>
          </property>

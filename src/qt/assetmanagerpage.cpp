@@ -12,6 +12,9 @@
 #include <qt/coincontrolmodel.h>
 #include <qt/newassetpage.h>
 #include <qt/newcontractpage.h>
+#include <qt/addressfilterproxymodel.h>
+#include <QMessageBox>
+#include <QDebug>
 
 AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     clientModel(nullptr),
@@ -52,6 +55,7 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     assetFilter->setDynamicSortFilter(true);
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
+        
     updateAssetList();
     updateContractList();
 }
@@ -81,10 +85,7 @@ void AssetManagerPage::updateContractList()
 
     for (int i = 0; i < assetFilter->columnCount(); ++i)
         ui->contracttableView->resizeColumnToContents(i);
-
-   //ui->contracttableView->show();
 }
-
 
 void AssetManagerPage::update()
 {
@@ -103,26 +104,8 @@ void AssetManagerPage::on_CreateNewContract_clicked()
     NewContractPage dialog(this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Contract");
-
-    if (dialog.exec())
-    {
-        QString name  = dialog.getName();
-        QString shortname  = dialog.getSymbol();
-        QString chainID  = dialog.getAddress();
-        QString website_url  = dialog.getwebsiteUrl();
-        QString contract_url  = dialog.getcontractURL();
-        QString description  = dialog.getdescription();
-        QString script  = dialog.getscript();
-        std::string strFailReason;
-
-        if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
-            //QMetaObject::invokeMethod(m_contractPane, "setresponse",Q_ARG(QVariant, QString::fromStdString(strFailReason)));
-            return;
-        }
-
-    } else {
-        // Cancel Pressed
-    }
+    dialog.setWalletModel(walletModel);
+    dialog.exec();
 }
 
 
@@ -137,28 +120,41 @@ void AssetManagerPage::on_CreateNewAsset_clicked()
     NewAssetPage dialog(this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Asset");
+    dialog.setWalletModel(walletModel);
+    dialog.exec();
+}
 
-    if (dialog.exec())
-    {
-        QString inputamount  = dialog.getinputamount();
-        QString outputamount  = dialog.outputamount();
-        QString assettype  = dialog.getassettype();
-        QString assetcontract  = dialog.getassetcontract();
-        bool transferable = dialog.gettransferable();
-        bool convertable = dialog.getconvertable();
-        bool restricted = dialog.getrestricted();
-        bool limited = dialog.getlimited();
-        QString expiry  = dialog.getexpiry();
-        std::string strFailReason;
+void AssetManagerPage::chooseAssetType(int idx)
+{
+    if(!assetFilter)
+        return;
+    assetFilter->setOnlyMine(idx);
+}
 
-        QString format = "dd-MM-yyyy hh:mm:ss";
-        QDateTime expiryDate = QDateTime::fromString(expiry, format);
+void AssetManagerPage::chooseAssetMode(QString idx)
+{
+    if(!assetFilter)
+        return;
+    assetFilter->setType(idx);
+}
 
-        if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, expiryDate, strFailReason)){
-            //QMetaObject::invokeMethod(m_assetPane, "setresponse",Q_ARG(QVariant, QString::fromStdString(strFailReason)));
-            return;
-        }
-    } else {
-        // Cancel Pressed
-    }
+void AssetManagerPage::changedAssetSearch(QString search)
+{
+    if(!assetFilter)
+        return;
+    assetFilter->setSearchString(search);
+}
+
+void AssetManagerPage::chooseContractType(int idx)
+{
+    if(!contractFilter)
+        return;
+    contractFilter->setOnlyMine(idx);
+}
+
+void AssetManagerPage::changedContractSearch(QString search)
+{
+    if(!contractFilter)
+        return;
+    contractFilter->setSearchString(search);
 }

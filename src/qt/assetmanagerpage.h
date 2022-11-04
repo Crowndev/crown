@@ -10,6 +10,7 @@ class WalletModel;
 class AssetFilterProxy;
 class ContractFilterProxy;
 class CoinControlFilterProxy;
+class AddressFilterProxyModel;
 
 class AssetTableModel;
 class CoinControlModel;
@@ -33,12 +34,19 @@ public:
     ContractTableModel *contractTableModel;
     CoinControlModel *coinControlModel;
 
-    AssetFilterProxy *assetFilter = nullptr;    
+    AssetFilterProxy *assetFilter = nullptr;
     ContractFilterProxy *contractFilter = nullptr;
     CoinControlFilterProxy *coincontrolfilter = nullptr;
+
     void updateAssetList();
     void updateContractList();
     void update();
+    void chooseAssetType(int idx);
+    void chooseAssetMode(QString idx);
+    void changedAssetSearch(QString search);
+    void chooseContractType(int idx);
+    void changedContractSearch(QString search);
+
 private:
     ClientModel *clientModel;
     WalletModel *walletModel;
@@ -47,7 +55,7 @@ private:
 private Q_SLOTS:
     void on_CreateNewContract_clicked();
     void on_CreateNewAsset_clicked();
-    
+
 };
 
 #endif // ASSETMANAGERPAGE_H

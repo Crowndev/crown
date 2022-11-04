@@ -298,6 +298,7 @@ CROWN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 
 CROWN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
+  qt/addressfilterproxymodel.cpp \
   qt/addresstablemodel.cpp \
   qt/assetfilterproxy.cpp \
   qt/assettablemodel.cpp \

@@ -16,8 +16,7 @@ bool AddressFilterProxyModel::filterAcceptsRow(int row, const QModelIndex& paren
     QString label = index.data(AddressTableModel::Label).toString();
     QString type = index.data(AddressTableModel::TypeRole).toString();
     QString address = index.data(AddressTableModel::AddressRole).toString();
-    bool registered = index.data(AddressTableModel::RegisteredRole).toBool();
-    bool mine = index.data(AddressTableModel::MineRole).toBool();
+
     //quint64 amount = llabs(index.data(AddressTableModel::AmountRole).toLongLong());
     //int64_t balance = static_cast<int64_t>(amount);
     
@@ -32,13 +31,8 @@ bool AddressFilterProxyModel::filterAcceptsRow(int row, const QModelIndex& paren
 
         if (!address.startsWith(m_search_string, Qt::CaseInsensitive))
             return false;
-        
-        //if(balance < 10.0)
-          //  return false;
-    }
 
-    if(fRegisteredOnly && !registered)
-        return false;
+    }
 
     return true;
 }

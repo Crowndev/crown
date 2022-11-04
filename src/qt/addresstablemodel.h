@@ -34,7 +34,8 @@ public:
     };
 
     enum RoleIndex {
-        TypeRole = Qt::UserRole /**< Type of address (#Send or #Receive) */
+        TypeRole = Qt::UserRole, /**< Type of address (#Send or #Receive) */
+        AddressRole
     };
 
     /** Return status of edit/insert operation */

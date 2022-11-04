@@ -2,6 +2,8 @@
 #define NEWCONTRACTPAGE_H
 
 #include <QDialog>
+class WalletModel;
+class AddressFilterProxyModel;
 
 namespace Ui {
 class NewContractPage;
@@ -22,9 +24,14 @@ public:
      QString getcontractURL();
      QString getdescription();
      QString getscript();
+     void setWalletModel(WalletModel* walletModel);
+     AddressFilterProxyModel *addsfilter = nullptr;
 
 private:
+    WalletModel* walletModel;
     Ui::NewContractPage *ui;
+private Q_SLOTS:
+    void on_Create_clicked();
 };
 
 #endif // NEWCONTRACTPAGE_H
