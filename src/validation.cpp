@@ -416,8 +416,7 @@ static bool IsCurrentForFeeEstimation() EXCLUSIVE_LOCKS_REQUIRED(cs_main)
  * Passing fAddToMempool=false will skip trying to add the transactions back,
  * and instead just erase from the mempool as needed.
  */
-
-static void UpdateMempoolForReorg(CTxMemPool& mempool, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, mempool.cs)
+void UpdateMempoolForReorg(CTxMemPool& mempool, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, mempool.cs)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(mempool.cs);
@@ -4587,13 +4586,13 @@ bool ChainstateManager::ProcessNewBlock(const CChainParams& chainparams, const s
 
         nHeight = pindex->nHeight;
     }
-
+/*
     if (masternodeSync.IsSynced() && systemnodeSync.IsSynced()) {
-        masternodePayments.ProcessBlock(nHeight + 10);
-        systemnodePayments.ProcessBlock(nHeight + 10);
-        budget.NewBlock();
+        masternodePayments.ProcessBlock(nHeight + 10, *g_rpc_node->connman);
+        systemnodePayments.ProcessBlock(nHeight + 10, *g_rpc_node->connman);
+        budget.NewBlock(*g_rpc_node->connman);
     }
-
+*/
     NotifyHeaderTip();
 
     BlockValidationState state; // Only used to report errors, not invalidity - ignore it

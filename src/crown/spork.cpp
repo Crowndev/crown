@@ -6,6 +6,9 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
+#include <node/context.h>
+#include <protocol.h>
+#include <rpc/blockchain.h>
 #include <boost/lexical_cast.hpp>
 
 
@@ -13,10 +16,11 @@ class CSporkMessage;
 class CSporkManager;
 
 CSporkManager sporkManager;
-
 std::map<uint256, CSporkMessage> mapSporks;
 std::map<int, CSporkMessage> mapSporksActive;
 
+//! forward declaration (only gets used once here)
+void UpdateMempoolForReorg(CTxMemPool& mempool, DisconnectedBlockTransactions& disconnectpool, bool fAddToMempool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, mempool.cs);
 
 void ProcessSpork(CNode* pfrom, CConnman* connman, const std::string& strCommand, CDataStream& vRecv)
 {
@@ -48,17 +52,17 @@ void ProcessSpork(CNode* pfrom, CConnman* connman, const std::string& strCommand
 
         mapSporks[hash] = spork;
         mapSporksActive[spork.nSporkID] = spork;
-        sporkManager.Relay(spork);
+        sporkManager.Relay(spork, *connman);
 
         //does a task if needed
-        ExecuteSpork(spork.nSporkID, spork.nValue);
+        ExecuteSpork(spork.nSporkID, spork.nValue, *connman);
     }
     if (strCommand == NetMsgType::GETSPORKS) {
         std::map<int, CSporkMessage>::iterator it = mapSporksActive.begin();
 
         while (it != mapSporksActive.end()) {
             const CNetMsgMaker msgMaker(PROTOCOL_VERSION);
-            g_connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, it->second));
+            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, it->second));
             it++;
         }
     }
@@ -158,7 +162,7 @@ int64_t GetSporkValue(int nSporkID)
     return r;
 }
 
-void ExecuteSpork(int nSporkID, int nValue)
+void ExecuteSpork(int nSporkID, int nValue, CConnman& connman)
 {
     if (nSporkID == SPORK_11_RESET_BUDGET && nValue == 1) {
         budget.Clear();
@@ -181,7 +185,7 @@ bool DisconnectBlocks(int blocks)
         if (!::ChainstateActive().DisconnectTip(state, chainparams, &disconnectpool) || !state.IsValid()) {
             // This is likely a fatal error, but keep the mempool consistent,
             // just in case. Only remove from the mempool in this case.
-            //UpdateMempoolForReorg(*g_mempool, disconnectpool, false);
+            UpdateMempoolForReorg(*g_rpc_node->mempool, disconnectpool, false);
             return false;
         }
     }
@@ -210,7 +214,6 @@ void ReprocessBlocks(int nBlocks)
     BlockValidationState state;
     ActivateBestChain(state, Params(), std::shared_ptr<const CBlock>());
 }
-
 
 bool CSporkManager::CheckSignature(CSporkMessage& spork)
 {
@@ -256,9 +259,8 @@ bool CSporkManager::Sign(CSporkMessage& spork)
     return true;
 }
 
-bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
+bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
 {
-
     CSporkMessage msg;
     msg.nSporkID = nSporkID;
     msg.nValue = nValue;
@@ -266,7 +268,7 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
 
     if (Sign(msg)) {
         CInv spork(MSG_SPORK, msg.GetHash());
-        g_connman->RelayInv(spork);
+        connman.RelayInv(spork);
         mapSporks[msg.GetHash()] = msg;
         mapSporksActive[nSporkID] = msg;
         return true;
@@ -275,10 +277,10 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue)
     return false;
 }
 
-void CSporkManager::Relay(CSporkMessage& msg)
+void CSporkManager::Relay(CSporkMessage& msg, CConnman& connman)
 {
     CInv inv(MSG_SPORK, msg.GetHash());
-    g_connman->RelayInv(inv); // to make sure SPORK_16_DISCONNECT_OLD_NODES will be relayed
+    connman.RelayInv(inv);
 }
 
 bool CSporkManager::SetPrivKey(std::string strPrivKey)
@@ -292,8 +294,8 @@ bool CSporkManager::SetPrivKey(std::string strPrivKey)
     if(!Sign(msg)){
         LogPrintf("CSporkManager::SetPrivKey - Failed to Sign\n");
         return false;
-	}
-   
+    }
+
     if (CheckSignature(msg)) {
         LogPrintf("CSporkManager::SetPrivKey - Successfully initialized as spork signer\n");
         return true;

@@ -32,8 +32,7 @@ extern std::map<int64_t, uint256> mapCacheBlockHashes;
 // The Systemnode Ping Class : Contains a different serialize method for sending pings from systemnodes throughout the network
 //
 
-class CSystemnodePing
-{
+class CSystemnodePing {
 public:
     CTxIn vin;
     uint256 blockHash;
@@ -51,10 +50,10 @@ public:
         READWRITE(obj.vchSig);
     }
 
-    bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false) const;
+    bool CheckAndUpdate(int& nDos, CConnman& connman, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false);
     bool Sign(const CKey& keySystemnode, const CPubKey& pubKeySystemnode);
-    bool VerifySignature(const CPubKey& pubKeySystemnode, int &nDos) const;
-    void Relay() const;
+    bool VerifySignature(const CPubKey& pubKeySystemnode, int& nDos) const;
+    void Relay(CConnman& connman);
 
     uint256 GetHash() const
     {
@@ -92,21 +91,18 @@ public:
     }
 };
 
-
 //
 // The Systemnode Class. For managing the Darksend process. It contains the input of the 10000 CRW, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
-class CSystemnode
-{
+class CSystemnode {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
     int64_t lastTimeChecked;
 
 public:
-    enum state
-    {
+    enum state {
         SYSTEMNODE_ENABLED = 1,
         SYSTEMNODE_EXPIRED = 2,
         SYSTEMNODE_VIN_SPENT = 3,
@@ -195,7 +191,7 @@ public:
     static CollateralStatus CheckCollateral(const COutPoint& outpoint, int& nHeightRet);
 
     int64_t SecondsSincePayment() const;
-    bool UpdateFromNewBroadcast(const CSystemnodeBroadcast& snb);
+    bool UpdateFromNewBroadcast(CSystemnodeBroadcast& snb, CConnman& connman);
     void Check(bool forceCheck = false);
     bool IsBroadcastedWithin(int seconds) const
     {
@@ -212,7 +208,7 @@ public:
         if (::ChainActive().Tip() == nullptr)
             return 0;
 
-        if(cacheInputAge == 0){
+        if (cacheInputAge == 0) {
             cacheInputAge = GetUTXOConfirmations(vin.prevout);
             cacheInputAgeBlock = ::ChainActive().Tip()->nHeight;
         }
@@ -253,22 +249,21 @@ public:
 // The Systemnode Broadcast Class : Contains a different serialize method for sending systemnodes through the network
 //
 
-class CSystemnodeBroadcast : public CSystemnode
-{
+class CSystemnodeBroadcast : public CSystemnode {
 public:
     CSystemnodeBroadcast();
     CSystemnodeBroadcast(CService newAddr, CTxIn newVin, CPubKey newPubkey, CPubKey newPubkey2, int protocolVersionIn);
     CSystemnodeBroadcast(const CSystemnode& sn);
 
     /// Create Systemnode broadcast, needs to be relayed manually after that
-    static bool Create(CTxIn txin, CService service, CKey keyCollateral, CPubKey pubKeyCollateral, CKey keySystemnodeNew, CPubKey pubKeySystemnodeNew, bool fSignOver, std::string &strErrorMessage, CSystemnodeBroadcast &snb);
-    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CSystemnodeBroadcast &snb, bool fOffline = false);
+    static bool Create(CTxIn txin, CService service, CKey keyCollateral, CPubKey pubKeyCollateral, CKey keySystemnodeNew, CPubKey pubKeySystemnodeNew, bool fSignOver, std::string& strErrorMessage, CSystemnodeBroadcast& snb);
+    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CSystemnodeBroadcast& snb, bool fOffline = false);
 
-    bool CheckAndUpdate(int& nDoS) const;
-    bool CheckInputsAndAdd(int& nDos) const;
+    bool CheckAndUpdate(int& nDoS, CConnman& connman);
+    bool CheckInputsAndAdd(int& nDos, CConnman& connman);
     bool Sign(const CKey& keyCollateralAddress);
     bool VerifySignature() const;
-    void Relay() const;
+    void Relay(CConnman& connman) const;
 
     SERIALIZE_METHODS(CSystemnodeBroadcast, obj)
     {

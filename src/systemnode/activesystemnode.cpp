@@ -13,13 +13,14 @@
 CActiveSystemnode activeSystemnode;
 
 //
-// Bootup the Systemnode, look for a 10000 CRW input and register on the network
+// Bootup the Systemnode, look for a 500 CRW input and register on the network
 //
-void CActiveSystemnode::ManageStatus()
+void CActiveSystemnode::ManageStatus(CConnman& connman)
 {
     std::string errorMessage;
 
-    if(!fSystemNode) return;
+    if (!fSystemNode)
+        return;
 
     LogPrintf("CActiveSystemnode::ManageStatus() - Begin\n");
 
@@ -30,14 +31,15 @@ void CActiveSystemnode::ManageStatus()
         return;
     }
 
-    if(status == ACTIVE_SYSTEMNODE_SYNC_IN_PROCESS) status = ACTIVE_SYSTEMNODE_INITIAL;
+    if (status == ACTIVE_SYSTEMNODE_SYNC_IN_PROCESS)
+        status = ACTIVE_SYSTEMNODE_INITIAL;
 
-    if(status == ACTIVE_SYSTEMNODE_INITIAL) {
-        CSystemnode *psn;
+    if (status == ACTIVE_SYSTEMNODE_INITIAL) {
+        CSystemnode* psn;
         psn = snodeman.Find(pubKeySystemnode);
-        if(psn != NULL) {
+        if (psn) {
             psn->Check();
-            if(psn->IsEnabled() && psn->protocolVersion == PROTOCOL_VERSION) {
+            if (psn->IsEnabled() && psn->protocolVersion == PROTOCOL_VERSION) {
                 EnableHotColdSystemNode(psn->vin, psn->addr);
                 if (!psn->vchSignover.empty()) {
                     if (psn->pubkey.Verify(pubKeySystemnode.GetHash(), psn->vchSignover)) {
@@ -53,7 +55,7 @@ void CActiveSystemnode::ManageStatus()
         }
     }
 
-    if(status != ACTIVE_SYSTEMNODE_STARTED) {
+    if (status != ACTIVE_SYSTEMNODE_STARTED) {
 
         // Set defaults
         status = ACTIVE_SYSTEMNODE_NOT_CAPABLE;
@@ -73,8 +75,8 @@ void CActiveSystemnode::ManageStatus()
             return;
         }
 
-        if(strSystemNodeAddr.empty()) {
-            if(!GetLocal(service)) {
+        if (strSystemNodeAddr.empty()) {
+            if (!GetLocal(service)) {
                 notCapableReason = "Can't detect external address. Please use the systemnodeaddr configuration option.";
                 LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
                 return;
@@ -100,7 +102,7 @@ void CActiveSystemnode::ManageStatus()
         bool fConnected = ConnectSocketDirectly(service, hSocket, nConnectTimeout, true) && IsSelectableSocket(hSocket);
         CloseSocket(hSocket);
 
-        if(!fConnected) {
+        if (!fConnected) {
             notCapableReason = "Could not connect to " + service.ToString();
             LogPrintf("CActiveSystemnode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
@@ -110,12 +112,10 @@ void CActiveSystemnode::ManageStatus()
         CPubKey pubKeyCollateralAddress;
         CKey keyCollateralAddress;
 
-        if(pwallet->GetSystemnodeVinAndKeys(vin, pubKeyCollateralAddress, keyCollateralAddress)) {
-
-            int inputAge = GetUTXOConfirmations(vin.prevout);
-            if(inputAge < SYSTEMNODE_MIN_CONFIRMATIONS){
+        if (currentNode.GetSystemnodeVinAndKeys(vin, pubKeyCollateralAddress, keyCollateralAddress)) {
+            if (GetUTXOConfirmations(vin.prevout) < SYSTEMNODE_MIN_CONFIRMATIONS) {
                 status = ACTIVE_SYSTEMNODE_INPUT_TOO_NEW;
-                notCapableReason = strprintf("%s - %d confirmations", GetStatus(), inputAge);
+                notCapableReason = strprintf("%s - %d confirmations", GetStatus(), GetUTXOConfirmations(vin.prevout));
                 LogPrintf("CActiveSystemnode::ManageStatus() - %s\n", notCapableReason);
                 return;
             }
@@ -143,11 +143,11 @@ void CActiveSystemnode::ManageStatus()
 
             //update to Systemnode list
             LogPrintf("CActiveSystemnode::ManageStatus() - Update Systemnode List\n");
-            snodeman.UpdateSystemnodeList(mnb);
+            snodeman.UpdateSystemnodeList(mnb, connman);
 
             //send to all peers
             LogPrintf("CActiveSystemnode::ManageStatus() - Relay broadcast vin = %s\n", vin.ToString());
-            mnb.Relay();
+            mnb.Relay(connman);
 
             LogPrintf("CActiveSystemnode::ManageStatus() - Is capable Systemnode!\n");
             status = ACTIVE_SYSTEMNODE_STARTED;
@@ -161,24 +161,32 @@ void CActiveSystemnode::ManageStatus()
     }
 
     //send to all peers
-    if(!SendSystemnodePing(errorMessage)) {
+    if (!SendSystemnodePing(errorMessage, connman)) {
         LogPrintf("CActiveSystemnode::ManageStatus() - Error on Ping: %s\n", errorMessage);
     }
 }
 
-std::string CActiveSystemnode::GetStatus() {
+std::string CActiveSystemnode::GetStatus()
+{
     switch (status) {
-    case ACTIVE_SYSTEMNODE_INITIAL: return "Node just started, not yet activated";
-    case ACTIVE_SYSTEMNODE_SYNC_IN_PROCESS: return "Sync in progress. Must wait until sync is complete to start Systemnode";
-    case ACTIVE_SYSTEMNODE_INPUT_TOO_NEW: return strprintf("Systemnode input must have at least %d confirmations", SYSTEMNODE_MIN_CONFIRMATIONS);
-    case ACTIVE_SYSTEMNODE_NOT_CAPABLE: return "Not capable systemnode: " + notCapableReason;
-    case ACTIVE_SYSTEMNODE_STARTED: return "Systemnode successfully started";
-    default: return "unknown";
+    case ACTIVE_SYSTEMNODE_INITIAL:
+        return "Node just started, not yet activated";
+    case ACTIVE_SYSTEMNODE_SYNC_IN_PROCESS:
+        return "Sync in progress. Must wait until sync is complete to start Systemnode";
+    case ACTIVE_SYSTEMNODE_INPUT_TOO_NEW:
+        return strprintf("Systemnode input must have at least %d confirmations", SYSTEMNODE_MIN_CONFIRMATIONS);
+    case ACTIVE_SYSTEMNODE_NOT_CAPABLE:
+        return "Not capable systemnode: " + notCapableReason;
+    case ACTIVE_SYSTEMNODE_STARTED:
+        return "Systemnode successfully started";
+    default:
+        return "unknown";
     }
 }
 
-bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage) {
-    if(status != ACTIVE_SYSTEMNODE_STARTED) {
+bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage, CConnman& connman)
+{
+    if (status != ACTIVE_SYSTEMNODE_STARTED) {
         errorMessage = "Systemnode is not in a running status";
         return false;
     }
@@ -194,17 +202,15 @@ bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage) {
     LogPrintf("CActiveSystemnode::SendSystemnodePing() - Relay Systemnode Ping vin = %s\n", vin.ToString());
 
     CSystemnodePing mnp(vin);
-    if(!mnp.Sign(keySystemnode, pubKeySystemnode))
-    {
+    if (!mnp.Sign(keySystemnode, pubKeySystemnode)) {
         errorMessage = "Couldn't sign Systemnode Ping";
         return false;
     }
 
     // Update lastPing for our systemnode in Systemnode list
     CSystemnode* pmn = snodeman.Find(vin);
-    if(pmn != NULL)
-    {
-        if(pmn->IsPingedWithin(SYSTEMNODE_PING_SECONDS, mnp.sigTime)){
+    if (pmn) {
+        if (pmn->IsPingedWithin(SYSTEMNODE_PING_SECONDS, mnp.sigTime)) {
             errorMessage = "Too early to send Systemnode Ping";
             return false;
         }
@@ -215,27 +221,26 @@ bool CActiveSystemnode::SendSystemnodePing(std::string& errorMessage) {
         //snodeman.mapSeenSystemnodeBroadcast.lastPing is probably outdated, so we'll update it
         CSystemnodeBroadcast mnb(*pmn);
         uint256 hash = mnb.GetHash();
-        if(snodeman.mapSeenSystemnodeBroadcast.count(hash)) snodeman.mapSeenSystemnodeBroadcast[hash].lastPing = mnp;
+        if (snodeman.mapSeenSystemnodeBroadcast.count(hash))
+            snodeman.mapSeenSystemnodeBroadcast[hash].lastPing = mnp;
 
-        mnp.Relay();
+        mnp.Relay(connman);
 
         return true;
-    }
-    else
-    {
+    } else {
         // Seems like we are trying to send a ping while the Systemnode is not registered in the network
         errorMessage = "Systemnode List doesn't include our Systemnode, shutting down Systemnode pinging service! " + vin.ToString();
         status = ACTIVE_SYSTEMNODE_NOT_CAPABLE;
         notCapableReason = errorMessage;
         return false;
     }
-
 }
 
 // when starting a Systemnode, this can enable to run as a hot wallet with no funds
 bool CActiveSystemnode::EnableHotColdSystemNode(const CTxIn& newVin, const CService& newService)
 {
-    if(!fSystemNode) return false;
+    if (!fSystemNode)
+        return false;
 
     status = ACTIVE_SYSTEMNODE_STARTED;
 

@@ -21,8 +21,7 @@ class CSystemnodeMan;
 
 extern CSystemnodeMan snodeman;
 
-class CSystemnodeMan
-{
+class CSystemnodeMan {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
@@ -40,9 +39,9 @@ private:
     std::map<COutPoint, int64_t> mWeAskedForSystemnodeListEntry;
 
     // these maps are used for Systemnode recovery from SYSTEMNODE_NEW_START_REQUIRED state
-    std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > > mMnbRecoveryRequests;
-    std::map<uint256, std::vector<CSystemnodeBroadcast> > mMnbRecoveryGoodReplies;
-    std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
+    std::map<uint256, std::pair<int64_t, std::set<CNetAddr>>> mMnbRecoveryRequests;
+    std::map<uint256, std::vector<CSystemnodeBroadcast>> mMnbRecoveryGoodReplies;
+    std::list<std::pair<CService, uint256>> listScheduledMnbRequestConnections;
 
     /// Set when Systemnodes are added, cleared when CGovernanceManager is notified
     bool fSystemnodesAdded;
@@ -59,11 +58,11 @@ public:
     SERIALIZE_METHODS(CSystemnodeMan, obj)
     {
         LOCK(obj.cs);
+
         READWRITE(obj.vSystemnodes);
         READWRITE(obj.mAskedUsForSystemnodeList);
         READWRITE(obj.mWeAskedForSystemnodeList);
         READWRITE(obj.mWeAskedForSystemnodeListEntry);
-
         READWRITE(obj.mapSeenSystemnodeBroadcast);
         READWRITE(obj.mapSeenSystemnodePing);
     }
@@ -75,10 +74,10 @@ public:
     int CountSystemnodes(bool fEnabled = false);
 
     /// Add an entry
-    bool Add(CSystemnode &mn);
+    bool Add(CSystemnode& mn);
 
     /// Ask (source) node for mnb
-    void AskForSN(CNode *pnode, CTxIn &vin);
+    void AskForSN(CNode* pnode, CTxIn& vin, CConnman& connman);
 
     /// Check all Systemnodes
     void Check();
@@ -91,7 +90,7 @@ public:
 
     int CountEnabled(int protocolVersion = -1);
 
-    void DsegUpdate(CNode* pnode);
+    void DsegUpdate(CNode* pnode, CConnman& connman);
 
     /// Find an entry
     CSystemnode* Find(const CTxIn& vin);
@@ -102,14 +101,18 @@ public:
     CSystemnode* GetNextSystemnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);
 
     /// Get the current winner for this block
-    CSystemnode* GetCurrentSystemNode(int mod=1, int64_t nBlockHeight=0, int minProtocol=0);
+    CSystemnode* GetCurrentSystemNode(int mod = 1, int64_t nBlockHeight = 0, int minProtocol = 0);
 
-    std::vector<CSystemnode> GetFullSystemnodeVector() { Check(); return vSystemnodes; }
-    
-    std::vector<std::pair<int, CSystemnode> > GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol=0);
-    int GetSystemnodeRank(const CTxIn &vin, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
+    std::vector<CSystemnode> GetFullSystemnodeVector()
+    {
+        Check();
+        return vSystemnodes;
+    }
 
-    void ProcessSystemnodeConnections();
+    std::vector<std::pair<int, CSystemnode>> GetSystemnodeRanks(int64_t nBlockHeight, int minProtocol = 0);
+    int GetSystemnodeRank(const CTxIn& vin, int64_t nBlockHeight, int minProtocol = 0, bool fOnlyActive = true);
+
+    void ProcessSystemnodeConnections(CConnman& connman);
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman* connman);
 
@@ -121,10 +124,10 @@ public:
     void Remove(CTxIn vin);
 
     /// Update systemnode list and maps using provided CSystemnodeBroadcast
-    void UpdateSystemnodeList(CSystemnodeBroadcast snb);
+    void UpdateSystemnodeList(CSystemnodeBroadcast snb, CConnman& connman);
 
     /// Perform complete check and only then update list and maps
-    bool CheckSnbAndUpdateSystemnodeList(CSystemnodeBroadcast snb, int& nDos);
+    bool CheckSnbAndUpdateSystemnodeList(CSystemnodeBroadcast snb, int& nDos, CConnman& connman);
 };
 
 #endif

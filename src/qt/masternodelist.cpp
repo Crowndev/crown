@@ -150,8 +150,8 @@ void MasternodeList::StartAlias(std::string strAlias)
 
             if (fSuccess) {
                 strStatusHtml += "<br>Successfully started masternode.";
-                mnodeman.UpdateMasternodeList(mnb);
-                mnb.Relay();
+                mnodeman.UpdateMasternodeList(mnb, *g_rpc_node->connman);
+                mnb.Relay(*g_rpc_node->connman);
             } else {
                 strStatusHtml += "<br>Failed to start masternode.<br>Error: " + strError;
             }
@@ -186,8 +186,8 @@ void MasternodeList::StartAll(std::string strCommand)
 
         if (fSuccess) {
             nCountSuccessful++;
-            mnodeman.UpdateMasternodeList(mnb);
-            mnb.Relay();
+            mnodeman.UpdateMasternodeList(mnb, *g_rpc_node->connman);
+            mnb.Relay(*g_rpc_node->connman);
         } else {
             nCountFailed++;
             strFailedHtml += "\nFailed to start " + mne.getAlias() + ". Error: " + strError;
@@ -701,7 +701,7 @@ void MasternodeList::VoteMany(std::string strCommand)
 
         std::string strError = "";
         if(budget.SubmitProposalVote(vote, strError)) {
-            vote.Relay();
+            vote.Relay(*g_rpc_node->connman);
             success++;
         } else {
             failed++;

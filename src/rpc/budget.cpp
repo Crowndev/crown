@@ -188,34 +188,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
         //create the proposal incase we're the first to make it
         CBudgetProposalBroadcast budgetProposalBroadcast(strProposalName, strURL, nPaymentCount, scriptPubKey, nAmount, nBlockStart, hash);
-/*
-        CBlockIndex* blockindex = nullptr;
 
-        bool f_txindex_ready = false;
-        if (g_txindex && !blockindex) {
-            f_txindex_ready = g_txindex->BlockUntilSyncedToCurrentChain();
-        }
-
-        uint256 hash_block;
-        const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, Params().GetConsensus(), hash_block);
-
-        if (!tx) {
-            std::string errmsg;
-            if (blockindex) {
-                if (!(blockindex->nStatus & BLOCK_HAVE_DATA)) {
-                    throw JSONRPCError(RPC_MISC_ERROR, "Block not available");
-                }
-                errmsg = "No such transaction found in the provided block";
-            } else if (!g_txindex) {
-                errmsg = "No such mempool transaction. Use -txindex or provide a block hash to enable blockchain transaction queries";
-            } else if (!f_txindex_ready) {
-                errmsg = "No such mempool transaction. Blockchain transactions are still in the process of being indexed";
-            } else {
-                errmsg = "No such mempool or blockchain transaction";
-            }
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errmsg + ". Use gettransaction for wallet transactions.");
-        }
-*/
         std::string strError = "";
         int nConf = 0;
         if (!IsBudgetCollateralValid(hash, budgetProposalBroadcast.GetHash(), strError, budgetProposalBroadcast.nTime, nConf)) {
@@ -226,7 +199,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
             return "Must wait for client to sync with masternode network. Try again in a minute or so.";
         }
 
-        budgetProposalBroadcast.Relay();
+        budgetProposalBroadcast.Relay(*g_rpc_node->connman);
         budget.AddProposal(budgetProposalBroadcast);
 
         return budgetProposalBroadcast.GetHash().ToString();
@@ -293,7 +266,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
             std::string strError = "";
             if (budget.SubmitProposalVote(vote, strError)) {
-                vote.Relay();
+                vote.Relay(*g_rpc_node->connman);
                 success++;
                 statusObj.pushKV("result", "success");
             } else {
@@ -346,7 +319,7 @@ UniValue mnbudget(const JSONRPCRequest& request)
 
         std::string strError = "";
         if (budget.SubmitProposalVote(vote, strError)) {
-            vote.Relay();
+            vote.Relay(*g_rpc_node->connman);
             return "Voted successfully";
         } else {
             return "Error voting : " + strError;
@@ -567,7 +540,7 @@ UniValue mnbudgetvoteraw(const JSONRPCRequest& request)
 
     std::string strError = "";
     if (budget.SubmitProposalVote(vote, strError)) {
-        vote.Relay();
+        vote.Relay(*g_rpc_node->connman);
         return "Voted successfully";
     } else {
         return "Error voting : " + strError;
@@ -642,8 +615,8 @@ UniValue mnfinalbudget(const JSONRPCRequest& request)
             }
 
             std::string strError = "";
-            if (budget.UpdateBudgetDraft(vote, nullptr, strError)) {
-                vote.Relay();
+            if (budget.UpdateBudgetDraft(vote, nullptr, *g_rpc_node->connman, strError)) {
+                vote.Relay(*g_rpc_node->connman);
                 success++;
                 statusObj.pushKV("result", "success");
             } else {
@@ -686,8 +659,8 @@ UniValue mnfinalbudget(const JSONRPCRequest& request)
         }
 
         std::string strError = "";
-        if (budget.UpdateBudgetDraft(vote, nullptr, strError)) {
-            vote.Relay();
+        if (budget.UpdateBudgetDraft(vote, nullptr, *g_rpc_node->connman, strError)) {
+            vote.Relay(*g_rpc_node->connman);
             return "success";
         } else {
             return "Error voting : " + strError;

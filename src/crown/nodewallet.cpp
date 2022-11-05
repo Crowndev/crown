@@ -5,7 +5,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <crown/nodewallet.h>
-
+#include <node/context.h>
+#include <rpc/blockchain.h>
 class NodeWallet;
 NodeWallet currentNode;
 
@@ -49,7 +50,6 @@ bool NodeWallet::GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& p
         pubScript = out.tx->tx->vpout[out.i].scriptPubKey;
     else
         pubScript = out.tx->tx->vout[out.i].scriptPubKey;
-
 
     CTxDestination address;
     ExtractDestination(pubScript, address);
@@ -163,7 +163,7 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
 
     CScript dummyscript;
 
-    std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(*g_mempool, chainparams).CreateNewBlock(dummyscript, true));
+    std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(*g_rpc_node->mempool, chainparams).CreateNewBlock(dummyscript, true));
 
     if (!pblocktemplate.get()) {
         LogPrintf("%s: Stake not found..\n", __func__);
@@ -303,6 +303,7 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
         LogPrintf("GetRecentStakePointer -- Couldn't find last paid block\n");
         return false;
     }
+
     int nBestHeight = ::ChainActive().Height();
     for (auto pindex : vBlocksLastPaid) {
         if (budget.IsBudgetPaymentBlock(pindex->nHeight))
@@ -321,7 +322,6 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
 
         CScript scriptMNPubKey;
         scriptMNPubKey = GetScriptForDestination(PKHash(pstaker->pubkey));
-
         for (auto& tx : blockLastPaid.vtx) {
             auto stakeSource = COutPoint(tx->GetHash(), nPaymentSlot);
             uint256 hashPointer = stakeSource.GetHash();
@@ -343,6 +343,7 @@ bool GetPointers(stakingnode* pstaker, std::vector<StakePointer>& vStakePointers
             }
         }
     }
+
     return found;
 }
 

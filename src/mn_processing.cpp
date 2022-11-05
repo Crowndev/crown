@@ -114,14 +114,14 @@ void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams
 
         //! instantsend types
         if (!pushed && inv.type == MSG_TXLOCK_VOTE) {
-            if(instantSend.m_txLockVote.count(inv.hash)) {
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::IXLOCKVOTE, instantSend.m_txLockVote[inv.hash]));
+            if(instantSend.mapTxLockVote.count(inv.hash)) {
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::IXLOCKVOTE, instantSend.mapTxLockVote[inv.hash]));
                 pushed = true;
             }
         }
         if (!pushed && inv.type == MSG_TXLOCK_REQUEST) {
-            if(instantSend.m_txLockReq.count(inv.hash)) {
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::IX, instantSend.m_txLockReq[inv.hash]));
+            if(instantSend.mapTxLockReq.count(inv.hash)) {
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::IX, instantSend.mapTxLockReq[inv.hash]));
                 pushed = true;
             }
         }
@@ -225,13 +225,13 @@ bool ProcessMessageMasternodeTypes(CNode* pfrom, const std::string& msg_type, CD
 {
     mnodeman.ProcessMessage(pfrom, msg_type, vRecv, connman);
     snodeman.ProcessMessage(pfrom, msg_type, vRecv, connman);
-    budget.ProcessMessage(pfrom, msg_type, vRecv);
-    masternodePayments.ProcessMessageMasternodePayments(pfrom, msg_type, vRecv);
-    systemnodePayments.ProcessMessageSystemnodePayments(pfrom, msg_type, vRecv);
+    budget.ProcessMessage(pfrom, msg_type, vRecv, connman);
+    masternodePayments.ProcessMessageMasternodePayments(pfrom, msg_type, vRecv, connman);
+    systemnodePayments.ProcessMessageSystemnodePayments(pfrom, msg_type, vRecv, connman);
     instantSend.ProcessMessage(pfrom, msg_type, vRecv, connman);
     ProcessSpork(pfrom, connman, msg_type, vRecv);
-    masternodeSync.ProcessMessage(pfrom, msg_type, vRecv);
-    systemnodeSync.ProcessMessage(pfrom, msg_type, vRecv);
+    masternodeSync.ProcessMessage(pfrom, msg_type, vRecv, connman);
+    systemnodeSync.ProcessMessage(pfrom, msg_type, vRecv, connman);
 
     return true;
 }

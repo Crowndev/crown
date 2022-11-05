@@ -15,11 +15,12 @@ CActiveMasternode activeMasternode;
 //
 // Bootup the Masternode, look for a 10000 CRW input and register on the network
 //
-void CActiveMasternode::ManageStatus()
+void CActiveMasternode::ManageStatus(CConnman& connman)
 {
     std::string errorMessage;
 
-    if(!fMasterNode) return;
+    if (!fMasterNode)
+        return;
 
     LogPrintf("CActiveMasternode::ManageStatus() - Begin\n");
 
@@ -30,13 +31,13 @@ void CActiveMasternode::ManageStatus()
         return;
     }
 
-    if(status == ACTIVE_MASTERNODE_SYNC_IN_PROCESS) 
+    if (status == ACTIVE_MASTERNODE_SYNC_IN_PROCESS)
         status = ACTIVE_MASTERNODE_INITIAL;
 
-    if(status == ACTIVE_MASTERNODE_INITIAL) {
-        CMasternode *pmn;
+    if (status == ACTIVE_MASTERNODE_INITIAL) {
+        CMasternode* pmn;
         pmn = mnodeman.Find(pubKeyMasternode);
-        if(pmn != NULL) {
+        if (pmn) {
             pmn->Check();
             if (pmn->IsEnabled() && pmn->protocolVersion == PROTOCOL_VERSION) {
                 EnableHotColdMasterNode(pmn->vin, pmn->addr);
@@ -54,8 +55,7 @@ void CActiveMasternode::ManageStatus()
         }
     }
 
-
-    if(status != ACTIVE_MASTERNODE_STARTED) {
+    if (status != ACTIVE_MASTERNODE_STARTED) {
 
         // Set defaults
         status = ACTIVE_MASTERNODE_NOT_CAPABLE;
@@ -69,14 +69,14 @@ void CActiveMasternode::ManageStatus()
             return;
         }
 
-        if(!pwallet || (pwallet && pwallet->GetBalance().m_mine_trusted == CAmountMap())){
-            notCapableReason = "Masternode configured correctly and ready, please use your local wallet to start it -Start alias-.";
+        if (!pwallet || (pwallet && pwallet->GetBalance().m_mine_trusted == CAmountMap())){
+            notCapableReason = "Masternode configured correctly and ready, please use your local wallet to start it.";
             LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
         }
 
-        if(strMasterNodeAddr.empty()) {
-            if(!GetLocal(service)) {
+        if (strMasterNodeAddr.empty()) {
+            if (!GetLocal(service)) {
                 notCapableReason = "Can't detect external address. Please use the masternodeaddr configuration option.";
                 LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
                 return;
@@ -102,7 +102,7 @@ void CActiveMasternode::ManageStatus()
         bool fConnected = ConnectSocketDirectly(service, hSocket, nConnectTimeout, true) && IsSelectableSocket(hSocket);
         CloseSocket(hSocket);
 
-        if(!fConnected) {
+        if (!fConnected) {
             notCapableReason = "Could not connect to " + service.ToString();
             LogPrintf("CActiveMasternode::ManageStatus() - not capable: %s\n", notCapableReason);
             return;
@@ -112,9 +112,8 @@ void CActiveMasternode::ManageStatus()
         CPubKey pubKeyCollateralAddress;
         CKey keyCollateralAddress;
 
-        if(pwallet->GetMasternodeVinAndKeys(vin, pubKeyCollateralAddress, keyCollateralAddress)) {
-
-            if(GetUTXOConfirmations(vin.prevout) < MASTERNODE_MIN_CONFIRMATIONS){
+        if (currentNode.GetMasternodeVinAndKeys(vin, pubKeyCollateralAddress, keyCollateralAddress)) {
+            if (GetUTXOConfirmations(vin.prevout) < MASTERNODE_MIN_CONFIRMATIONS) {
                 status = ACTIVE_MASTERNODE_INPUT_TOO_NEW;
                 notCapableReason = strprintf("%s - %d confirmations", GetStatus(), GetUTXOConfirmations(vin.prevout));
                 LogPrintf("CActiveMasternode::ManageStatus() - %s\n", notCapableReason);
@@ -136,7 +135,7 @@ void CActiveMasternode::ManageStatus()
 
             CMasternodeBroadcast mnb;
             bool fSignOver = true;
-            if(!CMasternodeBroadcast::Create(vin, service, keyCollateralAddress, pubKeyCollateralAddress, keyMasternode, pubKeyMasternode, fSignOver, errorMessage, mnb)) {
+            if (!CMasternodeBroadcast::Create(vin, service, keyCollateralAddress, pubKeyCollateralAddress, keyMasternode, pubKeyMasternode, fSignOver, errorMessage, mnb)) {
                 notCapableReason = "Error on CreateBroadcast: " + errorMessage;
                 LogPrintf("Register::ManageStatus() - %s\n", notCapableReason);
                 return;
@@ -144,11 +143,11 @@ void CActiveMasternode::ManageStatus()
 
             //update to masternode list
             LogPrintf("CActiveMasternode::ManageStatus() - Update Masternode List\n");
-            mnodeman.UpdateMasternodeList(mnb);
+            mnodeman.UpdateMasternodeList(mnb, connman);
 
             //send to all peers
             LogPrintf("CActiveMasternode::ManageStatus() - Relay broadcast vin = %s\n", vin.ToString());
-            mnb.Relay();
+            mnb.Relay(connman);
 
             LogPrintf("CActiveMasternode::ManageStatus() - Is capable master node!\n");
             status = ACTIVE_MASTERNODE_STARTED;
@@ -162,23 +161,30 @@ void CActiveMasternode::ManageStatus()
     }
 
     //send to all peers
-    if(!SendMasternodePing(errorMessage)) {
+    if (!SendMasternodePing(errorMessage, connman)) {
         LogPrintf("CActiveMasternode::ManageStatus() - Error on Ping: %s\n", errorMessage);
     }
 }
 
-std::string CActiveMasternode::GetStatus() const {
+std::string CActiveMasternode::GetStatus() const
+{
     switch (status) {
-    case ACTIVE_MASTERNODE_INITIAL: return "Node just started, not yet activated";
-    case ACTIVE_MASTERNODE_SYNC_IN_PROCESS: return "Sync in progress. Must wait until sync is complete to start Masternode";
-    case ACTIVE_MASTERNODE_INPUT_TOO_NEW: return strprintf("Masternode input must have at least %d confirmations", MASTERNODE_MIN_CONFIRMATIONS);
-    case ACTIVE_MASTERNODE_NOT_CAPABLE: return "Not capable masternode: " + notCapableReason;
-    case ACTIVE_MASTERNODE_STARTED: return "Masternode successfully started";
-    default: return "unknown";
+    case ACTIVE_MASTERNODE_INITIAL:
+        return "Node just started, not yet activated";
+    case ACTIVE_MASTERNODE_SYNC_IN_PROCESS:
+        return "Sync in progress. Must wait until sync is complete to start Masternode";
+    case ACTIVE_MASTERNODE_INPUT_TOO_NEW:
+        return strprintf("Masternode input must have at least %d confirmations", MASTERNODE_MIN_CONFIRMATIONS);
+    case ACTIVE_MASTERNODE_NOT_CAPABLE:
+        return "Not capable masternode: " + notCapableReason;
+    case ACTIVE_MASTERNODE_STARTED:
+        return "Masternode successfully started";
+    default:
+        return "unknown";
     }
 }
 
-bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
+bool CActiveMasternode::SendMasternodePing(std::string& errorMessage, CConnman& connman)
 {
     if (status != ACTIVE_MASTERNODE_STARTED) {
         errorMessage = "Masternode is not in a running status";
@@ -196,17 +202,15 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
     LogPrintf("CActiveMasternode::SendMasternodePing() - Relay Masternode Ping vin = %s\n", vin.ToString());
 
     CMasternodePing mnp(vin);
-    if(!mnp.Sign(keyMasternode, pubKeyMasternode))
-    {
+    if (!mnp.Sign(keyMasternode, pubKeyMasternode)) {
         errorMessage = "Couldn't sign Masternode Ping";
         return false;
     }
 
     // Update lastPing for our masternode in Masternode list
     CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn != NULL)
-    {
-        if(pmn->IsPingedWithin(MASTERNODE_PING_SECONDS, mnp.sigTime)){
+    if (pmn) {
+        if (pmn->IsPingedWithin(MASTERNODE_PING_SECONDS, mnp.sigTime)) {
             errorMessage = "Too early to send Masternode Ping";
             return false;
         }
@@ -217,27 +221,26 @@ bool CActiveMasternode::SendMasternodePing(std::string& errorMessage)
         //mnodeman.mapSeenMasternodeBroadcast.lastPing is probably outdated, so we'll update it
         CMasternodeBroadcast mnb(*pmn);
         uint256 hash = mnb.GetHash();
-        if(mnodeman.mapSeenMasternodeBroadcast.count(hash)) mnodeman.mapSeenMasternodeBroadcast[hash].lastPing = mnp;
+        if (mnodeman.mapSeenMasternodeBroadcast.count(hash))
+            mnodeman.mapSeenMasternodeBroadcast[hash].lastPing = mnp;
 
-        mnp.Relay();
+        mnp.Relay(connman);
 
         return true;
-    }
-    else
-    {
+    } else {
         // Seems like we are trying to send a ping while the Masternode is not registered in the network
         errorMessage = "Masternode List doesn't include our Masternode, shutting down Masternode pinging service! " + vin.ToString();
         status = ACTIVE_MASTERNODE_NOT_CAPABLE;
         notCapableReason = errorMessage;
         return false;
     }
-
 }
 
 // when starting a Masternode, this can enable to run as a hot wallet with no funds
 bool CActiveMasternode::EnableHotColdMasterNode(const CTxIn& newVin, const CService& newService)
 {
-    if(!fMasterNode) return false;
+    if (!fMasterNode)
+        return false;
 
     status = ACTIVE_MASTERNODE_STARTED;
 

@@ -54,23 +54,23 @@ void ThreadNodeSync(CConnman& connman)
     static unsigned int c2 = 0;
 
     // try to sync from all available nodes, one step at a time
-    masternodeSync.Process();
-    systemnodeSync.Process();
+    masternodeSync.Process(connman);
+    systemnodeSync.Process(connman);
 
     {
 
         c1++;
 
-        //mnodeman.Check();
+        mnodeman.Check();
 
         // check if we should activate or ping every few minutes,
         // start right after sync is considered to be done
         if (c1 % MASTERNODE_PING_SECONDS == 15)
-            activeMasternode.ManageStatus();
+            activeMasternode.ManageStatus(connman);
 
         if (c1 % 60 == 0) {
             mnodeman.CheckAndRemove();
-            mnodeman.ProcessMasternodeConnections();
+            mnodeman.ProcessMasternodeConnections(connman);
             masternodePayments.CheckAndRemove();
             instantSend.CheckAndRemove();
         }
@@ -80,16 +80,16 @@ void ThreadNodeSync(CConnman& connman)
 
         c2++;
 
-        //snodeman.Check();
+        snodeman.Check();
 
         // check if we should activate or ping every few minutes,
         // start right after sync is considered to be done
         if (c2 % SYSTEMNODE_PING_SECONDS == 15)
-            activeSystemnode.ManageStatus();
+            activeSystemnode.ManageStatus(connman);
 
         if (c2 % 60 == 0) {
             snodeman.CheckAndRemove();
-            snodeman.ProcessSystemnodeConnections();
+            snodeman.ProcessSystemnodeConnections(connman);
             systemnodePayments.CheckAndRemove();
             instantSend.CheckAndRemove();
         }

@@ -19,7 +19,7 @@ class CTxMemPool;
 #define RETURN_ON_CONDITION(condition) if (condition) { return true; }
 
 bool AlreadyHaveMasternodeTypes(const CInv& inv, const CTxMemPool& mempool);
-void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const CTxMemPool& mempool, const CInv& inv, bool& pushed) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+void ProcessGetDataMasternodeTypes(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const CTxMemPool& mempool, const CInv& inv, bool& pushed) LOCKS_EXCLUDED(cs_main);
 bool ProcessMessageMasternodeTypes(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, const CChainParams& chainparams, CTxMemPool& mempool, CConnman* connman, BanMan* banman, const std::atomic<bool>& interruptMsgProc);
 
 #endif // CROWN_MN_PROCESSING_H

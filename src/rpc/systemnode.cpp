@@ -94,7 +94,7 @@ UniValue listsystemnodes(const JSONRPCRequest& request)
             obj.pushKV("outidx", (uint64_t)oIdx);
             obj.pushKV("pubkey", HexStr(sn->pubkey2));
             obj.pushKV("status", strStatus);
-            obj.pushKV("addr", EncodeDestination(PKHash(sn->pubkey.GetID())));
+            obj.pushKV("addr", EncodeDestination(PKHash(sn->pubkey)));
             obj.pushKV("version", sn->protocolVersion);
             obj.pushKV("ipaddr", sn->addr.ToString());
             obj.pushKV("lastseen", (int64_t)sn->lastPing.sigTime);
@@ -173,7 +173,7 @@ UniValue systemnodecurrent(const JSONRPCRequest& request)
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("protocol", (int64_t)winner->protocolVersion);
         obj.pushKV("txhash", winner->vin.prevout.hash.ToString());
-        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey.GetID())));
+        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey)));
         obj.pushKV("lastseen", (winner->lastPing == CSystemnodePing() ? winner->sigTime : (int64_t)winner->lastPing.sigTime));
         obj.pushKV("activeseconds", (winner->lastPing == CSystemnodePing() ? 0 : (int64_t)(winner->lastPing.sigTime - winner->sigTime)));
         return obj;
@@ -206,8 +206,8 @@ void RelaySNB(CSystemnodeBroadcast& snb, const bool fSuccess, int& successful, i
 {
     if (fSuccess) {
         successful++;
-        snodeman.UpdateSystemnodeList(snb);
-        snb.Relay();
+        snodeman.UpdateSystemnodeList(snb, *g_rpc_node->connman);
+        snb.Relay(*g_rpc_node->connman);
     } else {
         failed++;
     }
@@ -299,7 +299,7 @@ UniValue startsystemnode(const JSONRPCRequest& request)
 
         if (activeSystemnode.status != ACTIVE_SYSTEMNODE_STARTED) {
             activeSystemnode.status = ACTIVE_SYSTEMNODE_INITIAL;
-            activeSystemnode.ManageStatus();
+            activeSystemnode.ManageStatus(*g_rpc_node->connman);
             if (fLock)
                 GetMainWallet()->Lock();
         }
@@ -847,8 +847,8 @@ UniValue decodesystemnodebroadcast(const JSONRPCRequest& request)
 
     resultObj.pushKV("vin", snb.vin.prevout.ToString());
     resultObj.pushKV("addr", snb.addr.ToString());
-    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(snb.pubkey.GetID())));
-    resultObj.pushKV("pubkeysystemnode", EncodeDestination(PKHash(snb.pubkey2.GetID())));
+    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(snb.pubkey)));
+    resultObj.pushKV("pubkeysystemnode", EncodeDestination(PKHash(snb.pubkey2)));
     resultObj.pushKV("sigtime", snb.sigTime);
     resultObj.pushKV("sigvalid", snb.VerifySignature() ? "true" : "false");
     resultObj.pushKV("protocolversion", snb.protocolVersion);

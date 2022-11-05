@@ -22,14 +22,13 @@ class CActiveMasternode;
 extern CActiveMasternode activeMasternode;
 
 // Responsible for activating the Masternode and pinging the network
-class CActiveMasternode
-{
+class CActiveMasternode {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
 
     /// Ping Masternode
-    bool SendMasternodePing(std::string& errorMessage);
+    bool SendMasternodePing(std::string& errorMessage, CConnman& connman);
 
 public:
     // Initialized by init.cpp
@@ -52,7 +51,7 @@ public:
     }
 
     /// Manage status of main Masternode
-    void ManageStatus();
+    void ManageStatus(CConnman& connman);
     std::string GetStatus() const;
 
     /// Enable cold wallet mode (run a Masternode with no funds)

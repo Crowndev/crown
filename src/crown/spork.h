@@ -65,7 +65,7 @@ extern CSporkManager sporkManager;
 void ProcessSpork(CNode* pfrom, CConnman* connman, const std::string& strCommand, CDataStream& vRecv);
 int64_t GetSporkValue(int nSporkID);
 bool IsSporkActive(int nSporkID);
-void ExecuteSpork(int nSporkID, int nValue);
+void ExecuteSpork(int nSporkID, int nValue, CConnman& connman);
 void ReprocessBlocks(int nBlocks);
 
 //
@@ -73,8 +73,7 @@ void ReprocessBlocks(int nBlocks);
 // Keeps track of all of the network spork settings
 //
 
-class CSporkMessage
-{
+class CSporkMessage {
 public:
     std::vector<unsigned char> vchSig;
     int nSporkID;
@@ -92,26 +91,23 @@ public:
     }
 };
 
-
-class CSporkManager
-{
+class CSporkManager {
 private:
     std::vector<unsigned char> vchSig;
     std::string strMasterPrivKey;
 
 public:
-
-    CSporkManager() {
+    CSporkManager()
+    {
     }
 
     std::string GetSporkNameByID(int id);
     int GetSporkIDByName(std::string strName);
-    bool UpdateSpork(int nSporkID, int64_t nValue);
+    bool UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman);
     bool SetPrivKey(std::string strPrivKey);
     bool CheckSignature(CSporkMessage& spork);
     bool Sign(CSporkMessage& spork);
-    void Relay(CSporkMessage& msg);
-
+    void Relay(CSporkMessage& msg, CConnman& connman);
 };
 
 #endif

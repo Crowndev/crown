@@ -5,15 +5,15 @@
 #ifndef SYSTEMNODE_SYNC_H
 #define SYSTEMNODE_SYNC_H
 
-#define SYSTEMNODE_SYNC_INITIAL           0
-#define SYSTEMNODE_SYNC_SPORKS            1
-#define SYSTEMNODE_SYNC_LIST              2
-#define SYSTEMNODE_SYNC_SNW               3
-#define SYSTEMNODE_SYNC_FAILED            998
-#define SYSTEMNODE_SYNC_FINISHED          999
+#define SYSTEMNODE_SYNC_INITIAL 0
+#define SYSTEMNODE_SYNC_SPORKS 1
+#define SYSTEMNODE_SYNC_LIST 2
+#define SYSTEMNODE_SYNC_SNW 3
+#define SYSTEMNODE_SYNC_FAILED 998
+#define SYSTEMNODE_SYNC_FINISHED 999
 
-#define SYSTEMNODE_SYNC_TIMEOUT           5
-#define SYSTEMNODE_SYNC_THRESHOLD         2
+#define SYSTEMNODE_SYNC_TIMEOUT 5
+#define SYSTEMNODE_SYNC_THRESHOLD 2
 
 class CSystemnodeSync;
 extern CSystemnodeSync systemnodeSync;
@@ -22,8 +22,7 @@ extern CSystemnodeSync systemnodeSync;
 // CSystemnodeSync : Sync systemnode assets in stages
 //
 
-class CSystemnodeSync
-{
+class CSystemnodeSync {
 public:
     std::map<uint256, int> mapSeenSyncSNB;
     std::map<uint256, int> mapSeenSyncSNW;
@@ -58,13 +57,13 @@ public:
     void AddedSystemnodeWinner(uint256 hash);
     void GetNextAsset();
     std::string GetSyncStatus();
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman* connman);
 
     void Reset();
-    void Process();
+    void Process(CConnman& connman);
     bool IsSynced();
     bool IsBlockchainSynced();
-    void ClearFulfilledRequest();
+    void ClearFulfilledRequest(CConnman& connman);
 };
 
 #endif

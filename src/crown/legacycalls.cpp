@@ -44,7 +44,7 @@ int GetInputAge(const CTxIn& vin)
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
-        const CTxMemPool& mempool = *g_mempool;
+        const CTxMemPool& mempool = *g_rpc_node->mempool;
         LOCK(cs_main);
         LOCK(mempool.cs);
         CCoinsViewCache &viewChain = ::ChainstateActive().CoinsTip();
@@ -68,7 +68,7 @@ int GetInputHeight(const CTxIn& vin)
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
     {
-        const CTxMemPool& mempool = *g_mempool;
+        const CTxMemPool& mempool = *g_rpc_node->mempool;
         LOCK(cs_main);
         LOCK(mempool.cs);
         CCoinsViewCache &viewChain = ::ChainstateActive().CoinsTip();

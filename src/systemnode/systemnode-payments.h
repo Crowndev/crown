@@ -29,19 +29,19 @@ void SNFillBlockPayee(CMutableTransaction& txNew, int64_t nFees, bool &hasMNPaym
 bool SNIsBlockPayeeValid(const CAmount& nValueCreated, const CTransaction& txNew, int nBlockHeight, const uint32_t& nTime, const uint32_t& nTimePrevBlock);
 std::string SNGetRequiredPaymentsString(int nBlockHeight);
 
-
-class CSystemnodePayee
-{
+class CSystemnodePayee {
 public:
     CScript scriptPubKey;
     int nVotes;
 
-    CSystemnodePayee() {
+    CSystemnodePayee()
+    {
         scriptPubKey = CScript();
         nVotes = 0;
     }
 
-    CSystemnodePayee(CScript payee, int nVotesIn) {
+    CSystemnodePayee(CScript payee, int nVotesIn)
+    {
         scriptPubKey = payee;
         nVotes = nVotesIn;
     }
@@ -50,30 +50,32 @@ public:
     {
         READWRITE(obj.scriptPubKey);
         READWRITE(obj.nVotes);
-     }
+    }
 };
 
 // Keep track of votes for payees from systemnodes
-class CSystemnodeBlockPayees
-{
+class CSystemnodeBlockPayees {
 public:
     int nBlockHeight;
     std::vector<CSystemnodePayee> vecPayments;
 
-    CSystemnodeBlockPayees(){
+    CSystemnodeBlockPayees()
+    {
         nBlockHeight = 0;
         vecPayments.clear();
     }
-    CSystemnodeBlockPayees(int nBlockHeightIn) {
+    CSystemnodeBlockPayees(int nBlockHeightIn)
+    {
         nBlockHeight = nBlockHeightIn;
         vecPayments.clear();
     }
 
-    void AddPayee(CScript payeeIn, int nIncrement){
+    void AddPayee(CScript payeeIn, int nIncrement)
+    {
         LOCK(cs_vecSNPayments);
 
         for (auto& payee : vecPayments) {
-            if(payee.scriptPubKey == payeeIn) {
+            if (payee.scriptPubKey == payeeIn) {
                 payee.nVotes += nIncrement;
                 return;
             }
@@ -89,7 +91,7 @@ public:
 
         int nVotes = -1;
         for (auto& p : vecPayments) {
-            if(p.nVotes > nVotes){
+            if (p.nVotes > nVotes) {
                 payee = p.scriptPubKey;
                 nVotes = p.nVotes;
             }
@@ -102,8 +104,9 @@ public:
     {
         LOCK(cs_vecSNPayments);
 
-        for (auto& p : vecPayments){
-            if(p.nVotes >= nVotesReq && p.scriptPubKey == payee) return true;
+        for (auto& p : vecPayments) {
+            if (p.nVotes >= nVotesReq && p.scriptPubKey == payee)
+                return true;
         }
 
         return false;
@@ -116,12 +119,11 @@ public:
     {
         READWRITE(obj.nBlockHeight);
         READWRITE(obj.vecPayments);
-     }
+    }
 };
 
 // for storing the winning payments
-class CSystemnodePaymentWinner
-{
+class CSystemnodePaymentWinner {
 public:
     CTxIn vinSystemnode;
 
@@ -129,19 +131,22 @@ public:
     CScript payee;
     std::vector<unsigned char> vchSig;
 
-    CSystemnodePaymentWinner() {
+    CSystemnodePaymentWinner()
+    {
         nBlockHeight = 0;
         vinSystemnode = CTxIn();
         payee = CScript();
     }
 
-    CSystemnodePaymentWinner(CTxIn vinIn) {
+    CSystemnodePaymentWinner(CTxIn vinIn)
+    {
         nBlockHeight = 0;
         vinSystemnode = vinIn;
         payee = CScript();
     }
 
-    uint256 GetHash(){
+    uint256 GetHash()
+    {
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
         ss << *(CScriptBase*)(&payee);
         ss << nBlockHeight;
@@ -150,10 +155,10 @@ public:
         return ss.GetHash();
     }
 
-    void AddPayee(CScript payeeIn){
+    void AddPayee(CScript payeeIn)
+    {
         payee = payeeIn;
     }
-
 
     SERIALIZE_METHODS(CSystemnodePaymentWinner, obj)
     {
@@ -162,10 +167,11 @@ public:
         READWRITE(obj.payee);
         READWRITE(obj.vchSig);
     }
+
     bool Sign(CKey& keySystemnode, CPubKey& pubKeySystemnode);
-    bool IsValid(CNode* pnode, std::string& strError);
+    bool IsValid(CNode* pnode, std::string& strError, CConnman& connman);
     bool SignatureValid();
-    void Relay();
+    void Relay(CConnman& connman);
 
     std::string ToString()
     {
@@ -183,8 +189,7 @@ public:
 // Keeps track of who should get paid for which blocks
 //
 
-class CSystemnodePayments
-{
+class CSystemnodePayments {
 private:
     int nSyncedFromPeer;
     int nLastBlockHeight;
@@ -194,22 +199,24 @@ public:
     std::map<int, CSystemnodeBlockPayees> mapSystemnodeBlocks;
     std::map<COutPoint, int> mapSystemnodesLastVote;
 
-    CSystemnodePayments() {
+    CSystemnodePayments()
+    {
         nSyncedFromPeer = 0;
         nLastBlockHeight = 0;
     }
     bool AddWinningSystemnode(CSystemnodePaymentWinner& winner);
 
-    void Clear() {
+    void Clear()
+    {
         LOCK2(cs_mapSystemnodeBlocks, cs_mapSystemnodePayeeVotes);
         mapSystemnodeBlocks.clear();
         mapSystemnodePayeeVotes.clear();
     }
 
-    bool ProcessBlock(int nBlockHeight);
+    bool ProcessBlock(int nBlockHeight, CConnman& connman);
     int GetMinSystemnodePaymentsProto() const;
-    void ProcessMessageSystemnodePayments(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
-    void Sync(CNode* node, int nCountNeeded);
+    void ProcessMessageSystemnodePayments(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman* connman);
+    void Sync(CNode* node, int nCountNeeded, CConnman& connman);
     void CheckAndRemove();
     bool IsTransactionValid(const CAmount& nValueCreated, const CTransaction& txNew, int nBlockHeight);
     bool GetBlockPayee(int nBlockHeight, CScript& payee);
