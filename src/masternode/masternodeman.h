@@ -14,16 +14,15 @@
 #include <validation.h>
 #include <masternode/masternode.h>
 
-#define MASTERNODES_DUMP_SECONDS               (15*60)
-#define MASTERNODES_DSEG_SECONDS               (3*60*60)
+#define MASTERNODES_DUMP_SECONDS (15 * 60)
+#define MASTERNODES_DSEG_SECONDS (3 * 60 * 60)
 
 class CMasternodeMan;
 
 extern CMasternodeMan mnodeman;
 void DumpMasternodes();
 
-class CMasternodeMan
-{
+class CMasternodeMan {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
@@ -41,9 +40,9 @@ private:
     std::map<COutPoint, int64_t> mWeAskedForMasternodeListEntry;
 
     // these maps are used for masternode recovery from MASTERNODE_NEW_START_REQUIRED state
-    std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > > mMnbRecoveryRequests;
-    std::map<uint256, std::vector<CMasternodeBroadcast> > mMnbRecoveryGoodReplies;
-    std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
+    std::map<uint256, std::pair<int64_t, std::set<CNetAddr>>> mMnbRecoveryRequests;
+    std::map<uint256, std::vector<CMasternodeBroadcast>> mMnbRecoveryGoodReplies;
+    std::list<std::pair<CService, uint256>> listScheduledMnbRequestConnections;
 
     /// Set when masternodes are added, cleared when CGovernanceManager is notified
     bool fMasternodesAdded;
@@ -80,10 +79,10 @@ public:
     int CountMasternodes(bool fEnabled = false);
 
     /// Add an entry
-    bool Add(const CMasternode &mn);
+    bool Add(const CMasternode& mn);
 
     /// Ask (source) node for mnb
-    void AskForMN(CNode *pnode, const CTxIn &vin);
+    void AskForMN(CNode* pnode, const CTxIn& vin, CConnman& connman);
 
     /// Check all Masternodes
     void Check();
@@ -96,10 +95,10 @@ public:
 
     int CountEnabled(int protocolVersion = -1);
 
-    void DsegUpdate(CNode* pnode);
+    void DsegUpdate(CNode* pnode, CConnman& connman);
 
     /// Find an entry
-    CMasternode* Find(const CScript &payee);
+    CMasternode* Find(const CScript& payee);
     CMasternode* Find(const CTxIn& vin);
     CMasternode* Find(const CPubKey& pubKeyMasternode);
     CMasternode* Find(const CService& addr);
@@ -108,18 +107,22 @@ public:
     CMasternode* GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);
 
     /// Find a random entry
-    CMasternode* FindRandomNotInVec(std::vector<CTxIn> &vecToExclude, int protocolVersion = -1);
+    CMasternode* FindRandomNotInVec(std::vector<CTxIn>& vecToExclude, int protocolVersion = -1);
 
     /// Get the current winner for this block
-    CMasternode* GetCurrentMasterNode(int mod=1, int64_t nBlockHeight=0, int minProtocol=0);
+    CMasternode* GetCurrentMasterNode(int mod = 1, int64_t nBlockHeight = 0, int minProtocol = 0);
 
-    std::vector<CMasternode> GetFullMasternodeVector() { Check(); return vMasternodes; }
+    std::vector<CMasternode> GetFullMasternodeVector()
+    {
+        Check();
+        return vMasternodes;
+    }
 
-    std::vector<std::pair<int, CMasternode> > GetMasternodeRanks(int64_t nBlockHeight, int minProtocol=0);
-    int GetMasternodeRank(const CTxIn &vin, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
-    CMasternode* GetMasternodeByRank(int nRank, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
+    std::vector<std::pair<int, CMasternode>> GetMasternodeRanks(int64_t nBlockHeight, int minProtocol = 0);
+    int GetMasternodeRank(const CTxIn& vin, int64_t nBlockHeight, int minProtocol = 0, bool fOnlyActive = true);
+    CMasternode* GetMasternodeByRank(int nRank, int64_t nBlockHeight, int minProtocol = 0, bool fOnlyActive = true);
 
-    void ProcessMasternodeConnections();
+    void ProcessMasternodeConnections(CConnman& connman);
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman* connman);
 
@@ -131,15 +134,9 @@ public:
     void Remove(CTxIn vin);
 
     /// Update masternode list and maps using provided CMasternodeBroadcast
-    void UpdateMasternodeList(CMasternodeBroadcast mnb);
+    void UpdateMasternodeList(CMasternodeBroadcast mnb, CConnman& connman);
     /// Perform complete check and only then update list and maps
-    bool CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos);
-
-    /**
-     * Called to notify CGovernanceManager that the masternode index has been updated.
-     * Must be called while not holding the CMasternodeMan::cs mutex
-     */
-    void NotifyMasternodeUpdates(CConnman& connman);
+    bool CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos, CConnman& connman);
 };
 
 #endif

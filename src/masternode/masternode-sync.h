@@ -6,18 +6,18 @@
 #ifndef MASTERNODE_SYNC_H
 #define MASTERNODE_SYNC_H
 
-#define MASTERNODE_SYNC_INITIAL           0
-#define MASTERNODE_SYNC_SPORKS            1
-#define MASTERNODE_SYNC_LIST              2
-#define MASTERNODE_SYNC_MNW               3
-#define MASTERNODE_SYNC_BUDGET            4
-#define MASTERNODE_SYNC_BUDGET_PROP       10
-#define MASTERNODE_SYNC_BUDGET_FIN        11
-#define MASTERNODE_SYNC_FAILED            998
-#define MASTERNODE_SYNC_FINISHED          999
+#define MASTERNODE_SYNC_INITIAL 0
+#define MASTERNODE_SYNC_SPORKS 1
+#define MASTERNODE_SYNC_LIST 2
+#define MASTERNODE_SYNC_MNW 3
+#define MASTERNODE_SYNC_BUDGET 4
+#define MASTERNODE_SYNC_BUDGET_PROP 10
+#define MASTERNODE_SYNC_BUDGET_FIN 11
+#define MASTERNODE_SYNC_FAILED 998
+#define MASTERNODE_SYNC_FINISHED 999
 
-#define MASTERNODE_SYNC_TIMEOUT           5
-#define MASTERNODE_SYNC_THRESHOLD         3
+#define MASTERNODE_SYNC_TIMEOUT 5
+#define MASTERNODE_SYNC_THRESHOLD 2
 
 class CMasternodeSync;
 extern CMasternodeSync masternodeSync;
@@ -26,8 +26,7 @@ extern CMasternodeSync masternodeSync;
 // CMasternodeSync : Sync masternode assets in stages
 //
 
-class CMasternodeSync
-{
+class CMasternodeSync {
 public:
     std::map<uint256, int> mapSeenSyncMNB;
     std::map<uint256, int> mapSeenSyncMNW;
@@ -64,18 +63,16 @@ public:
     void AddedBudgetItem(uint256 hash);
     void GetNextAsset();
     std::string GetSyncStatus();
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman* connman);
     bool IsBudgetFinEmpty();
     bool IsBudgetPropEmpty();
 
     void Reset();
-    void Process();
+    void Process(CConnman& connman);
     bool IsSynced();
     bool IsBlockchainSynced();
-    //bool AreSporksSynced() const;
-    void ClearFulfilledRequest();
+    bool AreSporksSynced() const;
+    void ClearFulfilledRequest(CConnman& connman);
 };
-
-void ThreadCheckMasternode(CConnman& connman);
 
 #endif

@@ -84,8 +84,6 @@ public:
     const std::string getAssetName() const;
     const std::string getShortName() const;
 
-    const CScript getIssuingAddress() const;
-
     bool isTransferable() const;
 
     bool isConvertable() const;
@@ -110,7 +108,6 @@ public:
     void setName(const std::string& _sAssetName);
 
     void setShortName(const std::string& _sAssetName);
-    void setIssuingAddress(const CScript& script);
 
 };
 

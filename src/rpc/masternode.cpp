@@ -96,7 +96,7 @@ UniValue listmasternodes(const JSONRPCRequest& request)
             obj.pushKV("outidx", (uint64_t)oIdx);
             obj.pushKV("pubkey", HexStr(mn->pubkey2));
             obj.pushKV("status", strStatus);
-            obj.pushKV("addr", EncodeDestination(PKHash(mn->pubkey.GetID())));
+            obj.pushKV("addr", EncodeDestination(PKHash(mn->pubkey)));
             obj.pushKV("version", mn->protocolVersion);
             obj.pushKV("ipaddr", mn->addr.ToString());
             obj.pushKV("lastseen", (int64_t)mn->lastPing.sigTime);
@@ -175,7 +175,7 @@ UniValue masternodecurrent(const JSONRPCRequest& request)
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("protocol", (int64_t)winner->protocolVersion);
         obj.pushKV("txhash", winner->vin.prevout.hash.ToString());
-        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey.GetID())));
+        obj.pushKV("pubkey", EncodeDestination(PKHash(winner->pubkey)));
         obj.pushKV("lastseen", (winner->lastPing == CMasternodePing() ? winner->sigTime : (int64_t)winner->lastPing.sigTime));
         obj.pushKV("activeseconds", (winner->lastPing == CMasternodePing() ? 0 : (int64_t)(winner->lastPing.sigTime - winner->sigTime)));
         return obj;
@@ -208,8 +208,8 @@ void RelayMNB(CMasternodeBroadcast& mnb, const bool fSuccess, int& successful, i
 {
     if (fSuccess) {
         successful++;
-        mnodeman.UpdateMasternodeList(mnb);
-        mnb.Relay();
+        mnodeman.UpdateMasternodeList(mnb, *g_rpc_node->connman);
+        mnb.Relay(*g_rpc_node->connman);
     } else {
         failed++;
     }
@@ -301,7 +301,7 @@ UniValue startmasternode(const JSONRPCRequest& request)
 
         if (activeMasternode.status != ACTIVE_MASTERNODE_STARTED) {
             activeMasternode.status = ACTIVE_MASTERNODE_INITIAL;
-            activeMasternode.ManageStatus();
+            activeMasternode.ManageStatus(*g_rpc_node->connman);
             if (fLock)
                 GetMainWallet()->Lock();
         }
@@ -519,7 +519,7 @@ UniValue getmasternodestatus(const JSONRPCRequest& request)
         mnObj.pushKV("txid", activeMasternode.vin.prevout.hash.ToString());
         mnObj.pushKV("outputidx", (uint64_t)activeMasternode.vin.prevout.n);
         mnObj.pushKV("netaddr", activeMasternode.service.ToString());
-        mnObj.pushKV("addr", EncodeDestination(PKHash(pmn->pubkey.GetID())));
+        mnObj.pushKV("addr", EncodeDestination(PKHash(pmn->pubkey)));
         mnObj.pushKV("status", activeMasternode.GetStatus());
         return mnObj;
     }
@@ -849,8 +849,8 @@ UniValue decodemasternodebroadcast(const JSONRPCRequest& request)
 
     resultObj.pushKV("vin", mnb.vin.prevout.ToString());
     resultObj.pushKV("addr", mnb.addr.ToString());
-    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(mnb.pubkey.GetID())));
-    resultObj.pushKV("pubkeymasternode", EncodeDestination(PKHash(mnb.pubkey2.GetID())));
+    resultObj.pushKV("pubkeycollateral", EncodeDestination(PKHash(mnb.pubkey)));
+    resultObj.pushKV("pubkeymasternode", EncodeDestination(PKHash(mnb.pubkey2)));
     resultObj.pushKV("sigtime", mnb.sigTime);
     resultObj.pushKV("sigvalid", mnb.VerifySignature() ? "true" : "false");
     resultObj.pushKV("protocolversion", mnb.protocolVersion);

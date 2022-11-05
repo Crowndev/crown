@@ -2570,3 +2570,5 @@ static const CRPCCommand commands[] =
         t.appendCommand(c.name, &c);
     }
 }
+
+NodeContext* g_rpc_node = nullptr;

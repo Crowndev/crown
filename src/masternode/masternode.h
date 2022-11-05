@@ -35,10 +35,8 @@ extern std::map<int64_t, uint256> mapCacheBlockHashes;
 // The Masternode Ping Class : Contains a different serialize method for sending pings from masternodes throughout the network
 //
 
-class CMasternodePing
-{
+class CMasternodePing {
 public:
-
     CTxIn vin;
     uint256 blockHash;
     int64_t sigTime; //mnb message times
@@ -69,10 +67,10 @@ public:
         }
     }
 
-    bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false) const;
+    bool CheckAndUpdate(int& nDos, CConnman& connman, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false);
     bool Sign(const CKey& keyMasternode, const CPubKey& pubKeyMasternode);
-    bool VerifySignature(const CPubKey& pubKeyMasternode, int &nDos) const;
-    void Relay() const;
+    bool VerifySignature(const CPubKey& pubKeyMasternode, int& nDos) const;
+    void Relay(CConnman& connman);
 
     uint256 GetHash() const
     {
@@ -114,16 +112,14 @@ public:
 // The Masternode Class. It contains the input of the 10000 CRW, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
-class CMasternode
-{
+class CMasternode {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
     int64_t lastTimeChecked;
 
 public:
-    enum state
-    {
+    enum state {
         MASTERNODE_ENABLED = 1,
         MASTERNODE_EXPIRED = 2,
         MASTERNODE_VIN_SPENT = 3,
@@ -158,7 +154,6 @@ public:
     CMasternode();
     CMasternode(const CMasternode& other);
     CMasternode(const CMasternodeBroadcast& mnb);
-
 
     void swap(CMasternode& first, CMasternode& second) // nothrow
     {
@@ -229,7 +224,7 @@ public:
     static CollateralStatus CheckCollateral(const COutPoint& outpoint, int& nHeightRet);
 
     int64_t SecondsSincePayment() const;
-    bool UpdateFromNewBroadcast(const CMasternodeBroadcast& mnb);
+    bool UpdateFromNewBroadcast(CMasternodeBroadcast& mnb, CConnman& connman);
     void Check(bool forceCheck = false);
 
     bool IsBroadcastedWithin(int seconds) const
@@ -242,8 +237,8 @@ public:
         now == -1 ? now = GetAdjustedTime() : now;
 
         return (lastPing == CMasternodePing())
-                ? false
-                : now - lastPing.sigTime < seconds;
+            ? false
+            : now - lastPing.sigTime < seconds;
     }
 
     void Disable()
@@ -261,9 +256,10 @@ public:
 
     int GetMasternodeInputAge()
     {
-        if(::ChainActive().Tip() == NULL) return 0;
+        if (::ChainActive().Tip() == nullptr)
+            return 0;
 
-        if(cacheInputAge == 0){
+        if (cacheInputAge == 0) {
             cacheInputAge = GetUTXOConfirmations(vin.prevout);
             cacheInputAgeBlock = ::ChainActive().Tip()->nHeight;
         }
@@ -275,11 +271,16 @@ public:
     {
         std::string strStatus = "ACTIVE";
 
-        if(activeState == CMasternode::MASTERNODE_ENABLED) strStatus   = "ENABLED";
-        if(activeState == CMasternode::MASTERNODE_EXPIRED) strStatus   = "EXPIRED";
-        if(activeState == CMasternode::MASTERNODE_VIN_SPENT) strStatus = "VIN_SPENT";
-        if(activeState == CMasternode::MASTERNODE_REMOVE) strStatus    = "REMOVE";
-        if(activeState == CMasternode::MASTERNODE_POS_ERROR) strStatus = "POS_ERROR";
+        if (activeState == CMasternode::MASTERNODE_ENABLED)
+            strStatus = "ENABLED";
+        if (activeState == CMasternode::MASTERNODE_EXPIRED)
+            strStatus = "EXPIRED";
+        if (activeState == CMasternode::MASTERNODE_VIN_SPENT)
+            strStatus = "VIN_SPENT";
+        if (activeState == CMasternode::MASTERNODE_REMOVE)
+            strStatus = "REMOVE";
+        if (activeState == CMasternode::MASTERNODE_POS_ERROR)
+            strStatus = "POS_ERROR";
 
         return strStatus;
     }
@@ -293,23 +294,21 @@ public:
 // The Masternode Broadcast Class : Contains a different serialize method for sending masternodes through the network
 //
 
-class CMasternodeBroadcast : public CMasternode
-{
+class CMasternodeBroadcast : public CMasternode {
 public:
     CMasternodeBroadcast();
     CMasternodeBroadcast(CService newAddr, CTxIn newVin, CPubKey newPubkey, CPubKey newPubkey2, int protocolVersionIn);
     CMasternodeBroadcast(const CMasternode& mn);
 
     /// Create Masternode broadcast, needs to be relayed manually after that
-    static bool Create(CTxIn txin, CService service, CKey keyCollateral, CPubKey pubKeyCollateral, CKey keyMasternodeNew, CPubKey pubKeyMasternodeNew, bool fSignOver, std::string &strErrorMessage, CMasternodeBroadcast &mnb);
-    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CMasternodeBroadcast &mnb, bool fOffline = false);
+    static bool Create(CTxIn txin, CService service, CKey keyCollateral, CPubKey pubKeyCollateral, CKey keyMasternodeNew, CPubKey pubKeyMasternodeNew, bool fSignOver, std::string& strErrorMessage, CMasternodeBroadcast& mnb);
+    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorMessage, CMasternodeBroadcast& mnb, bool fOffline = false);
 
-
-    bool CheckAndUpdate(int& nDoS) const;
-    bool CheckInputsAndAdd(int& nDos) const;
+    bool CheckAndUpdate(int& nDoS, CConnman& connman);
+    bool CheckInputsAndAdd(int& nDos, CConnman& connman);
     bool Sign(const CKey& keyCollateralAddress);
     bool VerifySignature() const;
-    void Relay() const;
+    void Relay(CConnman& connman) const;
 
     SERIALIZE_METHODS(CMasternodeBroadcast, obj)
     {

@@ -1015,6 +1015,4 @@ struct DisconnectedBlockTransactions {
     }
 };
 
-extern CTxMemPool *g_mempool;
-
 #endif // CROWN_TXMEMPOOL_H

@@ -22,14 +22,13 @@ class CActiveSystemnode;
 extern CActiveSystemnode activeSystemnode;
 
 // Responsible for activating the Systemnode and pinging the network
-class CActiveSystemnode
-{
+class CActiveSystemnode {
 private:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
 
     /// Ping Systemnode
-    bool SendSystemnodePing(std::string& errorMessage);
+    bool SendSystemnodePing(std::string& errorMessage, CConnman& connman);
 
 public:
     // Initialized by init.cpp
@@ -52,7 +51,7 @@ public:
     }
 
     /// Manage status of main Systemnode
-    void ManageStatus();
+    void ManageStatus(CConnman& connman);
     std::string GetStatus();
 
     /// Enable cold wallet mode (run a Systemnode with no funds)

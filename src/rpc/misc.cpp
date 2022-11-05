@@ -854,8 +854,8 @@ static RPCHelpMan spork()
         int64_t nValue = request.params[1].get_int64();
 
         //broadcast new spork
-        if(sporkManager.UpdateSpork(nSporkID, nValue)){
-            ExecuteSpork(nSporkID, nValue);
+        if(sporkManager.UpdateSpork(nSporkID, nValue, *g_rpc_node->connman)){
+            ExecuteSpork(nSporkID, nValue, *g_rpc_node->connman);
             ret.pushKV("result", "success");
         } else {
             ret.pushKV("result", "failure");
