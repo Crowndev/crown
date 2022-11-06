@@ -25,7 +25,7 @@
 #include <crown/instantx.h>
 #include <logging.h>
 #include <logging/timer.h>
-
+#include <node/context.h>
 #include <node/ui_interface.h>
 #include <optional>
 #include <policy/fees.h>
@@ -35,6 +35,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <random.h>
+#include <rpc/blockchain.h>
 #include <reverse_iterator.h>
 #include <script/script.h>
 #include <script/sigcache.h>
@@ -1061,7 +1062,6 @@ bool MemPoolAccept::ConsensusScriptChecks(ATMPArgs& args, Workspace& ws, Precomp
     // invalid blocks (using TestBlockValidity), however allowing such
     // transactions into the mempool can be exploited as a DoS attack.
     unsigned int currentBlockScriptVerifyFlags = GetBlockScriptFlags(::ChainActive().Tip(), chainparams.GetConsensus());
-    LogPrintf("%s \n", tx.ToString());
     if (!CheckInputsFromMempoolAndCache(tx, state, m_view, m_pool, currentBlockScriptVerifyFlags, txdata)) {
         return error("%s: BUG! PLEASE REPORT THIS! CheckInputScripts failed against latest-block but not STANDARD flags %s, %s",
                 __func__, hash.ToString(), state.ToString());
@@ -1842,9 +1842,6 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
     bool fClean = true;
 
     if (view.HaveCoin(out)) fClean = false; // overwriting transaction output
-
-    if(!fClean)
-        LogPrintf("%s PROBLEM %s\n", __func__, !fClean ? "true": "false");
 
     if (undo.nHeight == 0) {
         // Missing undo metadata (height and coinbase). Older versions included this
@@ -4586,13 +4583,13 @@ bool ChainstateManager::ProcessNewBlock(const CChainParams& chainparams, const s
 
         nHeight = pindex->nHeight;
     }
-/*
+
     if (masternodeSync.IsSynced() && systemnodeSync.IsSynced()) {
         masternodePayments.ProcessBlock(nHeight + 10, *g_rpc_node->connman);
         systemnodePayments.ProcessBlock(nHeight + 10, *g_rpc_node->connman);
         budget.NewBlock(*g_rpc_node->connman);
     }
-*/
+
     NotifyHeaderTip();
 
     BlockValidationState state; // Only used to report errors, not invalidity - ignore it
