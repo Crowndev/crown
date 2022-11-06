@@ -1,7 +1,7 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 18)
-define(_CLIENT_VERSION_BUILD, 66)
+define(_CLIENT_VERSION_BUILD, 69)
 define(_CLIENT_VERSION_RC, )
 define(_CLIENT_VERSION_IS_RELEASE, false)
 define(_COPYRIGHT_YEAR, 2022)
@@ -70,8 +70,8 @@ esac
 dnl Require C++17 compiler (no GNU extensions)
 AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 
-dnl Check if -latomic is required for <std::atomic>
-CHECK_ATOMIC
+dnl check if additional link flags are required for std::filesystem
+CHECK_FILESYSTEM
 
 dnl Unless the user specified OBJCXX, force it to be the same as CXX. This ensures
 dnl that we get the same -std flags for both.
@@ -764,6 +764,9 @@ AC_C_BIGENDIAN
 dnl Check for pthread compile/link requirements
 AX_PTHREAD
 
+dnl Check if -latomic is required for <std::atomic>
+CHECK_ATOMIC
+
 dnl The following macro will add the necessary defines to crown-config.h, but
 dnl they also need to be passed down to any subprojects. Pull the results out of
 dnl the cache and add them to CPPFLAGS.
@@ -820,22 +823,24 @@ fi
 dnl All versions of gcc that we commonly use for building are subject to bug
 dnl https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90348. To work around that, set
 dnl -fstack-reuse=none for all gcc builds. (Only gcc understands this flag)
-AX_CHECK_COMPILE_FLAG([-fstack-reuse=none],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-reuse=none"])
+AX_CHECK_COMPILE_FLAG([-fstack-reuse=none], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-reuse=none"])
 if test x$use_hardening != xno; then
   use_hardening=yes
-  AX_CHECK_COMPILE_FLAG([-Wstack-protector],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -Wstack-protector"])
-  AX_CHECK_COMPILE_FLAG([-fstack-protector-all],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-protector-all"])
+  AX_CHECK_COMPILE_FLAG([-Wstack-protector], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -Wstack-protector"])
+  AX_CHECK_COMPILE_FLAG([-fstack-protector-all], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-protector-all"])
 
-  dnl -fcf-protection used with Clang 7 causes ld to emit warnings:
-  dnl ld: error: ... <corrupt x86 feature size: 0x8>
-  dnl Use CHECK_LINK_FLAG & --fatal-warnings to ensure we wont use the flag in this case.
-  AX_CHECK_LINK_FLAG([-fcf-protection=full],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fcf-protection=full"],, [[$LDFLAG_WERROR]])
+  AX_CHECK_COMPILE_FLAG([-fcf-protection=full], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fcf-protection=full"])
 
-  dnl stack-clash-protection does not work properly when building for Windows.
-  dnl We use the test case from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458
-  dnl to determine if it can be enabled.
-  AX_CHECK_COMPILE_FLAG([-fstack-clash-protection],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-clash-protection"],[],["-O0"],
-    [AC_LANG_SOURCE([[class D {public: unsigned char buf[32768];}; int main() {D d; return 0;}]])])
+  case $host in
+    *mingw*)
+      dnl stack-clash-protection doesn't currently work, and likely should just be skipped for Windows.
+      dnl See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458 for more details.
+      ;;
+    *)
+      AX_CHECK_COMPILE_FLAG([-fstack-clash-protection], [HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-clash-protection"], [], [$CXXFLAG_WERROR])
+      ;;
+  esac
+
 
   dnl When enable_debug is yes, all optimizations are disabled.
   dnl However, FORTIFY_SOURCE requires that there is some level of optimization, otherwise it does nothing and just creates a compiler warning.
