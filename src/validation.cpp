@@ -25,7 +25,7 @@
 #include <crown/instantx.h>
 #include <logging.h>
 #include <logging/timer.h>
-
+#include <node/context.h>
 #include <node/ui_interface.h>
 #include <optional>
 #include <policy/fees.h>
