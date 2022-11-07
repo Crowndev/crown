@@ -64,17 +64,25 @@ public:
 
             ContractRecord rec(QString::fromStdString(x.first));
             CContract contract = x.second->second.contract;
-            CTxDestination dest;
-            ExtractDestination(GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), dest);
-
             rec.sContractName = QString::fromStdString(contract.asset_name);
             rec.sContractShortName = QString::fromStdString(contract.asset_symbol);
-            rec.issuer = QString::fromStdString(contract.sIssuingaddress);
+
+            CTxDestination address = DecodeDestination(contract.sIssuingaddress);
+            CScript script = GetScriptForDestination(address);
+            QString issuer = "";
+            if (ExtractDestination(script, address)){
+                issuer = QString::fromStdString(EncodeDestination(address));
+            }
+            else
+            {
+                issuer = QString::fromStdString(contract.sIssuingaddress);
+            }
+            rec.issuer = issuer;
             rec.contract_url = QString::fromStdString(contract.contract_url);
             rec.description = QString::fromStdString(contract.description);
             rec.website_url = QString::fromStdString(contract.website_url);
             rec.scriptcode = QString::fromStdString(HexStr(contract.scriptcode));
-            bool minew = walletModel->IsMine(dest);
+            bool minew = walletModel->IsMine(address);
             if(minew)
                 minecount++;
             rec.mine = minew;
@@ -143,31 +151,31 @@ QVariant ContractTableModel::data(const QModelIndex &index, int role) const
 {
     if(!index.isValid())
         return QVariant();
-        
-    if (role == Qt::DisplayRole) {
-        
-		ContractRecord *rec = static_cast<ContractRecord*>(index.internalPointer());
 
-		switch (index.column())
-		{
-			case NameRole:
-				return rec->sContractName;
-			case ShortnameRole:
-				return rec->sContractShortName;
-			case ContractURLRole:
-				return rec->contract_url;
-			case WebsiteURLRole:
-				return rec->website_url;
-			case IssuerRole:
-				return rec->issuer;
-			case DescriptionRole:
-				return rec->description;
-			case ScriptRole:
-				return rec->scriptcode;
-			default:
-				return QVariant();
-		}
-	}
+    if (role == Qt::DisplayRole) {
+
+        ContractRecord *rec = static_cast<ContractRecord*>(index.internalPointer());
+
+        switch (index.column())
+        {
+            case NameRole:
+                return rec->sContractName;
+            case ShortnameRole:
+                return rec->sContractShortName;
+            case ContractURLRole:
+                return rec->contract_url;
+            case WebsiteURLRole:
+                return rec->website_url;
+            case IssuerRole:
+                return rec->issuer;
+            case DescriptionRole:
+                return rec->description;
+            case ScriptRole:
+                return rec->scriptcode;
+            default:
+                return QVariant();
+        }
+    }
     return QVariant();
 
 }

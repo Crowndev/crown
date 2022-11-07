@@ -2413,15 +2413,15 @@ std::optional<COutput> CWallet::FindCollateralOutput(uint256 hash) const
                 std::set<uint256> trusted_parents;
 
                 std::unique_ptr<SigningProvider> provider = GetSolvingProvider(txout.scriptPubKey);
-				bool safeTx = IsTrusted(*tx, trusted_parents);
+                bool safeTx = IsTrusted(*tx, trusted_parents);
 
-				if (nDepth == 0 && tx->mapValue.count("replaces_txid")) {
-					safeTx = false;
-				}
+                if (nDepth == 0 && tx->mapValue.count("replaces_txid")) {
+                    safeTx = false;
+                }
 
-				if (nDepth == 0 && tx->mapValue.count("replaced_by_txid")) {
-					safeTx = false;
-				}
+                if (nDepth == 0 && tx->mapValue.count("replaced_by_txid")) {
+                    safeTx = false;
+                }
                 bool solvable = provider ? IsSolvable(*provider, txout.scriptPubKey) : false;
                 bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && true);
 
@@ -2520,10 +2520,10 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
 
             if (txout.nValue < nMinimumAmount || txout.nValue > nMaximumAmount)
                 continue;
-                
+
             CAsset asset = (entry.second.tx->nVersion >= TX_ELE_VERSION ? entry.second.tx->vpout[i].nAsset : Params().GetConsensus().subsidy_asset);
-                
-            if(asset_filter != CAsset() && asset != asset_filter)			
+
+            if(asset_filter != CAsset() && asset != asset_filter)
                 continue;
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
@@ -3254,6 +3254,11 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
 
 bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
 {
+    if (IsLocked()){
+        strFailReason = "Wallet Locked";
+        return false;
+    }
+
     LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
     LOCK(cs_wallet);
 
@@ -3368,7 +3373,10 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
 
 bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited)
 {
-
+    if (IsLocked()){
+        strFailReason = "Wallet Locked";
+        return false;
+    }
     // first check that the asset name and symbol are not taken
     // or reserved
 
@@ -3538,7 +3546,10 @@ bool CWallet::CreateTransactionInternal(
         bool sign, const CTxDataBase& datar, AvailableCoinsType coin_type, int extraPayloadSize)
 {
     bool fUseInstantX = UseInstantSend();
-
+    if (IsLocked()){
+        error = _("Wallet Locked");
+        return false;
+    }
     CAmountMap mapValue;
     const OutputType change_type = TransactionChangeType(coin_control.m_change_type ? *coin_control.m_change_type : m_default_change_type, vecSend);
     ReserveDestination reservedest(this, change_type);
