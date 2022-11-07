@@ -267,11 +267,11 @@ static RPCHelpMan getnewaddress()
         label = LabelFromValue(request.params[0]);
 
     OutputType output_type = pwallet->m_default_address_type;
-    if (!request.params[1].isNull()) {
-        if (!ParseOutputType(request.params[1].get_str(), output_type)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[1].get_str()));
-        }
-    }
+    //if (!request.params[1].isNull()) {
+    //    if (!ParseOutputType(request.params[1].get_str(), output_type)) {
+    //        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[1].get_str()));
+    //    }
+    //}
 
     CTxDestination dest;
     std::string error;
@@ -701,12 +701,12 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
             continue;
         }
         for (size_t o = 0; o < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()); o++) {
-            const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);        
-			CTxDestination address;
-			if (ExtractDestination(txout.scriptPubKey, address) && wallet.IsMine(address) && address_set.count(address)) {
-				amount += txout.nValue;
-			}
-		}
+            const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[o] : wtx.tx->vout[o]);
+            CTxDestination address;
+            if (ExtractDestination(txout.scriptPubKey, address) && wallet.IsMine(address) && address_set.count(address)) {
+                amount += txout.nValue;
+            }
+        }
     }
 
     return amount;
@@ -2998,7 +2998,7 @@ static RPCHelpMan createwallet()
     WalletContext& context = EnsureWalletContext(request.context);
     uint64_t flags = 0;
     if (!request.params[1].isNull() && request.params[1].get_bool()) {
-        flags |= WALLET_FLAG_DISABLE_PRIVATE_KEYS;
+       // flags |= WALLET_FLAG_DISABLE_PRIVATE_KEYS;
     }
 
     if (!request.params[2].isNull() && request.params[2].get_bool()) {
@@ -3022,7 +3022,7 @@ static RPCHelpMan createwallet()
 #ifndef USE_SQLITE
         throw JSONRPCError(RPC_WALLET_ERROR, "Compiled without sqlite support (required for descriptor wallets)");
 #endif
-        flags |= WALLET_FLAG_DESCRIPTORS;
+        //flags |= WALLET_FLAG_DESCRIPTORS;
         warnings.emplace_back(Untranslated("Wallet is an experimental descriptor wallet"));
     }
 

@@ -60,6 +60,27 @@ void NewAssetPage::on_Create_clicked()
 
     QString format = "dd-MM-yyyy hh:mm:ss";
     QDateTime expiryDate = QDateTime::fromString(expiry, format);
+    WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
+    if(encStatus == walletModel->Locked) {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if(!ctx.isValid()) {
+            return;
+        }
+		if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, expiryDate, strFailReason)){
+			QMessageBox* msgbox = new QMessageBox(this);
+			msgbox->setWindowTitle("Note");
+			msgbox->setText(QString::fromStdString(strFailReason));
+			msgbox->open();
+		}
+		else {
+			QMessageBox* msgbox = new QMessageBox(this);
+			msgbox->setWindowTitle("Note");
+			msgbox->setText("Success");
+			msgbox->open();
+			close();
+		}
+        return;
+    }
 
     if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, expiryDate, strFailReason)){
         QMessageBox* msgbox = new QMessageBox(this);

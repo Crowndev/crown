@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>364</width>
-    <height>249</height>
+    <width>376</width>
+    <height>256</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -79,7 +79,7 @@
       <item>
        <widget class="QCheckBox" name="disable_privkeys_checkbox">
         <property name="enabled">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="toolTip">
          <string>Disable private keys for this wallet. Wallets with private keys disabled will have no private keys and cannot have an HD seed or imported private keys. This is ideal for watch-only wallets.</string>
@@ -101,6 +101,9 @@
       </item>
       <item>
        <widget class="QCheckBox" name="descriptor_checkbox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="toolTip">
          <string>Use descriptors for scriptPubKey management</string>
         </property>

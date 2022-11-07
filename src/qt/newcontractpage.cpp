@@ -42,7 +42,27 @@ void NewContractPage::on_Create_clicked()
     QString script  = getscript();
     qWarning() << name << " " << shortname << " " << chainID << " " << website_url << " " << contract_url << " " << description << " " << script;
     std::string strFailReason;
-
+    WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
+    if(encStatus == walletModel->Locked) {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if(!ctx.isValid()) {
+            return;
+        }
+        if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
+            QMessageBox* msgbox = new QMessageBox(this);
+            msgbox->setWindowTitle("Note");
+            msgbox->setText(QString::fromStdString(strFailReason));
+            msgbox->open();
+        }
+        else {
+            QMessageBox* msgbox = new QMessageBox(this);
+            msgbox->setWindowTitle("Note");
+            msgbox->setText("Success");
+            msgbox->open();
+            close();
+        }
+        return;
+    }
     if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
         QMessageBox* msgbox = new QMessageBox(this);
         msgbox->setWindowTitle("Note");

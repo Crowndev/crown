@@ -466,7 +466,7 @@ crown_qt_apk: FORCE
 	tar xf $(QT_BASE_PATH) -C qt/android/src/ $(QT_BASE_TLD)src/android/jar/src --strip-components=5
 	tar xf $(QT_BASE_PATH) -C qt/android/src/ $(QT_BASE_TLD)src/android/java/src --strip-components=5
 	cp qt/crown-qt $(APK_LIB_DIR)/libcrown-qt_$(ANDROID_ARCH).so
-	cd qt/android && gradle wrapper
+	cd qt/android && gradle wrapper --gradle-version=6.7.1
 	cd qt/android && ./gradlew build
 
 ui_%.h: %.ui
