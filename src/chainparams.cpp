@@ -155,8 +155,8 @@ public:
         nPruneAfterHeight = 100000;
         nAuxpowChainId = 20;
         nChainStallDuration = 60*60;
-        m_assumed_blockchain_size = 350;
-        m_assumed_chain_state_size = 6;
+        m_assumed_blockchain_size = 9;
+        m_assumed_chain_state_size = 1;
         nMasternodeCollateral = 10000 * COIN;
         nSystemnodeCollateral = 500 * COIN;
         nStartMasternodePayments = 1403728576;
