@@ -254,6 +254,7 @@ static void Strengthen(const unsigned char (&seed)[32], int microseconds, CSHA51
 /** Fallback: get 32 bytes of system entropy from /dev/urandom. The most
  * compatible way to get cryptographic randomness on UNIX-ish platforms.
  */
+#include <unistd.h>
 static void GetDevURandom(unsigned char *ent32)
 {
     int f = open("/dev/urandom", O_RDONLY);

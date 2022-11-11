@@ -11,8 +11,8 @@ class CreateMasternodeDialog : public CreateNodeDialog
     Q_OBJECT
 
 public:
-    explicit CreateMasternodeDialog(QWidget *parent = 0)
-        : CreateNodeDialog(parent)
+    explicit CreateMasternodeDialog(const PlatformStyle *_platformStyle, QWidget *parent = 0)
+        : CreateNodeDialog(_platformStyle, parent)
     {
         setWindowTitle("Create a new Masternode");
     }

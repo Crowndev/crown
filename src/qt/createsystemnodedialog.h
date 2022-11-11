@@ -11,8 +11,8 @@ class CreateSystemnodeDialog : public CreateNodeDialog
     Q_OBJECT
 
 public:
-    explicit CreateSystemnodeDialog(QWidget *parent = 0)
-        : CreateNodeDialog(parent)
+    explicit CreateSystemnodeDialog(const PlatformStyle *_platformStyle, QWidget *parent = 0)
+        : CreateNodeDialog(_platformStyle, parent)
     {
         setWindowTitle("Create a new Systemnode");
     }

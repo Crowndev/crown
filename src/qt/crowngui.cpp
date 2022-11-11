@@ -287,21 +287,15 @@ void CrownGUI::createActions()
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    masternodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/masternode"), tr("&Masternodes"), this);
-    masternodeAction->setStatusTip(tr("Browse masternodes"));
-    masternodeAction->setToolTip(masternodeAction->statusTip());
-    masternodeAction->setCheckable(true);
-    tabGroup->addAction(masternodeAction);
-
-    systemnodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/systemnode"), tr("&Systemnodes"), this);
-    systemnodeAction->setStatusTip(tr("Browse systemnodes"));
-    systemnodeAction->setToolTip(systemnodeAction->statusTip());
-    systemnodeAction->setCheckable(true);
-    tabGroup->addAction(systemnodeAction);
+    nodeManagerAction = new QAction(platformStyle->SingleColorIcon(":/icons/masternode"), tr("&Node Manager"), this);
+    nodeManagerAction->setStatusTip(tr("Manage Nodes"));
+    nodeManagerAction->setToolTip(nodeManagerAction->statusTip());
+    nodeManagerAction->setCheckable(true);
+    tabGroup->addAction(nodeManagerAction);
 
     assetManagerAction = new QAction(platformStyle->SingleColorIcon(":/icons/address-book"), tr("&Asset Manager"), this);
     assetManagerAction->setStatusTip(tr("Manage Assets"));
-    assetManagerAction->setToolTip(systemnodeAction->statusTip());
+    assetManagerAction->setToolTip(assetManagerAction->statusTip());
     assetManagerAction->setCheckable(true);
     tabGroup->addAction(assetManagerAction);
 
@@ -321,10 +315,8 @@ void CrownGUI::createActions()
     connect(receiveCoinsMenuAction, &QAction::triggered, this, &CrownGUI::gotoReceiveCoinsPage);
     connect(historyAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(historyAction, &QAction::triggered, this, &CrownGUI::gotoHistoryPage);
-    connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
-    connect(masternodeAction, &QAction::triggered, this, &CrownGUI::gotoMasternodePage);
-    connect(systemnodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
-    connect(systemnodeAction, &QAction::triggered, this, &CrownGUI::gotoSystemnodePage);
+    connect(nodeManagerAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(nodeManagerAction, &QAction::triggered, this, &CrownGUI::gotoNodeManager);
     connect(assetManagerAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(assetManagerAction, &QAction::triggered, this, &CrownGUI::gotoAssetManager);
 
@@ -586,8 +578,7 @@ void CrownGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(masternodeAction);
-        toolbar->addAction(systemnodeAction);
+        toolbar->addAction(nodeManagerAction);
         toolbar->addAction(assetManagerAction);
         overviewAction->setChecked(true);
 
@@ -777,8 +768,7 @@ void CrownGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-    masternodeAction->setEnabled(enabled);
-    systemnodeAction->setEnabled(enabled);
+    nodeManagerAction->setEnabled(enabled);
     assetManagerAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -913,16 +903,10 @@ void CrownGUI::gotoHistoryPage()
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
 
-void CrownGUI::gotoMasternodePage()
+void CrownGUI::gotoNodeManager()
 {
-    masternodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoMasternodePage();
-}
-
-void CrownGUI::gotoSystemnodePage()
-{
-    systemnodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoSystemnodePage();
+    nodeManagerAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoNodeManager();
 }
 
 void CrownGUI::gotoAssetManager()

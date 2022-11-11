@@ -23,7 +23,7 @@
 #include <qt/createsystemnodedialog.h>
 #include <qt/createmasternodedialog.h>
 #include <qt/assetmanagerpage.h>
-
+#include <qt/nodemanager.h>
 #include <key_io.h>
 
 #include <interfaces/node.h>
@@ -77,17 +77,14 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
-    masternodeListPage = new MasternodeList(platformStyle);
-    systemnodeListPage = new SystemnodeList(platformStyle);
-    
+    nodeManager = new NodeManager(platformStyle, this);  
     assetManagerPage = new AssetManagerPage(platformStyle);
 
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
-    addWidget(masternodeListPage);
-    addWidget(systemnodeListPage);
+    addWidget(nodeManager);
     addWidget(assetManagerPage);
 
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
@@ -121,8 +118,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
 
     overviewPage->setClientModel(_clientModel);
     sendCoinsPage->setClientModel(_clientModel);
-    masternodeListPage->setClientModel(_clientModel);
-    systemnodeListPage->setClientModel(_clientModel);
+    nodeManager->setClientModel(_clientModel);
     if (walletModel) walletModel->setClientModel(_clientModel);
 }
 
@@ -137,8 +133,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel ? _walletModel->getAddressTableModel() : nullptr);
     usedSendingAddressesPage->setModel(_walletModel ? _walletModel->getAddressTableModel() : nullptr);
-    masternodeListPage->setWalletModel(_walletModel);
-    systemnodeListPage->setWalletModel(_walletModel);
+    nodeManager->setWalletModel(_walletModel);
     assetManagerPage->setWalletModel(_walletModel, clientModel);
     if (_walletModel)
     {
@@ -167,18 +162,18 @@ void WalletView::addSystemnode(CNodeEntry nodeEntry)
 {
     systemnodeConfig.add(nodeEntry);
     systemnodeConfig.write();
-    Q_EMIT gotoSystemnodePage();
-    systemnodeListPage->updateMyNodeList(true);
-    systemnodeListPage->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
+    Q_EMIT gotoNodeManager();
+    nodeManager->updateMyNodeList(true);
+    nodeManager->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
 }
 
 void WalletView::addMasternode(CNodeEntry nodeEntry)
 {
     masternodeConfig.add(nodeEntry);
     masternodeConfig.write();
-    Q_EMIT gotoMasternodePage();
-    masternodeListPage->updateMyNodeList(true);
-    masternodeListPage->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
+    Q_EMIT gotoNodeManager();
+    nodeManager->updateMyNodeList(true);
+    nodeManager->selectAliasRow(QString::fromStdString(nodeEntry.getAlias()));
 }
 
 void WalletView::checkAndCreateNode(const COutput& out)
@@ -196,23 +191,23 @@ void WalletView::checkAndCreateNode(const COutput& out)
         return;
     }
 
-    CreateNodeDialog *dialog = new CreateSystemnodeDialog(this);
+    CreateNodeDialog *dialog = new CreateSystemnodeDialog(platformStyle, this);
     QString title = tr("Payment to yourself - ") +
         CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), credit);
     QString body = tr("Do you want to create a new ");
     if (systemnodePayment)
     {
-        if (systemnodeListPage->getSendCollateralDialog()->fAutoCreate) {
+        if (nodeManager->getSendCollateralDialog()->fAutoCreate) {
             return;
         }
         body += "Systemnode?";
-        dialog = new CreateSystemnodeDialog(this);
+        dialog = new CreateSystemnodeDialog(platformStyle, this);
     } else if (masternodePayment) {
-        if (masternodeListPage->getSendCollateralDialog()->fAutoCreate) {
+        if (nodeManager->getSendCollateralDialog()->fAutoCreate) {
             return;
         }
         body += "Masternode?";
-        dialog = new CreateMasternodeDialog(this);
+        dialog = new CreateMasternodeDialog(platformStyle, this);
     }
     // Display message box
     QMessageBox::StandardButton retval = QMessageBox::question(this, title, body,
@@ -292,14 +287,9 @@ void WalletView::gotoHistoryPage()
     setCurrentWidget(transactionsPage);
 }
 
-void WalletView::gotoMasternodePage()
+void WalletView::gotoNodeManager()
 {
-    setCurrentWidget(masternodeListPage);
-}
-
-void WalletView::gotoSystemnodePage()
-{
-    setCurrentWidget(systemnodeListPage);
+    setCurrentWidget(nodeManager);
 }
 
 void WalletView::gotoReceiveCoinsPage()

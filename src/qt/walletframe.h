@@ -76,10 +76,7 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to masternode manager page */
-    void gotoMasternodePage();
-    /** Switch to systemnode manager page */
-    void gotoSystemnodePage();
+    void gotoNodeManager();
     
     void gotoAssetManager();
 

@@ -175,7 +175,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vpout[0].scriptPubKey = scriptPubKeyIn;
 
     if (fProofOfStake && nHeight < Params().PoSStartHeight())
-        return NULL;
+        return nullptr;
 
     if (fProofOfStake) {
         pblock->nTime = GetAdjustedTime();
@@ -185,10 +185,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         uint32_t nTime = pblock->nTime;
         uint32_t nBits = pblock->nBits;
         StakePointer stakePointer;
-
-        // Slow down blocks so that the testnet chain does not burn through the stakepointers too quick
-        if (Params().NetworkIDString() == CBaseChainParams::TESTNET && GetAdjustedTime() - ::ChainActive().Tip()->nTime < 30)
-            UninterruptibleSleep(std::chrono::milliseconds(30000));
 
         if (currentNode.CreateCoinStake(nHeight, nBits, nTime, txCoinStake, nTxNewTime, stakePointer)) {
             pblock->nTime = nTxNewTime;
@@ -379,8 +375,8 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
     for (CTxMemPool::txiter it : package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
-       // if (!fIncludeWitness && it->GetTx().HasWitness())
-       //     return false;
+        if (!fIncludeWitness && it->GetTx().HasWitness())
+            return false;
     }
     return true;
 }

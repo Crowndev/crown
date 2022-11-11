@@ -39,7 +39,8 @@ QT_FORMS_UI = \
   qt/forms/startmissingdialog.ui \
   qt/forms/assetmanagerpage.ui \
   qt/forms/newcontractpage.ui \
-  qt/forms/newassetpage.ui
+  qt/forms/newassetpage.ui \
+  qt/forms/nodemanager.ui  
 # \
 #  qt/forms/multisigaddressentry.ui \
 #  qt/forms/multisigdialog.ui \
@@ -114,7 +115,8 @@ QT_MOC_CPP = \
   qt/moc_walletview.cpp \
   qt/moc_assetmanagerpage.cpp \
   qt/moc_newcontractpage.cpp \
-  qt/moc_newassetpage.cpp
+  qt/moc_newassetpage.cpp \
+  qt/moc_nodemanager.cpp  
 # \
 #  qt/moc_multisigaddressentry.cpp \
 #  qt/moc_multisigdialog.cpp \
@@ -212,7 +214,8 @@ CROWN_QT_H = \
   qt/winshutdownmonitor.h \
   qt/assetmanagerpage.h \
   qt/newcontractpage.h \
-  qt/newassetpage.h
+  qt/newassetpage.h \
+  qt/nodemanager.h  
 # \
 #  qt/multisigaddressentry.h \
 #  qt/multisigdialog.h \
@@ -343,7 +346,8 @@ CROWN_QT_WALLET_CPP = \
   qt/walletview.cpp \
   qt/assetmanagerpage.cpp \
   qt/newcontractpage.cpp \
-  qt/newassetpage.cpp    
+  qt/newassetpage.cpp \
+  qt/nodemanager.cpp      
 # \
 #  qt/multisigaddressentry.cpp \
 #  qt/multisigdialog.cpp \

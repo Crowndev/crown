@@ -23,7 +23,7 @@ AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     ui(new Ui::AssetManagerPage)
 {
     ui->setupUi(this);
-    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
+    //connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
 }
 
 AssetManagerPage::~AssetManagerPage()
