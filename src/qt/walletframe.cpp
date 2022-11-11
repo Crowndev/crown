@@ -175,18 +175,11 @@ void WalletFrame::gotoHistoryPage()
         i.value()->gotoHistoryPage();
 }
 
-void WalletFrame::gotoMasternodePage()
+void WalletFrame::gotoNodeManager()
 {
     QMap<WalletModel*, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoMasternodePage();
-}
-
-void WalletFrame::gotoSystemnodePage()
-{
-    QMap<WalletModel*, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoSystemnodePage();
+        i.value()->gotoNodeManager();
 }
 
 void WalletFrame::gotoAssetManager()

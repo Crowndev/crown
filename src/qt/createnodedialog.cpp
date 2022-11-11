@@ -2,14 +2,24 @@
 #include <qt/forms/ui_createnodedialog.h>
 #include <node/ui_interface.h>
 #include <net.h>
+#include <key_io.h>
+#include <qt/sendcollateraldialog.h>
+
+#include <qt/walletmodel.h>
+#include <qt/addresstablemodel.h>
+#include <qt/crownunits.h>
+#include <wallet/wallet.h>
+#include <masternode/masternodeconfig.h>
+#include <systemnode/systemnodeconfig.h>
 
 #include <QMessageBox>
 #include <QPushButton>
 
-CreateNodeDialog::CreateNodeDialog(QWidget *parent) :
+CreateNodeDialog::CreateNodeDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     editMode(false),
     startAlias(""),
+    platformStyle(_platformStyle),    
     ui(new Ui::CreateNodeDialog)
 {
     ui->setupUi(this);
@@ -18,6 +28,11 @@ CreateNodeDialog::CreateNodeDialog(QWidget *parent) :
 CreateNodeDialog::~CreateNodeDialog()
 {
     delete ui;
+}
+
+void CreateNodeDialog::setWalletModel(WalletModel* model)
+{
+    this->walletmodel = model;
 }
 
 QString CreateNodeDialog::getAlias()
@@ -130,5 +145,65 @@ void CreateNodeDialog::accept()
     {
         return;
     }
-    QDialog::accept();
+    //QDialog::accept();
+
+	// OK Pressed
+	QString label = getLabel();
+	QString address = walletmodel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
+	SendAssetsRecipient recipient(address, label,(mode == 0 ? 10000 * COIN : 500 * COIN) , "");
+	recipient.asset = Params().GetConsensus().subsidy_asset;
+	QList<SendAssetsRecipient> recipients;
+	recipients.append(recipient);
+
+	std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+
+	// Get outputs before and after transaction
+	std::vector<COutput> vPossibleCoinsBefore;
+	wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
+
+    SendCollateralDialog sendDialog(platformStyle, (mode == 0 ? SendCollateralDialog::MASTERNODE : SendCollateralDialog::SYSTEMNODE) , this);
+
+	sendDialog.setModel(walletmodel);
+	sendDialog.send(recipients);
+
+	std::vector<COutput> vPossibleCoinsAfter;
+	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
+
+
+    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
+
+
+	for (auto& out : vPossibleCoinsAfter)
+	{
+		std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
+		if (it == vPossibleCoinsBefore.end()) {
+			// Not found so this is a new element
+
+			COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
+			wallets[0]->LockCoin(outpoint);
+
+			// Generate a key
+			CKey secret;
+			secret.MakeNewKey(false);
+			std::string privateKey = EncodeSecret(secret);
+			std::string port = "9340";
+			if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+				port = "18333";
+			}
+			
+			if(mode == 0){
+		    	masternodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+		    	masternodeConfig.write();
+			}
+		    else{
+		        systemnodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+				systemnodeConfig.write();	
+			}
+		}
+	}
+}
+
+void CreateNodeDialog::setMode(int m){
+
+this->mode = m;
 }

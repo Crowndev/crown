@@ -6,8 +6,7 @@
 #define CROWN_QT_WALLETVIEW_H
 
 #include <amount.h>
-#include <qt/masternodelist.h>
-#include <qt/systemnodelist.h>
+
 #include <nodeconfig.h>
 #include <QStackedWidget>
 
@@ -26,6 +25,8 @@ class AssetTableModel;
 class ContractTableModel;
 class CoinControlModel;
 class CoinControlFilterProxy;
+class NodeManager;
+class COutput;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -71,8 +72,7 @@ private:
     QWidget *transactionsPage;
     ReceiveCoinsDialog *receiveCoinsPage;
     SendCoinsDialog *sendCoinsPage;
-    MasternodeList *masternodeListPage;
-    SystemnodeList *systemnodeListPage;
+    NodeManager	* nodeManager;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     MultisigDialog *multisigPage;
@@ -91,14 +91,12 @@ public Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to masternode page */
-    void gotoMasternodePage();
-    /** Switch to systemnode page */
-    void gotoSystemnodePage();
+
     /** Switch to multisig page*/
     void gotoMultisigTab();
     
     void gotoAssetManager();
+    void gotoNodeManager();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

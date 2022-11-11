@@ -27,10 +27,11 @@
 
 RecursiveMutex cs_systemnodes;
 
-SystemnodeList::SystemnodeList(const PlatformStyle *platformStyle, QWidget *parent) :
+SystemnodeList::SystemnodeList(const PlatformStyle *_platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SystemnodeList),
     clientModel(0),
+    platformStyle(_platformStyle),    
     walletModel(0)
 {
     ui->setupUi(this);
@@ -368,7 +369,7 @@ void SystemnodeList::on_startButton_clicked()
 
 void SystemnodeList::on_editButton_clicked()
 {
-    CreateSystemnodeDialog dialog(this);
+    CreateSystemnodeDialog dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setEditMode();
     dialog.setWindowTitle("Edit Systemnode");
@@ -490,58 +491,20 @@ void SystemnodeList::on_UpdateButton_clicked()
 
 void SystemnodeList::on_CreateNewSystemnode_clicked()
 {
-    CreateSystemnodeDialog dialog(this);
+	if(!walletModel)
+	    return;
+	    
+	if(!walletModel->getOptionsModel())
+	    return;
+	    	
+    CreateSystemnodeDialog dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowTitle("Create a New Systemnode");
+    dialog.setWalletModel(walletModel);
+    dialog.setMode(1);    
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), 
                                                            500 * COIN);
     dialog.setNoteLabel("This action will send " + formattedAmount + " to yourself");
-    if (dialog.exec())
-    {
-        // OK Pressed
-        QString label = dialog.getLabel();
-        QString address = walletModel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
-        SendAssetsRecipient recipient(address, label, 500 * COIN, "");
-        recipient.asset = Params().GetConsensus().subsidy_asset;
+    dialog.exec();
 
-        QList<SendAssetsRecipient> recipients;
-        recipients.append(recipient);
-
-        std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
-
-        // Get outputs before and after transaction
-        std::vector<COutput> vPossibleCoinsBefore;
-        wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
-
-        sendDialog->setModel(walletModel);
-        sendDialog->send(recipients);
-
-        std::vector<COutput> vPossibleCoinsAfter;
-        wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
-
-        BOOST_FOREACH(COutput& out, vPossibleCoinsAfter) {
-            std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
-            if (it == vPossibleCoinsBefore.end()) {
-                // Not found so this is a new element
-
-                COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
-                wallets[0]->LockCoin(outpoint);
-
-                // Generate a key
-                CKey secret;
-                secret.MakeNewKey(false);
-                std::string privateKey = EncodeSecret(secret);
-                std::string port = "9340";
-                if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-                    port = "18333";
-                }
-
-                systemnodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 
-                        privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
-                systemnodeConfig.write();
-                updateMyNodeList(true);
-            }
-        }
-    } else {
-        // Cancel Pressed
-    }
 }

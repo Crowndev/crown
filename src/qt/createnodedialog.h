@@ -3,6 +3,9 @@
 
 #include <QDialog>
 
+class WalletModel;
+class PlatformStyle;
+
 namespace Ui {
 class CreateNodeDialog;
 }
@@ -12,7 +15,7 @@ class CreateNodeDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CreateNodeDialog(QWidget *parent = 0);
+    explicit CreateNodeDialog(const PlatformStyle *_platformStyle, QWidget *parent = 0);
     ~CreateNodeDialog();
 
 public:
@@ -23,7 +26,8 @@ public:
     void setIP(QString ip);
     void setNoteLabel(QString text);
     void setEditMode();
-
+    void setWalletModel(WalletModel* model);
+    void setMode(int m);
 protected Q_SLOTS:
     void accept() override;
 
@@ -31,10 +35,12 @@ private:
     virtual bool aliasExists(QString alias) = 0;
     bool CheckAlias();
     bool CheckIP();
-
-private:
     bool editMode;
     QString startAlias;
+    WalletModel *walletmodel = nullptr;
+    const PlatformStyle *platformStyle;
+    int mode;   
+    
     Ui::CreateNodeDialog *ui;
 };
 

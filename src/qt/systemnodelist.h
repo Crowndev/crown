@@ -66,6 +66,7 @@ private:
     SendCollateralDialog *sendDialog;
     RecursiveMutex cs_mnlistupdate;
     QString strCurrentFilter;
+    const PlatformStyle *platformStyle; 
 
 private Q_SLOTS:
     void notReady();

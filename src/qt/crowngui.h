@@ -40,8 +40,7 @@ class HelpMessageDialog;
 class ModalOverlay;
 enum class SynchronizationState;
 
-class MasternodeList;
-class SystemnodeList;
+class NodeManager;
 
 namespace interfaces {
 class Handler;
@@ -136,8 +135,7 @@ private:
     QToolBar* appToolBar = nullptr;
     QAction* overviewAction = nullptr;
     QAction* historyAction = nullptr;
-    QAction* masternodeAction = nullptr;
-    QAction* systemnodeAction = nullptr;
+    QAction* nodeManagerAction = nullptr;
     QAction* assetManagerAction = nullptr;
     
     QAction* quitAction = nullptr;
@@ -295,9 +293,7 @@ public Q_SLOTS:
     /** Load Partially Signed Crown Transaction from file or clipboard */
     void gotoLoadPSBT(bool from_clipboard = false);
     /** Switch to masternode manager page */
-    void gotoMasternodePage();
-    /** Switch to systemnode manager page */
-    void gotoSystemnodePage();
+    void gotoNodeManager();
     void gotoAssetManager();
     /** Show open dialog */
     void openClicked();

@@ -42,10 +42,11 @@ int GetOffsetFromUtc()
 
 RecursiveMutex cs_masternodes;
 
-MasternodeList::MasternodeList(const PlatformStyle *platformStyle, QWidget *parent) :
+MasternodeList::MasternodeList(const PlatformStyle *_platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::MasternodeList),
     clientModel(0),
+    platformStyle(_platformStyle),
     walletModel(0)
 {
     ui->setupUi(this);
@@ -118,11 +119,11 @@ void MasternodeList::notReady()
 
 void MasternodeList::setClientModel(ClientModel* model)
 {
+    if(!model)
+        return;
     this->clientModel = model;
-    if(model) {
-        // try to update list when masternode count changes
-        connect(clientModel, SIGNAL(strMasternodesChanged(QString)), this, SLOT(updateNodeList()));
-    }
+    // try to update list when masternode count changes
+    connect(clientModel, SIGNAL(strMasternodesChanged(QString)), this, SLOT(updateNodeList()));
 }
 
 void MasternodeList::setWalletModel(WalletModel* model)
@@ -406,7 +407,7 @@ void MasternodeList::on_startButton_clicked()
 
 void MasternodeList::on_editButton_clicked()
 {
-    CreateMasternodeDialog dialog(this);
+    CreateMasternodeDialog dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setEditMode();
     dialog.setWindowTitle("Edit Masternode");
@@ -824,59 +825,13 @@ void MasternodeList::on_CreateNewMasternode_clicked()
 	if(!walletModel->getOptionsModel())
 	    return;
 
-    CreateMasternodeDialog dialog(this);
+    CreateMasternodeDialog dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Masternode");
+    dialog.setWalletModel(walletModel);
+    dialog.setMode(0);
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), 
                                                            10000 * COIN);
     dialog.setNoteLabel("*This action will send " + formattedAmount + " to yourself");
-    if (dialog.exec())
-    {
-        // OK Pressed
-        QString label = dialog.getLabel();
-        QString address = walletModel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
-        SendAssetsRecipient recipient(address, label, 10000 * COIN, "");
-        recipient.asset = Params().GetConsensus().subsidy_asset;
-        QList<SendAssetsRecipient> recipients;
-        recipients.append(recipient);
-
-        std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
-
-        // Get outputs before and after transaction
-        std::vector<COutput> vPossibleCoinsBefore;
-        wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
-
-        sendDialog->setModel(walletModel);
-        sendDialog->send(recipients);
-
-        std::vector<COutput> vPossibleCoinsAfter;
-        wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
-
-        for (auto& out : vPossibleCoinsAfter)
-        {
-            std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
-            if (it == vPossibleCoinsBefore.end()) {
-                // Not found so this is a new element
-
-                COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
-                wallets[0]->LockCoin(outpoint);
-
-                // Generate a key
-                CKey secret;
-                secret.MakeNewKey(false);
-                std::string privateKey = EncodeSecret(secret);
-                std::string port = "9340";
-                if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-                    port = "18333";
-                }
-
-                masternodeConfig.add(dialog.getAlias().toStdString(), dialog.getIP().toStdString() + ":" + port, 
-                        privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
-                masternodeConfig.write();
-                updateMyNodeList(true);
-            }
-        }
-    } else {
-        // Cancel Pressed
-    }
+    dialog.exec();
 }
