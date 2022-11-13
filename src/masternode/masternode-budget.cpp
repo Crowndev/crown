@@ -810,6 +810,7 @@ void CBudgetManager::NewBlock(CConnman& connman)
     LogPrint(BCLog::MASTERNODE, "CBudgetManager::NewBlock - vecImmatureBudgetDrafts cleanup - size: %d\n", vecImmatureBudgetDrafts.size());
     std::vector<BudgetDraftBroadcast>::iterator it5 = vecImmatureBudgetDrafts.begin();
     while (it5 != vecImmatureBudgetDrafts.end()) {
+
         std::string strError = "";
         int nConf = 0;
         int64_t nTime = 0;
@@ -819,8 +820,10 @@ void CBudgetManager::NewBlock(CConnman& connman)
         }
 
         const CMasternode* producer = mnodeman.Find(it5->MasternodeSubmittedId());
-        if (producer == nullptr)
+        if (producer == nullptr){
+            ++it5;
             continue;
+        }
 
         if (!it5->IsValid(strError)) {
             LogPrint(BCLog::MASTERNODE, "fbs (immature) - invalid finalized budget - %s\n", strError);
