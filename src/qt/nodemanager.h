@@ -53,6 +53,7 @@ public Q_SLOTS:
     void updateNodeList();
     void updateVoteList(bool reset = false);
     void updateNextSuperblock();
+    void updateCountDown(bool fForce =false);
     
     SendCollateralDialog* getSendCollateralDialog()
     {
@@ -86,6 +87,7 @@ private Q_SLOTS:
      
 private:
     QTimer* timer;
+    QTimer* timer2;
     Ui::NodeManager *ui;
     ClientModel* clientModel;
     WalletModel* walletModel;

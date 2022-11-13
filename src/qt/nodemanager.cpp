@@ -104,16 +104,15 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
     connect(timer, SIGNAL(timeout()), this, SLOT(updateVoteList()));
     connect(timer, SIGNAL(timeout()), this, SLOT(updateMyNodeList()));
     connect(timer, SIGNAL(timeout()), this, SLOT(updateNextSuperblock()));
-    timer->start(1000);
+    timer->start(60000);
 
-    updateNodeList();
-    updateVoteList();
-    updateNextSuperblock();
+    timer2 = new QTimer(this);
+    connect(timer2, SIGNAL(timeout()), this, SLOT(updateCountDown()));
+    timer2->start(1000);
 
     // Fill MN list
     fFilterUpdated = false;
     nTimeFilterUpdated = GetTime();
-    updateNodeList();
 
     sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
     sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
@@ -324,7 +323,7 @@ void NodeManager::updateMyMasternodeInfo(QString alias, QString addr, QString pr
     ui->tableWidgetMyMasternodes->setItem(nNewRow, 7, pubkeyItem);
 }
 
-void NodeManager::updateMyNodeList(bool fForce)
+void NodeManager::updateCountDown(bool fForce)
 {
     static int64_t nTimeMyListUpdated = 0;
 
@@ -332,10 +331,28 @@ void NodeManager::updateMyNodeList(bool fForce)
     // this update still can be triggered manually at any time via button click
     int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_NODELIST_UPDATE_SECONDS - GetTime();
     ui->secondsLabel->setText(QString::number(nSecondsTillUpdate));
+    ui->voteSecondsLabel->setText(QString::number(nSecondsTillUpdate));
 
-    if (nSecondsTillUpdate > 0 && !fForce) return;
+    static int64_t nTimeListUpdated = GetTime();
+
+    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
+    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
+    int64_t nSecondsToWait = fFilterUpdated
+                             ? nTimeFilterUpdated - GetTime() + NODELIST_FILTER_COOLDOWN_SECONDS
+                             : nTimeListUpdated - GetTime() + NODELIST_UPDATE_SECONDS;
+
+    if(fFilterUpdated) ui->mncountLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
+    if(fFilterUpdated) ui->sncountLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
+
+    if ((nSecondsTillUpdate > 0 && !fForce) || nSecondsToWait > 0 )return;
+    nTimeListUpdated = GetTime();
+    fFilterUpdated = false;
     nTimeMyListUpdated = GetTime();
 
+}
+
+void NodeManager::updateMyNodeList(bool fForce)
+{
     ui->tableWidgetMyMasternodes->setSortingEnabled(false);
     ui->tableWidgetMySystemnodes->setSortingEnabled(false);
 
@@ -367,22 +384,6 @@ void NodeManager::updateNodeList()
     if(!fLockAcquired) {
         return;
     }
-
-    static int64_t nTimeListUpdated = GetTime();
-
-    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
-    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
-    int64_t nSecondsToWait = fFilterUpdated
-                             ? nTimeFilterUpdated - GetTime() + NODELIST_FILTER_COOLDOWN_SECONDS
-                             : nTimeListUpdated - GetTime() + NODELIST_UPDATE_SECONDS;
-
-    if(fFilterUpdated) ui->mncountLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
-    if(fFilterUpdated) ui->sncountLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
-
-    if(nSecondsToWait > 0) return;
-
-    nTimeListUpdated = GetTime();
-    fFilterUpdated = false;
 
     QString strToFilter;
     ui->mncountLabel->setText("Updating...");
@@ -689,18 +690,6 @@ void NodeManager::on_UpdateVotesButton_clicked()
 
 void NodeManager::updateVoteList(bool reset)
 {
-    Q_ASSERT(::ChainActive().Tip() != NULL);
-
-    static int64_t lastVoteListUpdate = 0;
-
-    // automatically update my masternode list only once in MY_MASTERNODELIST_UPDATE_SECONDS seconds,
-    // this update still can be triggered manually at any time via button click
-    int64_t timeTillUpdate = lastVoteListUpdate + MY_NODELIST_UPDATE_SECONDS - GetTime();
-    ui->voteSecondsLabel->setText(QString::number(timeTillUpdate));
-
-    if(timeTillUpdate > 0 && !reset) return;
-    lastVoteListUpdate = GetTime();
-
     QString strToFilter;
     ui->tableWidgetVoting->setSortingEnabled(false);
     ui->tableWidgetVoting->clearContents();
@@ -762,7 +751,7 @@ void NodeManager::updateVoteList(bool reset)
 
             std::string projected;
             if ((int64_t)pbudgetProposal->GetYeas() - (int64_t)pbudgetProposal->GetNays() > (ui->tableWidgetMasternodes->rowCount()/10)){
-                nTotalAllotted += pbudgetProposal->GetAmount()/100000000;
+                nTotalAllotted += pbudgetProposal->GetAmount()/COIN;
                 projected = "Yes";
             } else {
                 projected = "No";
