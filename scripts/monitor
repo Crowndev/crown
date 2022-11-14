@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+CONFIG="${HOME}/.crown/crown.conf"
+NODETYPE=$(awk -F= '/^systemnode=|^masternode=/ {print $1}' ${CONFIG})
+if [[ -n $(pidof crownd) ]]; then
+  if [[ -n ${NODETYPE} ]]; then
+    crown-cli get${NODETYPE}status
+  fi
+  echo "Blocks:" $(crown-cli getblockcount) "   Stakepointers:" $(crown-cli getstakepointers|grep blockhash|wc -l)
+  echo "Peers:" 
+  crown-cli getpeerinfo|grep -e '"addr": "' # -e startingheight -e synced_
+else
+  echo "crownd is not running"
+fi

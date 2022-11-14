@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+if [[ -n $(pidof crownd) ]]; then
+  echo "crownd is running. You need to stop it before attempting to upgrade."
+  exit
+fi
+function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+cd
+mkdir -p tmp
+cd tmp
+rm -f linux.tar.xz x86_64-pc-linux-gnu.tar.xz
+rm -rf linux x86_64-pc-linux-gnu.tar.xz
+if [ $(version $1) -le $(version "0.0.0.71") ]; then
+  name="linux"
+else
+  name="x86_64-pc-linux-gnu"
+fi
+wget https://github.com/Crowndev/crown/releases/download/$1/$name.tar.xz
+tar -xvf $name.tar.xz
+sudo cp $name/* /usr/local/bin
+cd
+mkdir -p .crown
+cd .crown
+if [[ -e crown.conf ]]; then
+  echo "Not touching crown.conf"
+else
+  echo "Creating crown.conf"
+  cat >crown.conf <<EOF
+testnet=1
+txindex=1
+listen=1
+server=1
+daemon=1
+#debug=1
+
+# Uncomment and customise the next 2 lines for a masternode
+#masternode=1
+#masternodeprivkey=your-key-here
+
+# Uncomment and customise the next 2 lines for a systemnode
+#systemnode=1
+#systemnodeprivkey=your-key-here
+
+[test]
+wallet=testnet
+
+addnode=92.60.45.236:18333
+addnode=92.60.45.237:18333
+addnode=92.60.45.238:18333
+addnode=92.60.45.239:18333
+
+addnode=92.60.46.27
+addnode=92.60.46.28
+addnode=92.60.46.29
+addnode=92.60.46.30
+addnode=92.60.46.31
+addnode=41.60.74.138
+addnode=185.170.215.19
+addnode=93.114.133.16
+addnode=45.137.151.124
+addnode=185.170.215.188
+EOF
+fi
+if [[ $2 == "wipeall" ]]; then
+  rm -rf testnet3
+elif [[ $2 == "wipe" ]]; then
+  cd testnet3
+  rm -rf assets blocks chainstate contracts indexes platform *.dat debug* *pid .lock
+  cd ..
+fi
+crownd
+if [[ $2 == "wipeall" ]]; then
+   sleep 30
+   crown-cli createwallet testnet false false "" false false true
+fi
