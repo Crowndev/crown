@@ -102,8 +102,8 @@ public:
             }
         }
 
-        QString msg = QString("CoinControlPriv size: %1\n").arg(cachedRecords.size());
-        qDebug() << msg;
+        //QString msg = QString("CoinControlPriv size: %1\n").arg(cachedRecords.size());
+        //qDebug() << msg;
     }
 
     int size() {
@@ -129,7 +129,7 @@ CoinControlModel::CoinControlModel(WalletModel *parent) :
         QAbstractItemModel(parent), walletModel(parent), priv(new CoinControlPriv(parent, this))
 {
     columns << tr("Label") << tr("Address") << tr("Asset") << tr("Amount") << tr("Date") << tr("Confirms");
-    connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &CoinControlModel::checkBlocksChanged);
+    //connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &CoinControlModel::checkBlocksChanged);
     priv->refreshWallet();
 };
 

@@ -3422,8 +3422,8 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         meta.nFlags |= AssetMetadata::AssetFlags::ASSET_LIMITED;
 
     meta.nVersion = 1;
-    meta.setName(assetname);
-    meta.setShortName(shortname);
+    meta.setName(contract.asset_name);
+    meta.setShortName(contract.asset_symbol);
 
     if(expiry != 0 && expiry < GetTime() + 84000){
        strFailReason = "Bad expiry";
@@ -3485,7 +3485,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     }
 
     if(coin_control.setSelected.size() < 1){
-        strFailReason ="No suitable output found";
+        strFailReason ="No suitable output found, verify the contract address is funded";
         return false;
     }
 

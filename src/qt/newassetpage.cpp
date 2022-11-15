@@ -40,7 +40,7 @@ void NewAssetPage::setWalletModel(WalletModel* model)
 	mycontractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
     //ui->contractcomboBox->setModel(mycontractFilter);
-    qDebug() << "NewAssetPage, filter size " << mycontractFilter->rowCount();
+    //qDebug() << "NewAssetPage, filter size " << mycontractFilter->rowCount();
     
 }
 
