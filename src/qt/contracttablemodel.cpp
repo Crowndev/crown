@@ -89,7 +89,7 @@ public:
 
             cachedContracts.append(rec);
         }
-        qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size()  <<  "MINE : "  << minecount;
+        //qDebug() << "ContractTablePriv::refreshWallet, cache size " << pcontractCache->Size()  <<  "MINE : "  << minecount;
 
     }
 
@@ -116,7 +116,7 @@ ContractTableModel::ContractTableModel(WalletModel *parent) :
         QAbstractTableModel(parent), walletModel(parent), priv(new ContractTablePriv(parent, this))
 {
     columns << tr("Name") << tr("Shortname") << tr("Contract URL") << tr("Website URL") << tr("Issuer") << tr("Description") << tr("Script");
-    connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &ContractTableModel::checkBlocksChanged);
+    //connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &ContractTableModel::checkBlocksChanged);
     priv->refreshWallet();
 };
 

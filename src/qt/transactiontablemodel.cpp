@@ -65,7 +65,7 @@ public:
     void invoke(QObject *ttm)
     {
         QString strHash = QString::fromStdString(hash.GetHex());
-        qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
+        //qDebug() << "NotifyTransactionChanged: " + strHash + " status= " + QString::number(status);
         bool invoked = QMetaObject::invokeMethod(ttm, "updateTransaction", Qt::QueuedConnection,
                                   Q_ARG(QString, strHash),
                                   Q_ARG(int, status),
@@ -105,7 +105,7 @@ public:
      */
     void refreshWallet(interfaces::Wallet& wallet)
     {
-        qDebug() << "TransactionTablePriv::refreshWallet";
+        //qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
             for (const auto& wtx : wallet.getWalletTxs()) {
@@ -123,7 +123,7 @@ public:
      */
     void updateWallet(interfaces::Wallet& wallet, const uint256 &hash, int status, bool showTransaction)
     {
-        qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
+        //qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
 
         // Find bounds of this transaction in model
         QList<TransactionRecord>::iterator lower = std::lower_bound(
@@ -142,9 +142,9 @@ public:
                 status = CT_DELETED; /* In model, but want to hide, treat as deleted */
         }
 
-        qDebug() << "    inModel=" + QString::number(inModel) +
-                    " Index=" + QString::number(lowerIndex) + "-" + QString::number(upperIndex) +
-                    " showTransaction=" + QString::number(showTransaction) + " derivedStatus=" + QString::number(status);
+        //qDebug() << "    inModel=" + QString::number(inModel) +
+        //            " Index=" + QString::number(lowerIndex) + "-" + QString::number(upperIndex) +
+        //            " showTransaction=" + QString::number(showTransaction) + " derivedStatus=" + QString::number(status);
 
         switch(status)
         {
