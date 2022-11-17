@@ -16,6 +16,7 @@
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
 #include <assetdb.h>
+#include <qt/clientmodel.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -52,6 +53,9 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     connect(ui->deleteButton_is, &QPushButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->deleteButton_s, &QPushButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->useAvailableBalanceButton, &QPushButton::clicked, this, &SendCoinsEntry::useAvailableBalanceClicked);
+    
+    assetList();
+
 }
 
 SendCoinsEntry::~SendCoinsEntry()
@@ -60,10 +64,12 @@ SendCoinsEntry::~SendCoinsEntry()
 }
 
 
-void SendCoinsEntry::assetList(const interfaces::WalletBalances& m_balances){
+void SendCoinsEntry::assetList(){
     // Keep up to date with wallet
     if(!model)
         return;
+
+    interfaces::WalletBalances m_balances = model->wallet().getBalances();
 
     QStringList list;
 
@@ -103,10 +109,15 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
+	if (!_model)
+	    return;
+	
     this->model = _model;
 
     if (_model && _model->getOptionsModel())
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
+
+    connect(model->getClientModel(), &ClientModel::numBlocksChanged, this, &SendCoinsEntry::assetList);
 
     connect(model, &WalletModel::balanceChanged, this, &SendCoinsEntry::assetList);
 
@@ -134,6 +145,7 @@ void SendCoinsEntry::clear()
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
+    assetList();
 }
 
 void SendCoinsEntry::checkSubtractFeeFromAmount()

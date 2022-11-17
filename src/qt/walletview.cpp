@@ -265,7 +265,7 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
 
     Q_EMIT incomingTransaction(date, walletModel->getOptionsModel()->getDisplayUnit(), amount, type, address, label, GUIUtil::HtmlEscape(walletModel->getWalletName()));
 
-    int typeEnum = ttm->index(start, 0, parent).data(TransactionTableModel::TypeRole).toInt();
+    /*int typeEnum = ttm->index(start, 0, parent).data(TransactionTableModel::TypeRole).toInt();
     if (typeEnum == TransactionRecord::SendToSelf)
     {
         uint256 hash = uint256S(ttm->index(start, 0, parent).data(TransactionTableModel::TxHashRole).toString().toStdString());
@@ -274,7 +274,7 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
             COutput out = *res;
             checkAndCreateNode(out);
         }
-    }
+    }*/
 }
 
 void WalletView::gotoOverviewPage()

@@ -114,7 +114,7 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
     fFilterUpdated = false;
     nTimeFilterUpdated = GetTime();
 
-    sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
+    //sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
     sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
     
     updateMyNodeList();
@@ -967,15 +967,15 @@ void NodeManager::on_CreateNewMasternode_clicked()
         return;
 
     CreateMasternodeDialog dialog(platformStyle, this);
-    dialog.setModal(false);
-    //dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Masternode");
     dialog.setWalletModel(walletModel);
     dialog.setMode(0);
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            10000 * COIN);
     dialog.setNoteLabel("*This action will send " + formattedAmount + " to yourself");
-    dialog.exec();
+    if (dialog.exec())
+        updateMyNodeList(true);
 }
 
 void NodeManager::on_CreateNewSystemnode_clicked()
@@ -987,15 +987,15 @@ void NodeManager::on_CreateNewSystemnode_clicked()
         return;
 
     CreateSystemnodeDialog dialog(platformStyle, this);
-    dialog.setModal(false);
-    //dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Systemnode");
     dialog.setWalletModel(walletModel);
     dialog.setMode(1);
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            500 * COIN);
     dialog.setNoteLabel("This action will send " + formattedAmount + " to yourself");
-    dialog.exec();
+    if (dialog.exec())
+        updateMyNodeList(true);
 
 }
 
