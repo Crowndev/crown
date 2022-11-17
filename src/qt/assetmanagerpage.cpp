@@ -23,7 +23,6 @@ AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     ui(new Ui::AssetManagerPage)
 {
     ui->setupUi(this);
-    connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
 }
 
 AssetManagerPage::~AssetManagerPage()
@@ -55,6 +54,8 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     assetFilter->setDynamicSortFilter(true);
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
+
+    connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
         
     update();
 }
