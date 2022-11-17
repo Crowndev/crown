@@ -51,7 +51,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
         {
             if (i == nChangePosRet)
                 i++;
-            rcp.amount = walletTransaction->vout[i].nValue;
+            rcp.amount = (walletTransaction->nVersion >= TX_ELE_VERSION ? walletTransaction->vpout[i].nValue : walletTransaction->vout[i].nValue);
             i++;
         }
     }

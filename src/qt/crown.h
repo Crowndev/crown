@@ -10,6 +10,8 @@
 #endif
 
 #include <QApplication>
+#include <QDebug>
+#include <QThread>
 #include <assert.h>
 #include <memory>
 
@@ -92,6 +94,30 @@ public:
 
     interfaces::Node& node() const { assert(m_node); return *m_node; }
     void setNode(interfaces::Node& node);
+
+    bool notify(QObject* receiver, QEvent *e)
+    {
+        try {
+            return QApplication::notify(receiver, e);
+        }
+        catch(std::runtime_error e)
+        {
+            qDebug() << "std::runtime_error in thread : " << QThread::currentThreadId();
+            qDebug() << e.what();
+        }
+        catch(std::exception e)
+        {
+            qDebug() << "std::exception in thread : " << QThread::currentThreadId();
+            qDebug() << e.what();
+        }
+        catch(...)
+        {
+            qDebug() << "exception thread : " << QThread::currentThreadId();
+        }
+
+        return false;
+    }
+
 
 public Q_SLOTS:
     void initializeResult(bool success, interfaces::BlockAndHeaderTipInfo tip_info);

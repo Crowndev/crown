@@ -3248,7 +3248,7 @@ static RPCHelpMan listunspent()
         cctl.m_min_depth = nMinDepth;
         cctl.m_max_depth = nMaxDepth;
         LOCK(pwallet->cs_wallet);
-        pwallet->AvailableCoins(vecOutputs, asset_filter, !include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
+        pwallet->AvailableCoins(vecOutputs, asset_filter, !include_unsafe, &cctl, ALL_COINS, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
     }
 
     LOCK(pwallet->cs_wallet);

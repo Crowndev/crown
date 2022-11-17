@@ -159,7 +159,7 @@ void CreateNodeDialog::accept()
 
 	// Get outputs before and after transaction
 	std::vector<COutput> vPossibleCoinsBefore;
-	wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
+	wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
     SendCollateralDialog sendDialog(platformStyle, (mode == 0 ? SendCollateralDialog::MASTERNODE : SendCollateralDialog::SYSTEMNODE) , this);
 
@@ -167,10 +167,10 @@ void CreateNodeDialog::accept()
 	sendDialog.send(recipients);
 
 	std::vector<COutput> vPossibleCoinsAfter;
-	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
+	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
 
-    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
+    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
 
 
 	for (auto& out : vPossibleCoinsAfter)

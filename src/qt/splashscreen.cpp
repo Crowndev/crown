@@ -25,8 +25,8 @@
 #include <QScreen>
 
 
-SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) :
-    QWidget(nullptr, f), curAlignment(0)
+SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
+    : QWidget(), curAlignment(0)
 {
     // set reference point, paddings
     int paddingRight            = 50;
@@ -182,8 +182,8 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress, bool resume_possible)
 {
     InitMessage(splash, title + std::string("\n") +
-            (resume_possible ? _("(press q to shutdown and continue later)").translated
-                                : _("press q to shutdown").translated) +
+            (resume_possible ? SplashScreen::tr("(press q to shutdown and continue later)").toStdString()
+                                : SplashScreen::tr("press q to shutdown").toStdString()) +
             strprintf("\n%d", nProgress) + "%");
 }
 
