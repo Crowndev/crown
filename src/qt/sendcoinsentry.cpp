@@ -60,12 +60,10 @@ SendCoinsEntry::~SendCoinsEntry()
 }
 
 
-void SendCoinsEntry::assetList(){
+void SendCoinsEntry::assetList(const interfaces::WalletBalances& m_balances){
     // Keep up to date with wallet
     if(!model)
         return;
-
-    interfaces::WalletBalances m_balances = model->wallet().getBalances();
 
     QStringList list;
 
@@ -110,6 +108,8 @@ void SendCoinsEntry::setModel(WalletModel *_model)
     if (_model && _model->getOptionsModel())
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsEntry::updateDisplayUnit);
 
+    connect(model, &WalletModel::balanceChanged, this, &SendCoinsEntry::assetList);
+
     clear();
 }
 
@@ -134,7 +134,6 @@ void SendCoinsEntry::clear()
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
-    assetList();
 }
 
 void SendCoinsEntry::checkSubtractFeeFromAmount()

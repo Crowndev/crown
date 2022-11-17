@@ -15,7 +15,7 @@ bool NodeWallet::GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKe
     if (!pwallet) return false;
 
     std::vector<COutput> vPossibleCoins;
-    pwallet->AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, nullptr, Params().MasternodeCollateral(), Params().MasternodeCollateral());
+    pwallet->AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, nullptr, ALL_COINS, Params().MasternodeCollateral(), Params().MasternodeCollateral());
     if (vPossibleCoins.empty()) {
         LogPrintf("NodeWallet::GetMasternodeVinAndKeys -- Could not locate any valid masternode vin\n");
         return false;
@@ -29,7 +29,7 @@ bool NodeWallet::GetSystemnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKe
     if (!pwallet) return false;
 
     std::vector<COutput> vPossibleCoins;
-    pwallet->AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, nullptr, Params().SystemnodeCollateral(), Params().SystemnodeCollateral());
+    pwallet->AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, nullptr, ALL_COINS, Params().SystemnodeCollateral(), Params().SystemnodeCollateral());
     if (vPossibleCoins.empty()) {
         LogPrintf("NodeWallet::GetSystemnodeVinAndKeys -- Could not locate any valid systemnode vin\n");
         return false;

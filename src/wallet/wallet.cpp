@@ -2435,7 +2435,7 @@ std::optional<COutput> CWallet::FindCollateralOutput(uint256 hash) const
     return std::nullopt;
 }
 
-void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
+void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, AvailableCoinsType coin_type, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -2553,6 +2553,18 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
             bool solvable = provider ? IsSolvable(*provider, txout.scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
+            bool found = false;
+            if(coin_type == ONLY_NOT10000IFMN) {
+                found = !(fMasterNode && txout.nValue == 10000*COIN);
+            } else if(coin_type == ONLY_10000) {
+                found = txout.nValue == Params().MasternodeCollateral();
+            } else if (coin_type == ONLY_500) {
+                found = txout.nValue == Params().SystemnodeCollateral();
+            } else {
+                found = true;
+            }
+            if(!found) continue;
+
             vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
 
             // Checks the sum amount of all UTXO's.
@@ -2576,7 +2588,7 @@ std::map<CTxDestination, std::vector<COutput> > CWallet::AvailableCoinsByAddress
 {
     std::vector<COutput> vCoins;
     // include cold
-    AvailableCoins(vCoins, CAsset(), true, nullptr, 1, MAX_MONEY, 0, 0);
+    AvailableCoins(vCoins, CAsset(), true, nullptr, ALL_COINS, 1, MAX_MONEY, 0, 0);
 
     std::map<CTxDestination, std::vector<COutput> > mapCoins;
     for (COutput out : vCoins) {
@@ -2592,90 +2604,6 @@ std::map<CTxDestination, std::vector<COutput> > CWallet::AvailableCoinsByAddress
     }
 
     return mapCoins;
-}
-
-/**
-   * populate vCoins with vector of available COutputs.
-    */
-void CWallet::AvailableCoins2(std::vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, AvailableCoinsType coin_type, bool useIX) const
-{
-    vCoins.clear();
-
-
-    LOCK(cs_wallet);
-    std::set<uint256> trusted_parents;
-
-    for (const auto& entry : mapWallet)
-    {
-        const uint256& wtxid = entry.first;
-        const CWalletTx& wtx = entry.second;
-
-        if (!chain().checkFinalTx(*wtx.tx)) {
-            continue;
-        }
-
-        if (wtx.IsImmatureCoinBase())
-            continue;
-
-        int nDepth = wtx.GetDepthInMainChain();
-        if (nDepth < 0)
-            continue;
-
-        // We should not consider coins which aren't at least in our mempool
-        // It's possible for these to be conflicted via ancestors which we may never be able to detect
-        if (nDepth == 0 && !wtx.InMempool())
-            continue;
-
-        bool safeTx = IsTrusted(wtx, trusted_parents);
-
-        if (nDepth == 0 && wtx.mapValue.count("replaces_txid")) {
-            safeTx = false;
-        }
-
-        if (nDepth == 0 && wtx.mapValue.count("replaced_by_txid")) {
-            safeTx = false;
-        }
-
-        if (fOnlyConfirmed && !safeTx) {
-            continue;
-        }
-
-        for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
-
-            CTxOutAsset out = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
-
-            //CAmount outValue = out.nValue;
-            CAsset asset;
-
-            if(wtx.tx->nVersion >= TX_ELE_VERSION)
-                asset = out.nAsset;
-            else
-                asset = Params().GetConsensus().subsidy_asset;
-
-            //LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
-
-            //if (asset != Params().GetConsensus().subsidy_asset)
-            //    continue;
-
-            if (IsSpent(wtxid, i))
-                continue;
-
-            isminetype mine = IsMine(out);
-
-            if (mine == ISMINE_NO)
-                continue;
-
-            std::unique_ptr<SigningProvider> provider = GetSolvingProvider(out.scriptPubKey);
-
-            bool solvable = provider ? IsSolvable(*provider, out.scriptPubKey) : false;
-            bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
-
-            //LogPrintf("%s - %s %d %d\n", __func__, wtx.tx->GetHash().ToString(), i, out.nValue);
-
-            if ((coin_type == ONLY_10000 && out.nValue == 10000*COIN ) || (coin_type == ONLY_500 && out.nValue == 500*COIN))
-                vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
-        }
-    }
 }
 
 std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
@@ -2790,7 +2718,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_10000, MAX_MONEY);
+    AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_10000, MAX_MONEY);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetMasternodeVinAndKeys - Could not locate any valid masternode vin\n");
         return false;
@@ -2822,7 +2750,7 @@ bool CWallet::GetSystemnodeVinAndKeys(CTxIn& vinRet, CPubKey& pubKeyRet, CKey& k
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    AvailableCoins2(vPossibleCoins, true, NULL, ONLY_500, MAX_MONEY);
+    AvailableCoins(vPossibleCoins, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY);
     if(vPossibleCoins.empty()) {
         LogPrintf("CWallet::GetSystemnodeVinAndKeys - Could not locate any valid servicenode vin\n");
         return false;
@@ -3310,7 +3238,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
+        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, ALL_COINS, 0, MAX_MONEY, MAX_MONEY, 0);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3452,7 +3380,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = 1;
         cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, 0, MAX_MONEY, MAX_MONEY, 0);
+        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, ALL_COINS, 0, MAX_MONEY, MAX_MONEY, 0);
     }
 
     for (const COutput& out : vecOutputs) {
@@ -3631,7 +3559,7 @@ bool CWallet::CreateTransactionInternal(
         LOCK(cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, assettosend, true, &coin_control, 1, MAX_MONEY, MAX_MONEY, 0);
+            AvailableCoins(vAvailableCoins, assettosend, true, &coin_control, ALL_COINS, 1, MAX_MONEY, MAX_MONEY, 0);
             CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
 
             // Create change script that will be used if we need change

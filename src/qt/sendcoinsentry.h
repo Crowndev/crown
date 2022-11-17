@@ -44,7 +44,7 @@ public:
     void setValue(const SendAssetsRecipient &value);
     void setAddress(const QString &address);
     void setAmount(const CAmount &amount);
-    void assetList();
+    void assetList(const interfaces::WalletBalances& balances);
 
     /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases
      *  (issue https://bugreports.qt-project.org/browse/QTBUG-10907).

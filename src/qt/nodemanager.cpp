@@ -965,7 +965,7 @@ void NodeManager::on_CreateNewMasternode_clicked()
         return;
 
     CreateMasternodeDialog dialog(platformStyle, this);
-    dialog.setModal(true);
+    dialog.setModal(false);
     //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Masternode");
     dialog.setWalletModel(walletModel);
@@ -973,7 +973,7 @@ void NodeManager::on_CreateNewMasternode_clicked()
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            10000 * COIN);
     dialog.setNoteLabel("*This action will send " + formattedAmount + " to yourself");
-    dialog.show();
+    dialog.exec();
 }
 
 void NodeManager::on_CreateNewSystemnode_clicked()
@@ -985,7 +985,7 @@ void NodeManager::on_CreateNewSystemnode_clicked()
         return;
 
     CreateSystemnodeDialog dialog(platformStyle, this);
-    dialog.setModal(true);
+    dialog.setModal(false);
     //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Systemnode");
     dialog.setWalletModel(walletModel);
@@ -993,7 +993,7 @@ void NodeManager::on_CreateNewSystemnode_clicked()
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            500 * COIN);
     dialog.setNoteLabel("This action will send " + formattedAmount + " to yourself");
-    dialog.show();
+    dialog.exec();
 
 }
 

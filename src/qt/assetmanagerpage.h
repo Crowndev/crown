@@ -2,6 +2,7 @@
 #define ASSETMANAGERPAGE_H
 
 #include <QWidget>
+#include <QTimer>
 
 class ClientModel;
 class PlatformStyle;
@@ -52,6 +53,8 @@ private:
     WalletModel *walletModel;
     const PlatformStyle *platformStyle;
     Ui::AssetManagerPage *ui;
+    QTimer* timer;
+    
 private Q_SLOTS:
     void on_CreateNewContract_clicked();
     void on_CreateNewAsset_clicked();
