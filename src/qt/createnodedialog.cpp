@@ -170,7 +170,7 @@ void CreateNodeDialog::accept()
 	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, 0, MAX_MONEY, MAX_MONEY, 0);
 
 
-    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, NULL, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
+    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
 
 
 	for (auto& out : vPossibleCoinsAfter)

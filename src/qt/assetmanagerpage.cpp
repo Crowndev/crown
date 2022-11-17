@@ -101,10 +101,11 @@ void AssetManagerPage::on_CreateNewContract_clicked()
         return;
 
     NewContractPage dialog(this);
-    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setModal(true);
+    //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Contract");
     dialog.setWalletModel(walletModel);
-    dialog.exec();
+    dialog.show();
 }
 
 
@@ -117,10 +118,11 @@ void AssetManagerPage::on_CreateNewAsset_clicked()
         return;
 
     NewAssetPage dialog(this);
-    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setModal(true);
+    //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Asset");
     dialog.setWalletModel(walletModel);
-    dialog.exec();
+    dialog.show();
 }
 
 void AssetManagerPage::chooseAssetType(int idx)

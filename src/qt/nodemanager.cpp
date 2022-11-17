@@ -567,7 +567,7 @@ void NodeManager::on_editButton_clicked()
         if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
             port = "18333";
         }
-        BOOST_FOREACH(CNodeEntry &mne, masternodeConfig.getEntries()) {
+        for(CNodeEntry &mne: masternodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias.toStdString())
             {
                 mne.setAlias(dialog.getAlias().toStdString());
@@ -578,7 +578,7 @@ void NodeManager::on_editButton_clicked()
             }
         }
 
-        BOOST_FOREACH(CNodeEntry &sne, systemnodeConfig.getEntries()) {
+        for(CNodeEntry &sne: systemnodeConfig.getEntries()) {
             if (sne.getAlias() == strAlias.toStdString())
             {
                 sne.setAlias(dialog.getAlias().toStdString());
@@ -965,14 +965,15 @@ void NodeManager::on_CreateNewMasternode_clicked()
         return;
 
     CreateMasternodeDialog dialog(platformStyle, this);
-    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setModal(true);
+    //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Masternode");
     dialog.setWalletModel(walletModel);
     dialog.setMode(0);
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            10000 * COIN);
     dialog.setNoteLabel("*This action will send " + formattedAmount + " to yourself");
-    dialog.exec();
+    dialog.show();
 }
 
 void NodeManager::on_CreateNewSystemnode_clicked()
@@ -984,14 +985,15 @@ void NodeManager::on_CreateNewSystemnode_clicked()
         return;
 
     CreateSystemnodeDialog dialog(platformStyle, this);
-    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setModal(true);
+    //dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Systemnode");
     dialog.setWalletModel(walletModel);
     dialog.setMode(1);
     QString formattedAmount = CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(),
                                                            500 * COIN);
     dialog.setNoteLabel("This action will send " + formattedAmount + " to yourself");
-    dialog.exec();
+    dialog.show();
 
 }
 
