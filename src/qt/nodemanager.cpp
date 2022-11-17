@@ -116,6 +116,8 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
 
     sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
     sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
+    
+    updateMyNodeList();
 }
 
 NodeManager::~NodeManager()
