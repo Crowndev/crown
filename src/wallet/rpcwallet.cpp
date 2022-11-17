@@ -1375,15 +1375,15 @@ static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx,
             }
             MaybePushAddress(entry, s.destination);
             entry.pushKV("category", "send");
-            entry.pushKV("amount", ValueFromAmount(-s.amount));
-                entry.pushKV("asset", s.asset.GetHex());
+            entry.pushKV("amount", ValueFromAmount(s.amount));
+            entry.pushKV("asset", s.asset.getAssetName());
             const auto* address_book_entry = pwallet->FindAddressBookEntry(s.destination);
             if (address_book_entry) {
                 entry.pushKV("label", address_book_entry->GetLabel());
             }
             entry.pushKV("vout", s.vout);
             UniValue res(UniValue::VOBJ);
-            AmountMapToUniv(mapFee*-1, res);
+            AmountMapToUniv(mapFee, res);
             entry.pushKV("fee", res);
             if (fLong)
                 WalletTxToJSON(pwallet->chain(), wtx, entry);
@@ -1427,7 +1427,7 @@ static void ListTransactions(const CWallet* const pwallet, const CWalletTx& wtx,
                 entry.pushKV("category", "receive");
             }
             entry.pushKV("amount", ValueFromAmount(r.amount));
-                entry.pushKV("asset", r.asset.GetHex());
+            entry.pushKV("asset", r.asset.getAssetName());
             if (address_book_entry) {
                 entry.pushKV("label", label);
             }
@@ -1964,11 +1964,9 @@ static RPCHelpMan gettransaction()
 
     entry.pushKV("amount", res);
     if (wtx.IsFromMe(filter)){
-
         UniValue res2(UniValue::VOBJ);
         AmountMapToUniv(nFee, res2);
         entry.pushKV("fee", res2);
-
     }
 
     WalletTxToJSON(pwallet->chain(), wtx, entry);

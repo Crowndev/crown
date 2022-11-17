@@ -145,7 +145,6 @@ void CreateNodeDialog::accept()
     {
         return;
     }
-    //QDialog::accept();
 
 	// OK Pressed
 	QString label = getLabel();
@@ -168,10 +167,6 @@ void CreateNodeDialog::accept()
 
 	std::vector<COutput> vPossibleCoinsAfter;
 	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
-
-
-    //wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, ONLY_500, MAX_MONEY, MAX_MONEY, 0);
-
 
 	for (auto& out : vPossibleCoinsAfter)
 	{
@@ -201,6 +196,7 @@ void CreateNodeDialog::accept()
 			}
 		}
 	}
+    QDialog::accept();	
 }
 
 void CreateNodeDialog::setMode(int m){

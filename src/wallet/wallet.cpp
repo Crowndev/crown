@@ -2553,8 +2553,8 @@ void CWallet::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_f
             bool solvable = provider ? IsSolvable(*provider, txout.scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
-            //if ((coin_type == ONLY_10000 && txout.nValue != 10000*COIN ) || (coin_type == ONLY_500 && txout.nValue != 500*COIN))
-            //    continue;
+            if ((coin_type == ONLY_10000 && txout.nValue != 10000*COIN ) || (coin_type == ONLY_500 && txout.nValue != 500*COIN))
+                continue;
 
             vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
 
