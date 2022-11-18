@@ -79,7 +79,7 @@ void NewContractPage::on_Create_clicked()
         msgbox->open();
         close();
     }
-    QDialog::accept();    
+    //QDialog::accept();    
 }
 
 
