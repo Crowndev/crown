@@ -17,22 +17,11 @@ bool AddressFilterProxyModel::filterAcceptsRow(int row, const QModelIndex& paren
     QString type = index.data(AddressTableModel::TypeRole).toString();
     QString address = index.data(AddressTableModel::AddressRole).toString();
 
-    //quint64 amount = llabs(index.data(AddressTableModel::AmountRole).toLongLong());
-    //int64_t balance = static_cast<int64_t>(amount);
-    
-    //qDebug() << "ADDRESS BALANCE = " << amount;
-
-    //LogPrintf("ADDRESS BALANCE %d\n", balance);
-
     if (!m_types.contains(type))
         return false;
 
-    if(fOnlySegwit && fRegReady && type == "R"){
-
-        if (!address.startsWith(m_search_string, Qt::CaseInsensitive))
-            return false;
-
-    }
+    if (!address.startsWith(m_search_string, Qt::CaseInsensitive))
+        return false;
 
     return true;
 }
@@ -63,6 +52,6 @@ void AddressFilterProxyModel::setOnlySegwit(bool onlyseg, bool regready)
 {
     this->fOnlySegwit= onlyseg;
     this->fRegReady = regready;
-    m_search_string = onlyseg ? "hms1" : "";
+    m_search_string = onlyseg ? "crw" : "";
     invalidateFilter();
 }
