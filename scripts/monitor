@@ -1,11 +1,21 @@
 #!/usr/bin/bash
+# The testnet explorer is sometimes unavailable. If it is known to be down,
+# and to avoid a long timeout, use the "noex" option.
 CONFIG="${HOME}/.crown/crown.conf"
 NODETYPE=$(awk -F= '/^systemnode=|^masternode=/ {print $1}' ${CONFIG})
 if [[ -n $(pidof crownd) ]]; then
   if [[ -n ${NODETYPE} ]]; then
     crown-cli get${NODETYPE}status
   fi
-  echo "Blocks:" $(crown-cli getblockcount) "   Stakepointers:" $(crown-cli getstakepointers|grep blockhash|wc -l)
+  BLOCKS=$(crown-cli getblockcount)
+  if [[ $1 == "noex" ]]; then
+    EXPLORERBLOCKS="N/A"
+  else
+    EXPLORERBLOCKS=$(curl --silent http://defunctex.tech/api/api_basic.php?method=getblockcount|jq -r .result)
+  fi
+  STAKEPOINTERS=$(crown-cli getstakepointers|grep blockhash|wc -l)
+  UPTIME=$(crown-cli uptime)
+  echo "Blocks:" $BLOCKS "  Explorer:" $EXPLORERBLOCKS "  Stakepointers:" $STAKEPOINTERS "   Uptime:" $UPTIME
   echo "Peers:" 
   crown-cli getpeerinfo|grep -e '"addr": "' # -e startingheight -e synced_
 else
