@@ -21,12 +21,18 @@
        <item>
         <widget class="QComboBox" name="addresscomboBox">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
+         </property>
+         <property name="maxVisibleItems">
+          <number>6</number>
+         </property>
+         <property name="placeholderText">
+          <string>Select Address</string>
+         </property>
+         <property name="modelColumn">
+          <number>0</number>
          </property>
         </widget>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="addresslineEdit"/>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
@@ -82,19 +88,6 @@
       </layout>
      </item>
      <item>
-      <spacer name="verticalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
         <widget class="QTextEdit" name="contractScript">
@@ -104,37 +97,11 @@
         </widget>
        </item>
        <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
         <widget class="QTextEdit" name="contractDescription">
          <property name="placeholderText">
           <string>Enter Contract Description</string>
          </property>
         </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </item>

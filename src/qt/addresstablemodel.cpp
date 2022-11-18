@@ -206,7 +206,7 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             }
             else
             {
-                return rec->label + " " + rec->address;
+                return rec->label;
             }
         case Address:
             return rec->address;

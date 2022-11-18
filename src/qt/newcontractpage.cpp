@@ -36,6 +36,9 @@ void NewContractPage::on_Create_clicked()
     QString name  = getName();
     QString shortname  = getSymbol();
     QString chainID  =getAddress();
+    
+    //qDebug() << "ADDRESS  = " << chainID;
+    
     QString website_url  = getwebsiteUrl();
     QString contract_url  = getcontractURL();
     QString description  = getdescription();
@@ -76,6 +79,7 @@ void NewContractPage::on_Create_clicked()
         msgbox->open();
         close();
     }
+    QDialog::accept();    
 }
 
 
@@ -88,8 +92,11 @@ QString NewContractPage::getSymbol(){
 }
 
 QString NewContractPage::getAddress(){
-    //return ui->addresscomboBox->currentText();
-    return ui->addresslineEdit->text();
+	
+	QString address = ui->addresscomboBox->itemData(ui->addresscomboBox->currentIndex(), AddressTableModel::AddressRole).toString();
+
+    return address;
+
 }
 
 QString NewContractPage::getwebsiteUrl(){
