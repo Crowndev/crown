@@ -31,7 +31,7 @@ void NewAssetPage::setWalletModel(WalletModel* model)
 
 	mycontractFilter = new ContractFilterProxy(this);
 	mycontractFilter->setSourceModel(walletModel->getContractTableModel());
-	mycontractFilter->setOnlyMine(1);
+	mycontractFilter->setOnlyMine(true);
 	mycontractFilter->setSortRole(ContractTableModel::IssuerRole);
 	mycontractFilter->sort(ContractTableModel::Issuer, Qt::AscendingOrder);
 

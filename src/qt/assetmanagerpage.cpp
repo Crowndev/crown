@@ -46,6 +46,7 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     contractFilter = new ContractFilterProxy(this);
     contractFilter->setSourceModel(walletModel->getContractTableModel());
     contractFilter->setSortRole(ContractTableModel::NameRole);
+   	contractFilter->setOnlyMine(false);
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
     assetFilter = new AssetFilterProxy(this);
