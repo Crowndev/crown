@@ -153,7 +153,7 @@ AssetTableModel::AssetTableModel(WalletModel *parent, ClientModel *_clientModel)
         QAbstractTableModel(parent), walletModel(parent), clientModel(_clientModel), priv(new AssetTablePriv(parent, _clientModel, this))
 {
     columns << tr("Name") << tr("Shortname") << tr("Balance") << tr("Issued") << tr("Issuer");
-    //connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &AssetTableModel::checkBlocksChanged);
+    connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &AssetTableModel::checkBlocksChanged);
     priv->refreshWallet();
 };
 

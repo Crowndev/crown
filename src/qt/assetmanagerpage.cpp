@@ -23,6 +23,7 @@ AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     ui(new Ui::AssetManagerPage)
 {
     ui->setupUi(this);
+    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
 }
 
 AssetManagerPage::~AssetManagerPage()
@@ -41,12 +42,11 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
 
     assetTableModel = new AssetTableModel(walletModel, clientModel);
     coinControlModel = new CoinControlModel(walletModel);
-    contractTableModel = new ContractTableModel(walletModel);
 
     contractFilter = new ContractFilterProxy(this);
-    contractFilter->setSourceModel(contractTableModel);
-    contractFilter->setDynamicSortFilter(true);
+    contractFilter->setSourceModel(walletModel->getContractTableModel());
     contractFilter->setSortRole(ContractTableModel::NameRole);
+   	contractFilter->setOnlyMine(false);
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
     assetFilter = new AssetFilterProxy(this);
@@ -55,9 +55,9 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
 
-    connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
-        
     update();
+
+    //connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
 }
 
 void AssetManagerPage::updateAssetList()
@@ -76,7 +76,6 @@ void AssetManagerPage::updateAssetList()
 
 void AssetManagerPage::updateContractList()
 {
-
     ui->contracttableView->setModel(contractFilter);
     ui->contracttableView->setAlternatingRowColors(true);
     ui->contracttableView->setSortingEnabled(true);
@@ -102,13 +101,12 @@ void AssetManagerPage::on_CreateNewContract_clicked()
         return;
 
     NewContractPage dialog(this);
-    dialog.setModal(false);
-    //dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Contract");
     dialog.setWalletModel(walletModel);
-    dialog.exec();
+    if(dialog.exec())
+        update();
 }
-
 
 void AssetManagerPage::on_CreateNewAsset_clicked()
 {
@@ -119,11 +117,11 @@ void AssetManagerPage::on_CreateNewAsset_clicked()
         return;
 
     NewAssetPage dialog(this);
-    dialog.setModal(false);
-    //dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Asset");
     dialog.setWalletModel(walletModel);
-    dialog.exec();
+    if(dialog.exec())
+        update();
 }
 
 void AssetManagerPage::chooseAssetType(int idx)

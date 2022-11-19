@@ -24,7 +24,6 @@
 enum class OutputType;
 
 class AddressTableModel;
-class IDTableModel;
 class ClientModel;
 class OptionsModel;
 class PlatformStyle;
@@ -33,6 +32,7 @@ class SendAssetsRecipient;
 class TransactionTableModel;
 class AssetTableModel;
 class CoinControlModel;
+class ContractTableModel;
 class WalletModelTransaction;
 
 class CCoinControl;
@@ -84,6 +84,7 @@ public:
     TransactionTableModel *getTransactionTableModel();
     AssetTableModel* getAssetTableModel();
     CoinControlModel* getCoinControlModel();
+    ContractTableModel* getContractTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
     std::set<CAsset> getAssetTypes() const;
@@ -163,9 +164,6 @@ public:
     QString getDisplayName() const;
 
     bool isMultiwallet();
-
-    AddressTableModel* getAddressTableModel() const { return addressTableModel; }
-    
     
     void refresh(bool pk_hash_only = false);
 
@@ -194,6 +192,8 @@ private:
 
     AddressTableModel *addressTableModel;
     TransactionTableModel *transactionTableModel;
+    AssetTableModel* assetTableModel;
+    ContractTableModel* contractTableModel;
 
     CoinControlModel *coinControlModel;
     RecentRequestsTableModel *recentRequestsTableModel;

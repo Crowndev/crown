@@ -48,6 +48,8 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     optionsModel(client_model.getOptionsModel()),
     addressTableModel(nullptr),
     transactionTableModel(nullptr),
+    assetTableModel(nullptr),
+    contractTableModel(nullptr),
     recentRequestsTableModel(nullptr),
     cachedEncryptionStatus(Unencrypted),
     timer(new QTimer(this))
@@ -56,6 +58,9 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     addressTableModel = new AddressTableModel(this);
     transactionTableModel = new TransactionTableModel(platformStyle, this);
     recentRequestsTableModel = new RecentRequestsTableModel(this);
+    assetTableModel = new AssetTableModel(this, m_client_model);
+    coinControlModel = new CoinControlModel(this);
+    contractTableModel = new ContractTableModel(this);
 
     subscribeToCoreSignals();
 }
@@ -369,9 +374,24 @@ TransactionTableModel *WalletModel::getTransactionTableModel()
     return transactionTableModel;
 }
 
+AssetTableModel *WalletModel::getAssetTableModel()
+{
+    return assetTableModel;
+}
+
+CoinControlModel *WalletModel::getCoinControlModel()
+{
+    return coinControlModel;
+}
+
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
+}
+
+ContractTableModel* WalletModel::getContractTableModel()
+{ 
+    return contractTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const

@@ -18,7 +18,7 @@ public:
     void setContractNamePrefix(const QString &sContractNamePrefix);
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     /** Only Mine **/
-    void setOnlyMine(int fOnlyMine);
+    void setOnlyMine(bool fOnlyMine);
     /** Only Held **/
     void setSearchString(const QString &);
     void setLimit(int limit);
@@ -32,7 +32,6 @@ private:
     CAmount minAmount;
     int limitRows;
     QString sContractNamePrefix;
-    bool fOnlyMine = false;
-    bool fOnlyHeld = false;
+    bool fOnlyMine;
 };
 #endif //CROWN_CONTRACTFILTERPROXY_H

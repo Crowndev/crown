@@ -21,17 +21,7 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QLineEdit" name="name">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-           <property name="placeholderText">
-            <string>Name</string>
-           </property>
-          </widget>
+          <widget class="QComboBox" name="contractcomboBox"/>
          </item>
          <item>
           <widget class="QComboBox" name="typecomboBox">
@@ -88,7 +78,7 @@
             <set>Qt::AlignCenter</set>
            </property>
            <property name="placeholderText">
-            <string extracomment="Input Amount">0.00</string>
+            <string extracomment="Input Amount">Input Amount (0.00) CRW</string>
            </property>
           </widget>
          </item>
@@ -98,7 +88,7 @@
             <set>Qt::AlignCenter</set>
            </property>
            <property name="placeholderText">
-            <string extracomment="Output Amount">0.00</string>
+            <string extracomment="Output Amount">Issuing/Output (0.00)</string>
            </property>
           </widget>
          </item>

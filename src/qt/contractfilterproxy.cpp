@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <qt/contractfilterproxy.h>
 #include <qt/contracttablemodel.h>
+#include <QDebug>
 
 ContractFilterProxy::ContractFilterProxy(QObject *parent) :
         QSortFilterProxyModel(parent)
@@ -12,13 +13,13 @@ ContractFilterProxy::ContractFilterProxy(QObject *parent) :
 bool ContractFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
     QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
+    QModelIndex index1 = sourceModel()->index(sourceRow, 7, sourceParent);
 
     QString sContractName = index.data(ContractTableModel::NameRole).toString();
+    bool isMine = sourceModel()->data(index1).toBool();
 
     if(!sContractName.startsWith(m_search_string, Qt::CaseInsensitive))
         return false;
-
-    bool isMine = index.data(ContractTableModel::MineRole).toBool();
 
     if (fOnlyMine && !isMine)
         return false;
@@ -37,8 +38,8 @@ int ContractFilterProxy::rowCount(const QModelIndex& parent) const
     return QSortFilterProxyModel::rowCount(parent);
 }
 
-void ContractFilterProxy::setOnlyMine(int fOnlyMine){
-    this->fOnlyMine = fOnlyMine;
+void ContractFilterProxy::setOnlyMine(bool _fOnlyMine){
+    fOnlyMine = _fOnlyMine;
     invalidateFilter();
 }
 
