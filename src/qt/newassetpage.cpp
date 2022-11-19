@@ -29,18 +29,14 @@ void NewAssetPage::setWalletModel(WalletModel* model)
         return;
     this->walletModel = model;
 
-    contractTableModel = new ContractTableModel(walletModel);
-
 	mycontractFilter = new ContractFilterProxy(this);
-	mycontractFilter->setSourceModel(contractTableModel);
-	mycontractFilter->setDynamicSortFilter(true);
+	mycontractFilter->setSourceModel(walletModel->getContractTableModel());
 	mycontractFilter->setOnlyMine(1);
-	mycontractFilter->setSortRole(Qt::EditRole);
-	mycontractFilter->setSortRole(ContractTableModel::NameRole);
-	mycontractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
+	mycontractFilter->setSortRole(ContractTableModel::IssuerRole);
+	mycontractFilter->sort(ContractTableModel::Issuer, Qt::AscendingOrder);
 
-    //ui->contractcomboBox->setModel(mycontractFilter);
-    //qDebug() << "NewAssetPage, filter size " << mycontractFilter->rowCount();
+    ui->contractcomboBox->setModel(mycontractFilter);
+    qDebug() << "NewAssetPage, filter size " << mycontractFilter->rowCount();
     
 }
 
@@ -77,7 +73,7 @@ void NewAssetPage::on_Create_clicked()
 			msgbox->setWindowTitle("Note");
 			msgbox->setText("Success");
 			msgbox->open();
-			close();
+			//close();
 		}
         return;
     }
@@ -93,7 +89,7 @@ void NewAssetPage::on_Create_clicked()
         msgbox->setWindowTitle("Note");
         msgbox->setText("Success");
         msgbox->open();
-        close();
+        //close();
     }
 }
 
@@ -110,7 +106,7 @@ QString NewAssetPage::getassettype(){
 }
 
 QString NewAssetPage::getassetcontract(){
-    return ui->name->text();
+    return ui->contractcomboBox->currentText();
 }
 
 bool NewAssetPage::gettransferable(){

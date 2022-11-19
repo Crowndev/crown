@@ -62,7 +62,6 @@ void NewContractPage::on_Create_clicked()
             msgbox->setWindowTitle("Note");
             msgbox->setText("Success");
             msgbox->open();
-            close();
         }
         return;
     }
@@ -77,9 +76,8 @@ void NewContractPage::on_Create_clicked()
         msgbox->setWindowTitle("Note");
         msgbox->setText("Success");
         msgbox->open();
-        close();
     }
-    //QDialog::accept();    
+    close();
 }
 
 

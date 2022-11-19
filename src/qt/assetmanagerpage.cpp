@@ -23,6 +23,7 @@ AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     ui(new Ui::AssetManagerPage)
 {
     ui->setupUi(this);
+    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
 }
 
 AssetManagerPage::~AssetManagerPage()
@@ -41,11 +42,9 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
 
     assetTableModel = new AssetTableModel(walletModel, clientModel);
     coinControlModel = new CoinControlModel(walletModel);
-    contractTableModel = new ContractTableModel(walletModel);
 
     contractFilter = new ContractFilterProxy(this);
-    contractFilter->setSourceModel(contractTableModel);
-    contractFilter->setDynamicSortFilter(true);
+    contractFilter->setSourceModel(walletModel->getContractTableModel());
     contractFilter->setSortRole(ContractTableModel::NameRole);
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
@@ -55,12 +54,9 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
 
-    connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
-
-    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
-
-        
     update();
+
+    //connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
 }
 
 void AssetManagerPage::updateAssetList()
@@ -79,7 +75,6 @@ void AssetManagerPage::updateAssetList()
 
 void AssetManagerPage::updateContractList()
 {
-
     ui->contracttableView->setModel(contractFilter);
     ui->contracttableView->setAlternatingRowColors(true);
     ui->contracttableView->setSortingEnabled(true);

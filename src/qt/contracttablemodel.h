@@ -49,7 +49,7 @@ public:
         IssuerRole = 4,
         DescriptionRole = 5,
         ScriptRole = 6,
-        MineRole
+        MineRole = 7
     };
 
 
