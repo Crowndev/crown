@@ -401,7 +401,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         // Tally transaction fees
         CAmountMap txfee_aux = (inputAssets - outputAssets);
-        txfee_aux[subsidy_asset] *= -1;
+        if(txfee_aux[subsidy_asset] < 0)
+            txfee_aux[subsidy_asset] *= -1;
 
         //identify the fee asset
         txfee += GetFeeMap(tx);
