@@ -85,8 +85,6 @@ static feebumper::Result CheckFeeRate(const CWallet& wallet, const CWalletTx& wt
     if(wtx.tx->nVersion >= TX_ELE_VERSION)
         old_fee = (wtx.GetDebit(filter) - wtx.tx->GetValueOutMap())[wtx.tx->vpout[0].nAsset];
 
-    
-    
     const int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
     CFeeRate nOldFeeRate(old_fee, txSize);
     // Min total fee is old fee + relay fee
@@ -116,31 +114,35 @@ static feebumper::Result CheckFeeRate(const CWallet& wallet, const CWalletTx& wt
     return feebumper::Result::OK;
 }
 
-static CFeeRate EstimateFeeRate(const CWallet& wallet, const CWalletTx& wtx, const CAmount old_fee, CCoinControl& coin_control)
+static CFeeRate EstimateFeeRate(const CWallet& wallet, const CWalletTx& wtx, const CAmountMap old_fee, CCoinControl& coin_control)
 {
     // Get the fee rate of the original transaction. This is calculated from
     // the tx fee/vsize, so it may have been rounded down. Add 1 satoshi to the
     // result.
     int64_t txSize = GetVirtualTransactionSize(*(wtx.tx));
-    CFeeRate feerate(old_fee, txSize);
-    feerate += CFeeRate(1);
+    CFeeRate feerate;    
+    for(auto s: old_fee){
+		CFeeRate feerateTmp(s.second, txSize);
+		feerate += feerateTmp;
+		feerate += CFeeRate(1);
 
-    // The node has a configurable incremental relay fee. Increment the fee by
-    // the minimum of that and the wallet's conservative
-    // WALLET_INCREMENTAL_RELAY_FEE value to future proof against changes to
-    // network wide policy for incremental relay fee that our node may not be
-    // aware of. This ensures we're over the required relay fee rate
-    // (BIP 125 rule 4).  The replacement tx will be at least as large as the
-    // original tx, so the total fee will be greater (BIP 125 rule 3)
-    CFeeRate node_incremental_relay_fee = wallet.chain().relayIncrementalFee();
-    CFeeRate wallet_incremental_relay_fee = CFeeRate(WALLET_INCREMENTAL_RELAY_FEE);
-    feerate += std::max(node_incremental_relay_fee, wallet_incremental_relay_fee);
+		// The node has a configurable incremental relay fee. Increment the fee by
+		// the minimum of that and the wallet's conservative
+		// WALLET_INCREMENTAL_RELAY_FEE value to future proof against changes to
+		// network wide policy for incremental relay fee that our node may not be
+		// aware of. This ensures we're over the required relay fee rate
+		// (BIP 125 rule 4).  The replacement tx will be at least as large as the
+		// original tx, so the total fee will be greater (BIP 125 rule 3)
+		CFeeRate node_incremental_relay_fee = wallet.chain().relayIncrementalFee();
+		CFeeRate wallet_incremental_relay_fee = CFeeRate(WALLET_INCREMENTAL_RELAY_FEE);
+		feerate += std::max(node_incremental_relay_fee, wallet_incremental_relay_fee);
+	}
 
-    // Fee rate must also be at least the wallet's GetMinimumFeeRate
-    CFeeRate min_feerate(GetMinimumFeeRate(wallet, coin_control, /* feeCalc */ nullptr));
+	// Fee rate must also be at least the wallet's GetMinimumFeeRate
+	CFeeRate min_feerate(GetMinimumFeeRate(wallet, coin_control, /* feeCalc */ nullptr));
 
-    // Set the required fee rate for the replacement transaction in coin control.
-    return std::max(feerate, min_feerate);
+	// Set the required fee rate for the replacement transaction in coin control.
+	return std::max(feerate, min_feerate);
 }
 
 namespace feebumper {
@@ -157,7 +159,7 @@ bool TransactionCanBeBumped(const CWallet& wallet, const uint256& txid)
 }
 
 Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCoinControl& coin_control, std::vector<bilingual_str>& errors,
-                                 CAmount& old_fee, CAmount& new_fee, CMutableTransaction& mtx)
+                                 CAmountMap& old_fee, CAmountMap& new_fee, CMutableTransaction& mtx)
 {
     // We are going to modify coin control later, copy to re-use
     CCoinControl new_coin_control(coin_control);
@@ -191,7 +193,7 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
 
     isminefilter filter = wallet.GetLegacyScriptPubKeyMan() && wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) ? ISMINE_WATCH_ONLY : ISMINE_SPENDABLE;
     if(wtx.tx->nVersion >= TX_ELE_VERSION)
-        old_fee = (wtx.GetDebit(filter) - wtx.tx->GetValueOutMap())[wtx.tx->vpout[0].nAsset];
+        old_fee = (wtx.GetDebit(filter) - wtx.tx->GetValueOutMap());
 
     if (coin_control.m_feerate) {
         // The user provided a feeRate argument.
@@ -222,7 +224,7 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
     new_coin_control.m_min_depth = 1;
 
     CTransactionRef tx_new = MakeTransactionRef();
-    CAmount fee_ret;
+    CAmountMap fee_ret;
     int change_pos_in_out = -1; // No requested location for change
     bilingual_str fail_reason;
     FeeCalculation fee_calc_out;

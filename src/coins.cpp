@@ -104,15 +104,12 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinbase = tx.IsCoinBase();
     bool fCoinstake = tx.IsCoinStake();
     const uint256& txid = tx.GetHash();
-    //LogPrintf("%s: TX %s\n",__func__, tx.ToString());
 
     if(tx.nVersion >= TX_ELE_VERSION){
         for (size_t i = 0; i < tx.vpout.size() ; i++) {
             bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase || fCoinstake;
             // Coinbase transactions can always be overwritten, in order to correctly
             // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
-            //LogPrintf("%s: %s\n", __func__, tx.vpout[i].ToString());
-            //if(!tx.vpout[i].IsNull())
             cache.AddCoin(COutPoint(txid, i), Coin(tx.vpout[i], nHeight, fCoinbase, fCoinstake), overwrite);
         }
     }
@@ -259,30 +256,27 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
 
     CAmount nResult = 0;
     for (unsigned int i = 0; i < tx.vin.size(); i++)
-        nResult += AccessCoin(tx.vin[i].prevout).out.nValue;//(tx.nVersion >= TX_ELE_VERSION ? AccessCoin(tx.vin[i].prevout).out2.nValue : AccessCoin(tx.vin[i].prevout).out.nValue) ;
+        nResult += AccessCoin(tx.vin[i].prevout).out.nValue;
 
     return nResult;
 }
 
 CAmountMap CCoinsViewCache::GetValueInMap(const CTransaction& tx) const
 {
-    if (tx.IsCoinBase())
-        return CAmountMap();
-
     CAmountMap nResult;
-    for (unsigned int i = 0; i < tx.vin.size(); i++){
-        COutPoint prevout = tx.vin[i].prevout;
-        CAsset asset;
-        CAmount amount;
-        if(tx.nVersion >= TX_ELE_VERSION){
-            asset = AccessCoin(prevout).out.nAsset;
-            amount = AccessCoin(prevout).out.nValue;
-        }else{
-            asset = Params().GetConsensus().subsidy_asset;
-            amount = AccessCoin(prevout).out.nValue;
-        }
 
-        nResult[asset] += amount;
+    if (tx.IsCoinBase())
+        return nResult;
+
+    for (unsigned int i = 0; i < tx.vin.size(); i++){
+
+        CAsset asset;
+        if(tx.nVersion >= TX_ELE_VERSION)
+            asset = AccessCoin(tx.vin[i].prevout).out.nAsset;
+        else
+            asset = Params().GetConsensus().subsidy_asset;
+
+        nResult[asset] += AccessCoin(tx.vin[i].prevout).out.nValue;
     }
 
     return nResult;

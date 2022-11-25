@@ -522,7 +522,7 @@ public:
          */
         std::vector<COutPoint>& m_coins_to_uncache;
         const bool m_test_accept;
-        CAmount* m_fee_out;
+        CAmountMap* m_fee_out;
     };
 
     // Single transaction acceptance
@@ -769,14 +769,14 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
 
-    CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees)) {
+    CAmountMap fee_map;
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), fee_map)) {
         return false; // state filled in by CheckTxInputs
     }
 
     // If fee_out is passed, return the fee to the caller
     if (args.m_fee_out) {
-        *args.m_fee_out = nFees;
+        *args.m_fee_out = fee_map;
     }
 
     // Check for non-standard pay-to-script-hash in inputs
@@ -793,7 +793,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     int64_t nSigOpsCost = GetTransactionSigOpCost(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
     // nModifiedFees includes any fee deltas from PrioritiseTransaction
-    nModifiedFees = nFees;
+    nModifiedFees = fee_map.begin()->second;
     m_pool.ApplyDelta(hash, nModifiedFees);
 
     // Keep track of transactions that spend a coinbase, which we re-scan
@@ -807,7 +807,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         }
     }
 
-    entry.reset(new CTxMemPoolEntry(ptx, nFees, nAcceptTime, ::ChainActive().Height(),
+    entry.reset(new CTxMemPoolEntry(ptx, fee_map.begin()->second, nAcceptTime, ::ChainActive().Height(),
             fSpendsCoinbase, nSigOpsCost, lp));
     unsigned int nSize = entry->GetTxSize();
 
@@ -1159,7 +1159,7 @@ bool MemPoolAccept::AcceptSingleTransaction(const CTransactionRef& ptx, ATMPArgs
 /** (try to) add transaction to memory pool with a specified acceptance time **/
 static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPool& pool, TxValidationState &state, const CTransactionRef &tx,
                         int64_t nAcceptTime, std::list<CTransactionRef>* plTxnReplaced,
-                        bool bypass_limits, bool test_accept, CAmount* fee_out=nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+                        bool bypass_limits, bool test_accept, CAmountMap* fee_out=nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     std::vector<COutPoint> coins_to_uncache;
     MemPoolAccept::ATMPArgs args { chainparams, state, nAcceptTime, plTxnReplaced, bypass_limits, coins_to_uncache, test_accept, fee_out };
@@ -1181,7 +1181,7 @@ static bool AcceptToMemoryPoolWithTime(const CChainParams& chainparams, CTxMemPo
 
 bool AcceptToMemoryPool(CTxMemPool& pool, TxValidationState &state, const CTransactionRef &tx,
                         std::list<CTransactionRef>* plTxnReplaced,
-                        bool bypass_limits, bool test_accept, CAmount* fee_out)
+                        bool bypass_limits, bool test_accept, CAmountMap* fee_out)
 {
     const CChainParams& chainparams = Params();
     return AcceptToMemoryPoolWithTime(chainparams, pool, state, tx, GetTime(), plTxnReplaced, bypass_limits, test_accept, fee_out);
@@ -2609,16 +2609,15 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
         if (!tx.IsCoinBase() && !tx.IsCoinStake())
         {
-            CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee)) {
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, fee_map)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
                 return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
             }
-            nFees += txfee;
-            if (!MoneyRange(nFees)) {
+
+            if (!MoneyRange(fee_map)) {
                 LogPrintf("ERROR: %s: accumulated fee in the block out of range.\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
             }
@@ -2793,16 +2792,11 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                         if(iequals(out.getAssetName(), checkasset.getAssetName()) || iequals(out.getAssetName(), checkasset.getShortName()))
                             exists = true;
                     }
-/*
-                    const CContract &contract = GetContractByHash(out.contract_hash);
 
-                    if(contract.IsEmpty())
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("contract-not-found %s", out.contract_hash), strprintf("%s", __func__));
-*/
                     if (!exists && !passetsCache->Exists(out.getAssetName())){
                         if(!fJustCheck){
                             //LogPrintf("%s: ADDING ASSET %s\n", __func__, out.getAssetName());
-                            passetsCache->Put(out.getAssetName(), CAssetData(out, block.vtx[i], j, view, block.nTime));
+                            passetsCache->Put(out.getAssetName(), CAssetData(out, block.vtx[i], j, block.nTime));
                         }
                     }
                 }
@@ -2834,7 +2828,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             }
         }
     }
-
 
     if (!control.Wait()) {
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);

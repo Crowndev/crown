@@ -400,14 +400,11 @@ void checkAndAddDefaultAsset(){
 		if(iequals("", checkasset.getAssetName()) || iequals("", checkasset.getShortName()))
 		    dummy = true;
 	}
-    CCoinsViewCache view(&::ChainstateActive().CoinsTip());
 	if (!exists && !passetsCache->Exists(asset.getAssetName())){
-		LogPrintf("NOTIFICATION: %s: ADDING ASSET %s\n", __func__, asset.getAssetName());
-		passetsCache->Put(asset.getAssetName(), CAssetData(asset, Params().GenesisBlock().vtx[0], 0, view, Params().GenesisBlock().nTime));
+		passetsCache->Put(asset.getAssetName(), CAssetData(asset, Params().GenesisBlock().vtx[0], 0, Params().GenesisBlock().nTime));
 	}
 
 	if (dummy){
-		LogPrintf("NOTIFICATION: %s: REMOVING DUMMY ASSET \n", __func__);
 		passetsCache->Erase("");
 	}	
 }
@@ -1088,11 +1085,11 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // if using block pruning, then disallow txindex
     if (args.GetArg("-prune", 0)) {
-        if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX))
-            return InitError(_("Prune mode is incompatible with -txindex."));
-        if (!g_enabled_filter_types.empty()) {
-            return InitError(_("Prune mode is incompatible with -blockfilterindex."));
-        }
+        //if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX))
+            return InitError(_("Prune mode is disabled"));
+        //if (!g_enabled_filter_types.empty()) {
+        //    return InitError(_("Prune mode is incompatible with -blockfilterindex."));
+       // }
     }
 
     // -bind and -whitebind can't be set when not listening
@@ -1183,22 +1180,9 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 
     // block pruning; get the amount of disk space (in MiB) to allot for block & undo files
     int64_t nPruneArg = args.GetArg("-prune", 0);
-    if (nPruneArg < 0) {
-        return InitError(_("Prune cannot be configured with a negative value."));
+    if (nPruneArg != 0) {
+        return InitError(_("Prune cannot be configured."));
     }
-    nPruneTarget = (uint64_t) nPruneArg * 1024 * 1024;
-    if (nPruneArg == 1) {  // manual pruning: -prune=1
-        LogPrintf("Block pruning enabled.  Use RPC call pruneblockchain(height) to manually prune block and undo files.\n");
-        nPruneTarget = std::numeric_limits<uint64_t>::max();
-        fPruneMode = true;
-    } else if (nPruneTarget) {
-        if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
-            return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."), MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
-        }
-        LogPrintf("Prune configured to target %u MiB on disk for block and undo files.\n", nPruneTarget / 1024 / 1024);
-        fPruneMode = true;
-    }
-
     // above code left in for convenience of future rebase work, pruning always disabled
     fPruneMode = false;
     assert(!fPruneMode);
@@ -1708,7 +1692,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 passetsdb.reset();
                 passetsdb.reset(new CAssetsDB(nBlockTreeDBCache, false, fReset));
                 delete passetsCache;
-                passetsCache = new CLRUCache<std::string, CAssetData>(MAX_CACHE_ASSETS_SIZE);
+                passetsCache = new CLRUCache<std::string, CAssetData>(2500);
 
                 // Read for fAssetIndex to make sure that we only load asset address balances if it if true
                 //pblocktree->ReadFlag("assetindex", fAssetIndex);
@@ -1723,7 +1707,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                 pcontractdb.reset();
                 pcontractdb.reset(new CContractDB(nBlockTreeDBCache, false, fReset));
                 delete pcontractCache;
-                pcontractCache = new CLRUCache<std::string, CContractData>(MAX_CACHE_ASSETS_SIZE);
+                pcontractCache = new CLRUCache<std::string, CContractData>(2500);
                 if (!pcontractdb->LoadContracts()) {
                     strLoadError = _("Failed to load Contract Database");
                     break;

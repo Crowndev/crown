@@ -11,8 +11,6 @@
 #include <lrucache.h>
 #include <dbwrapper.h>
 
-class CCoinsViewCache;
-
 class CAssetData
 {
 public:
@@ -20,11 +18,10 @@ public:
     CScript issuingAddress;
     CAmount inputAmount;
     CAmount issuedAmount;
-    CAssetID inputAssetID;
     uint256 txhash;
     uint32_t nTime;
 
-    CAssetData(const CAsset& asset, const CTransactionRef& assetTx, const int& nOut, CCoinsViewCache& view, uint32_t nTime);
+    explicit CAssetData(const CAsset& asset, const CTransactionRef& assetTx, const int& nOut, uint32_t nTime);
     CAssetData();
 
     void SetNull()
@@ -33,11 +30,10 @@ public:
         issuingAddress.clear();
         inputAmount =0;
         issuedAmount =0;
-        inputAssetID.SetNull();
         nTime=0;
     }
 
-    SERIALIZE_METHODS(CAssetData, obj) {READWRITE(obj.asset, obj.issuingAddress, obj.inputAmount, obj.issuedAmount, obj.inputAssetID, obj.nTime, obj.txhash);}
+    SERIALIZE_METHODS(CAssetData, obj) {READWRITE(obj.asset, obj.issuingAddress, obj.inputAmount, obj.issuedAmount, obj.nTime, obj.txhash);}
 };
 
 
@@ -75,10 +71,11 @@ extern CLRUCache<std::string, CAssetData> *passetsCache;
 void DumpAssets();
 
 CAsset GetAsset(const std::string& name);
+CAssetData GetAssetData(const std::string& name);
 std::vector<CAsset> GetAllAssets();
 bool assetExists(CAsset assetToCheck, uint256 &txhash);
 bool assetNameExists(std::string assetName);
 bool isSubsidy(CAsset assetToCheck);
 CAsset GetSubsidyAsset();
-
+CAsset GetDevAsset();
 #endif //CROWN_ASSETDB_H

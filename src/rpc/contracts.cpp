@@ -274,7 +274,7 @@ static RPCHelpMan getasset()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::string assetstring = request.params[0].get_str();
-    CAsset asset = GetAsset(assetstring);
+    CAssetData asset = GetAssetData(assetstring);
     UniValue result(UniValue::VOBJ);
 
     AssetToUniv(asset,result);

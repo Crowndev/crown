@@ -29,17 +29,17 @@ public:
     CTransactionRef& getWtx();
     unsigned int getTransactionSize();
 
-    void setTransactionFee(const CAmount& newFee);
-    CAmount getTransactionFee() const;
+    void setTransactionFee(const CAmountMap& newFee);
+    CAmountMap getTransactionFee() const;
 
-    CAmount getTotalTransactionAmount() const;
+    CAmountMap getTotalTransactionAmount() const;
 
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
 private:
     QList<SendAssetsRecipient> recipients;
     CTransactionRef wtx;
-    CAmount fee;
+    CAmountMap fee;
 };
 
 #endif // CROWN_QT_WALLETMODELTRANSACTION_H

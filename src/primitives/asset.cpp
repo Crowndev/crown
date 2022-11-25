@@ -75,6 +75,14 @@ CAmountMap operator/(const CAmountMap& a, const CAmount& b)
     return c;
 }
 
+CAmountMap operator%(const CAmountMap& a, const CAmount& b)
+{
+    CAmountMap c;
+    for(std::map<CAsset, CAmount>::const_iterator it = a.begin(); it != a.end(); ++it)
+        c[it->first] = it->second%b;
+    return c;
+}
+
 CAmountMap operator+=(const CAmountMap& a, const CAmount& b)
 {
     CAmountMap c;
@@ -294,16 +302,8 @@ bool AssetMetadata::isInflatable() const{
     return nFlags & AssetFlags::ASSET_INFLATABLE;
 }
 
-CAssetID AssetMetadata::getInputAssetID() const {
-    return CAssetID();
-}
-
-CAmount AssetMetadata::getInputAmount() const {
-    return 0;
-}
-
-CAmount AssetMetadata::getIssuedAmount() const {
-    return 0;
+bool AssetMetadata::isDivisible() const{
+    return nFlags & AssetFlags::ASSET_DIVISIBLE;
 }
 
 uint256 AssetMetadata::GetMetaHash() const
@@ -342,7 +342,7 @@ std::string CAsset::ToString(bool mini) const
     str +=    strprintf("Symbol : %s \n", getShortName());
     str +=    strprintf("CAssetID : %s \n",GetHex());
     str +=    strprintf("Contract Hash : %s \n",contract_hash.ToString());
-    str += strprintf("Details (ver=%d, transferable=%s, convertable=%s, limited=%s, restricted=%s, stakable=%s, infatable=%s, type=%s, expiry=%d)\n", nVersion, isTransferable() ? "yes" : "no", isConvertable() ? "yes" : "no", isLimited() ? "yes" : "no", isRestricted() ? "yes" : "no", isStakeable() ? "yes" : "no", isInflatable() ? "yes" : "no", GetType(), GetExpiry());
+    str += strprintf("Details (ver=%d, transferable=%s, convertable=%s, limited=%s, restricted=%s, stakable=%s, infatable=%s, divisible=%s, type=%s, expiry=%d)\n", nVersion, isTransferable() ? "yes" : "no", isConvertable() ? "yes" : "no", isLimited() ? "yes" : "no", isRestricted() ? "yes" : "no", isStakeable() ? "yes" : "no", isInflatable() ? "yes" : "no", isDivisible() ? "yes" : "no", GetType(), GetExpiry());
 
     return str;
 }

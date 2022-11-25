@@ -20,6 +20,7 @@ struct CMutableTransaction;
 class uint256;
 class UniValue;
 class CContract;
+class CAssetData;
 
 // core_read.cpp
 CScript ParseScript(const std::string& s);
@@ -53,5 +54,6 @@ void ScriptToUniv(const CScript& script, UniValue& out, bool include_address);
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex = true, int serialize_flags = 0);
 void ContractToUniv(const CContract &s , UniValue &entry);
 void AssetToUniv(const CAsset& asset, UniValue &entry);
+void AssetToUniv(const CAssetData& asset, UniValue &entry);
 
 #endif // CROWN_CORE_IO_H

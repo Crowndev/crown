@@ -154,7 +154,7 @@ public:
         const CCoinControl& coin_control,
         bool sign,
         int& change_pos,
-        CAmount& fee,
+        CAmountMap& fee,
         bilingual_str& fail_reason) = 0;
 
     //! Commit transaction.
@@ -175,8 +175,8 @@ public:
     virtual bool createBumpTransaction(const uint256& txid,
         const CCoinControl& coin_control,
         std::vector<bilingual_str>& errors,
-        CAmount& old_fee,
-        CAmount& new_fee,
+        CAmountMap& old_fee,
+        CAmountMap& new_fee,
         CMutableTransaction& mtx) = 0;
 
     //! Sign bump transaction.

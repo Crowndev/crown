@@ -34,8 +34,8 @@ Result CreateRateBumpTransaction(CWallet& wallet,
     const uint256& txid,
     const CCoinControl& coin_control,
     std::vector<bilingual_str>& errors,
-    CAmount& old_fee,
-    CAmount& new_fee,
+    CAmountMap& old_fee,
+    CAmountMap& new_fee,
     CMutableTransaction& mtx);
 
 //! Sign the new transaction,

@@ -707,7 +707,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS, CConnman& connman)
         }
     }
 
-    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %lli \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
+    LogPrint(BCLog::MASTERNODE, "mnb - Got NEW Masternode entry - %s - %s - %s - %d \n", GetHash().ToString(), addr.ToString(), vin.ToString(), sigTime);
     CMasternode mn(*this);
     mnodeman.Add(mn);
 

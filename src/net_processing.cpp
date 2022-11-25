@@ -2746,7 +2746,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
         LOCK(cs_main);
 
         const auto current_time = GetTime<std::chrono::microseconds>();
-        uint256* best_block{nullptr};
+        //uint256* best_block{nullptr};
 
         for (CInv& inv : vInv) {
             if (interruptMsgProc) return;
@@ -2767,7 +2767,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
                 UpdateBlockAvailability(pfrom.GetId(), inv.hash);
                 if (!fAlreadyHave && ::ChainstateActive().IsInitialBlockDownload() && pfrom.fSyncingWith && inv.hash == pairHighBlock.second) {
                     m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::GETBLOCKS, ::ChainActive().GetLocator(), inv.hash));
-                    LogPrint(BCLog::NET, "getblocks (%d)  to peer=%d\n", pindexBestHeader->nHeight, best_block->ToString(), pfrom.GetId());
+                    LogPrint(BCLog::NET, "getblocks (%d)  to peer=%d\n", pindexBestHeader->nHeight, pfrom.GetId());
                 } else {
                     pfrom.AskForBlock(inv);
                 }
