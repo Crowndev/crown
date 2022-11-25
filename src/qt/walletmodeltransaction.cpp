@@ -12,7 +12,7 @@
 
 WalletModelTransaction::WalletModelTransaction(const QList<SendAssetsRecipient> &_recipients) :
     recipients(_recipients),
-    fee(0)
+    fee(CAmountMap())
 {
 }
 
@@ -31,12 +31,12 @@ unsigned int WalletModelTransaction::getTransactionSize()
     return wtx ? GetVirtualTransactionSize(*wtx) : 0;
 }
 
-CAmount WalletModelTransaction::getTransactionFee() const
+CAmountMap WalletModelTransaction::getTransactionFee() const
 {
     return fee;
 }
 
-void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
+void WalletModelTransaction::setTransactionFee(const CAmountMap& newFee)
 {
     fee = newFee;
 }
@@ -57,12 +57,12 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
     }
 }
 
-CAmount WalletModelTransaction::getTotalTransactionAmount() const
+CAmountMap WalletModelTransaction::getTotalTransactionAmount() const
 {
-    CAmount totalTransactionAmount = 0;
+    CAmountMap totalTransactionAmount;
     for (const SendAssetsRecipient &rcp : recipients)
     {
-        totalTransactionAmount += rcp.amount;
+        totalTransactionAmount[rcp.asset] += rcp.amount;
     }
     return totalTransactionAmount;
 }

@@ -17,29 +17,28 @@ static const char ASSET_FLAG = 'A';
 std::unique_ptr<CAssetsDB> passetsdb;
 CLRUCache<std::string, CAssetData> *passetsCache = nullptr;
 
-CAssetData::CAssetData(const CAsset& _asset, const CTransactionRef& assetTx, const int& nOut, CCoinsViewCache& view, uint32_t _nTime)
+CAssetData::CAssetData(const CAsset& _asset, const CTransactionRef& assetTx, const int& nOut, uint32_t _nTime)
 {
     SetNull();
     asset = _asset;
     nTime = _nTime;
     txhash = assetTx->GetHash();
-    //CTxOutAsset txout = assetTx->vpout[nOut];
     CTxOutAsset txout = (assetTx->nVersion >= TX_ELE_VERSION ? assetTx->vpout[nOut] : assetTx->vout[nOut]);
 
     issuingAddress = txout.scriptPubKey;
     if(txout.nValue)
        issuedAmount = txout.nValue;
 
-    CAmountMap nValueOutMap;
-    CAmountMap nValueInMap;
+    CCoinsViewCache& view = ::ChainstateActive().CoinsTip();
 
-    if(!assetTx->IsCoinBase()){
-		nValueInMap += view.GetValueInMap(*assetTx.get());
-		nValueOutMap += assetTx->GetValueOutMap();
-    }
+    CAmountMap nValueInMap = view.GetValueInMap(*assetTx);
+    CAmountMap nValueOutMap = assetTx->GetValueOutMap();
+    CAmountMap nFees = nValueInMap - nValueOutMap;
+
+    //for (const CTxIn& txin : assetTx->vin)
+    //    inputAmount += view.AccessCoin(txin.prevout).out.nValue;
+    inputAmount +=nFees[Params().GetConsensus().subsidy_asset];
     
-    inputAssetID = nValueInMap.begin()->first.GetAssetID();
-    inputAmount = nValueInMap[Params().GetConsensus().subsidy_asset];
 }
 
 CAssetData::CAssetData()
@@ -52,8 +51,7 @@ CAssetsDB::CAssetsDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(G
 
 bool CAssetsDB::WriteAssetData(const CAsset &asset, const CTransactionRef& assetTx, const int& nOut, uint32_t _nTime)
 {
-	CCoinsViewCache view(&::ChainstateActive().CoinsTip());
-    CAssetData data(asset, assetTx, nOut, view, _nTime);
+    CAssetData data(asset, assetTx, nOut, _nTime);
     return Write(std::make_pair(ASSET_FLAG, asset.getAssetName()), data);
 }
 
@@ -180,15 +178,27 @@ bool CAssetsDB::AssetDir(std::vector<CAssetData>& assets)
     return CAssetsDB::AssetDir(assets, "*", MAX_SIZE, 0);
 }
 
+CAssetData GetAssetData(const std::string& name){
+    
+    CAssetData cCheck;
+    for(auto const& x : passetsCache->GetItemsMap()){
+        if(iequals(x.first , name)){
+            cCheck = x.second->second;
+        }
+    }   
+    return cCheck;  
+    
+}
+
 CAsset GetAsset(const std::string& name)
 {
-	CAsset cCheck;
+    CAsset cCheck;
     for(auto const& x : passetsCache->GetItemsMap()){
-		if(iequals(x.first , name)){
-		    cCheck = x.second->second.asset;
-		}
-    }	
-	return cCheck;
+        if(iequals(x.first , name)){
+            cCheck = x.second->second.asset;
+        }
+    }   
+    return cCheck;
 }
 
 std::vector<CAsset> GetAllAssets(){
@@ -201,7 +211,7 @@ std::vector<CAsset> GetAllAssets(){
 }
 
 bool assetExists(CAsset assetToCheck, uint256 &txhash){
-	
+    
     for(auto const& x : passetsCache->GetItemsMap()){
         CAsset checkasset = x.second->second.asset;
         txhash = x.second->second.txhash;
@@ -212,30 +222,35 @@ bool assetExists(CAsset assetToCheck, uint256 &txhash){
         if(iequals(assetToCheck.getAssetName(), checkasset.getAssetName()) || iequals(assetToCheck.getAssetName(), checkasset.getShortName()))
             return true;
     }
-	
-	return false;
+    
+    return false;
 }
 
 bool assetNameExists(std::string assetName){
-	
+    
     for(auto const& x : passetsCache->GetItemsMap()){
         CAsset checkasset = x.second->second.asset;
         
         if(iequals(assetName, checkasset.getAssetName()) || iequals(assetName, checkasset.getShortName()))
             return true;
     }
-	
-	return false;
+    
+    return false;
 }
 
 bool isSubsidy(CAsset assetToCheck){
     if(assetToCheck == Params().GetConsensus().subsidy_asset)
-	    return true;
-	    
-	return false;	
+        return true;
+        
+    return false;   
 }
 
 CAsset GetSubsidyAsset(){
-	
-	return Params().GetConsensus().subsidy_asset;
+    
+    return Params().GetConsensus().subsidy_asset;
+}
+
+CAsset GetDevAsset(){
+    
+    return Params().GetConsensus().dev_asset;
 }

@@ -96,6 +96,7 @@ struct Params {
     uint256 defaultAssumeValid;
     CScript mandatory_coinbase_destination;
     CAsset subsidy_asset;
+    CAsset dev_asset;
     /**
      * If true, witness commitments contain a payload equal to a Crown Script solution
      * to the signet challenge. See BIP325.

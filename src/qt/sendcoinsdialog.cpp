@@ -178,10 +178,17 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         for (const int n : confTargets) {
             ui->confTargetSelector->addItem(tr("%1 (%2 blocks)").arg(GUIUtil::formatNiceTimeOffset(n*Params().GetConsensus().nPowTargetSpacing)).arg(n));
         }
-        connect(ui->confTargetSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &SendCoinsDialog::updateSmartFeeLabel);
-        connect(ui->confTargetSelector, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
-        connect(ui->groupFee, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->confTargetSelector, qOverload<int>(&QComboBox::currentIndexChanged), this, &SendCoinsDialog::updateSmartFeeLabel);
+        connect(ui->confTargetSelector, qOverload<int>(&QComboBox::currentIndexChanged), this, &SendCoinsDialog::coinControlUpdateLabels);
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+        connect(ui->groupFee, &QButtonGroup::idClicked, this, &SendCoinsDialog::updateFeeSectionControls);
+        connect(ui->groupFee, &QButtonGroup::idClicked, this, &SendCoinsDialog::coinControlUpdateLabels);
+#else
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+#endif
+
         connect(ui->customFee, &CrownAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->optInRBF, &QCheckBox::stateChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
@@ -252,7 +259,7 @@ QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendAssetsRecipi
     strFunds = tr("using") + " <b>" + tr("any available funds (not recommended)") + "</b> " + "and InstantX";
     QStringList formatted;
     for (const SendAssetsRecipient& rcp : recipients) {
-        QString amount = "<b>" + CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        QString amount = "<b>" + formatAssetAmount(rcp.asset, rcp.amount, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, true);
         amount.append("</b> ").append(strFunds);
         QString address = "<span style='font-family: monospace;'>" + rcp.address;
         address.append("</span>");
@@ -319,20 +326,19 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     prepareStatus = model->prepareTransaction(*m_current_transaction, *m_coin_control);
 
     // process prepareStatus and on error generate message shown to user
-    processSendCoinsReturn(prepareStatus,
-        CrownUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), m_current_transaction->getTransactionFee()));
+    processSendCoinsReturn(prepareStatus, formatMultiAssetAmount(m_current_transaction->getTransactionFee(), model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
         return false;
     }
 
-    CAmount txFee = m_current_transaction->getTransactionFee();
+    CAmountMap txFee = m_current_transaction->getTransactionFee();
     QStringList formatted;
     for (const SendAssetsRecipient &rcp : m_current_transaction->getRecipients())
     {
         // generate amount string with wallet name in case of multiwallet
-        QString amount = CrownUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        QString amount = formatAssetAmount(rcp.asset, rcp.amount, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, true);
         if (model->isMultiwallet()) {
             amount.append(tr(" from wallet '%1'").arg(GUIUtil::HtmlEscape(model->getWalletName())));
         }
@@ -370,7 +376,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     }
     question_string.append("</span>%1");
 
-    if(txFee > 0)
+    if(txFee > CAmountMap())
     {
         // append fee string if a fee is required
         question_string.append("<hr /><b>");
@@ -382,7 +388,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 
         // append transaction fee value
         question_string.append("<span style='color:#aa0000; font-weight:bold;'>");
-        question_string.append(CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        question_string.append(formatMultiAssetAmount(txFee, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
         question_string.append("</span><br />");
 
         // append RBF message according to transaction's signalling
@@ -397,15 +403,15 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 
     // add total amount in all subdivision units
     question_string.append("<hr />");
-    CAmount totalAmount = m_current_transaction->getTotalTransactionAmount() + txFee;
+    CAmountMap totalAmount = m_current_transaction->getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     for (const CrownUnits::Unit u : CrownUnits::availableUnits())
     {
-        if(u != model->getOptionsModel()->getDisplayUnit())
-            alternativeUnits.append(CrownUnits::formatHtmlWithUnit(u, totalAmount));
+        //if(u != model->getOptionsModel()->getDisplayUnit())
+        //    alternativeUnits.append(CrownUnits::formatHtmlWithUnit(u, totalAmount));
     }
     question_string.append(QString("<b>%1</b>: <b>%2</b>").arg(tr("Total Amount"))
-        .arg(CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+        .arg(formatMultiAssetAmount(totalAmount, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n")));
     question_string.append(QString("<br /><span style='font-size:10pt; font-weight:normal;'>(=%1)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + " ")));
 
@@ -431,23 +437,22 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
         prepareStatus = model->prepareTransaction(currentTransaction, coinControl);
 
     // process prepareStatus and on error generate message shown to user
-    processSendCoinsReturn(prepareStatus,
-        CrownUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+    processSendCoinsReturn(prepareStatus,formatMultiAssetAmount(currentTransaction.getTransactionFee(), model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
         return;
     }
 
-    CAmount txFee = currentTransaction.getTransactionFee();
+    CAmountMap txFee = currentTransaction.getTransactionFee();
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
 
-    if(txFee > 0)
+    if(txFee > CAmountMap())
     {
         // append fee string if a fee is required
         questionString.append("<hr /><span style='color:#aa0000;'>");
-        questionString.append(CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        questionString.append(formatMultiAssetAmount(txFee, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
         questionString.append("</span> ");
         questionString.append(tr("are added as transaction fee"));
         questionString.append(" ");
@@ -459,17 +464,17 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    CAmountMap totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     for (CrownUnits::Unit u : CrownUnits::availableUnits())
     {
-        if(u != model->getOptionsModel()->getDisplayUnit())
-            alternativeUnits.append(CrownUnits::formatHtmlWithUnit(u, totalAmount));
+        //if(u != model->getOptionsModel()->getDisplayUnit())
+        //    alternativeUnits.append(CrownUnits::formatHtmlWithUnit(u, totalAmount));
     }
 
     // Show total amount + all alternative units
     questionString.append(tr("Total Amount = <b>%1</b><br />= %2")
-        .arg(CrownUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount))
+        .arg(formatMultiAssetAmount(totalAmount, model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"))
         .arg(alternativeUnits.join("<br />= ")));
 
     // Limit number of displayed entries

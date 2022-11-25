@@ -33,12 +33,23 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     basemeta.nVersion = 1;
     basemeta.setName("Crown");
     basemeta.setShortName("CRW");
-    basemeta.nFlags = AssetMetadata::AssetFlags::ASSET_TRANSFERABLE | AssetMetadata::AssetFlags::ASSET_CONVERTABLE | AssetMetadata::AssetFlags::ASSET_STAKEABLE;
+    basemeta.nFlags = AssetMetadata::AssetFlags::ASSET_TRANSFERABLE | AssetMetadata::AssetFlags::ASSET_CONVERTABLE | AssetMetadata::AssetFlags::ASSET_STAKEABLE | AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
     basemeta.nExpiry =0;
     basemeta.nType =1;
     CAsset baseasset = CAsset(basemeta);
 
     consensus.subsidy_asset = baseasset;
+
+    AssetMetadata devmeta;
+    devmeta.nVersion = 1;
+    devmeta.setName("Taxes");
+    devmeta.setShortName("TAX");
+    devmeta.nFlags = AssetMetadata::AssetFlags::ASSET_TRANSFERABLE | AssetMetadata::AssetFlags::ASSET_CONVERTABLE | AssetMetadata::AssetFlags::ASSET_STAKEABLE | AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
+    devmeta.nExpiry =0;
+    devmeta.nType =1;
+    CAsset devasset = CAsset(devmeta);
+
+    consensus.dev_asset = devasset;
 
     CBlock genesis;
     genesis.nTime    = nTime;
@@ -302,10 +313,10 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1668657091, 381541, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1669396608, 1247729, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x000002d71ccf1df2d73943fff2e264c4bdd16ac7d592222991e612889a70e914"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000007307851eddd4d27c0e0f3cda1b42a4c2c7bc6b59721f09eb8259d60246a"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();

@@ -384,29 +384,32 @@ std::string dataTypeToString(DataTypes &dt)
     return "";
 }
 
-CAmountMap GetFeeMap(const CTransaction& tx) {
-    CAmountMap fee;
-    for (const auto& txout : tx.vpout) {
-        if (txout.IsFee()) {
-            fee[txout.nAsset] += txout.nValue;
-        }
-    }
-    return fee;
-}
-
 bool HasValidFee(const CTransaction& tx) {
     CAmountMap totalFee;
-    for (unsigned int i = 0; i < tx.vpout.size(); i++) {
+    
+	for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+		const CTxOutAsset &txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
         CAmount fee = 0;
-        if (tx.vpout[i].IsFee()) {
-            fee = tx.vpout[i].nValue;
+        if (txout.IsFee()) {
+            fee = txout.nValue;
             if (fee == 0 || !MoneyRange(fee))
                 return false;
-            totalFee[tx.vpout[i].nAsset] += fee;
+            totalFee[txout.nAsset] += fee;
             if (!MoneyRange(totalFee)) {
                 return false;
             }
         }
     }
     return true;
+}
+
+CAmountMap GetFeeMap(const CTransaction& tx) {
+    CAmountMap fee;
+	for (unsigned int k = 0; k < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; k++){
+		const CTxOutAsset &txout = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[k] : tx.vout[k]);
+        if (txout.IsFee()) {
+            fee[txout.nAsset] += txout.nValue;
+        }
+    }
+    return fee;
 }

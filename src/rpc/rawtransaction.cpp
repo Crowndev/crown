@@ -990,6 +990,7 @@ static RPCHelpMan testmempoolaccept()
     CTxMemPool& mempool = EnsureMemPool(request.context);
     int64_t virtual_size = GetVirtualTransactionSize(*tx);
     CAmount max_raw_tx_fee = max_raw_tx_fee_rate.GetFee(virtual_size);
+    CAmountMap max_raw_tx_fee_map{{CAsset(),max_raw_tx_fee}}; 
 
     UniValue result(UniValue::VARR);
     UniValue result_0(UniValue::VOBJ);
@@ -997,7 +998,7 @@ static RPCHelpMan testmempoolaccept()
 
     TxValidationState state;
     bool test_accept_res;
-    CAmount fee{0};
+    CAmountMap fee;
     {
         LOCK(cs_main);
         test_accept_res = AcceptToMemoryPool(mempool, state, std::move(tx),
@@ -1005,7 +1006,7 @@ static RPCHelpMan testmempoolaccept()
     }
 
     // Check that fee does not exceed maximum fee
-    if (test_accept_res && max_raw_tx_fee && fee > max_raw_tx_fee) {
+    if (test_accept_res && max_raw_tx_fee && fee > max_raw_tx_fee_map) {
         result_0.pushKV("allowed", false);
         result_0.pushKV("reject-reason", "max-fee-exceeded");
         result.push_back(std::move(result_0));
@@ -1018,7 +1019,7 @@ static RPCHelpMan testmempoolaccept()
     if (test_accept_res) {
         result_0.pushKV("vsize", virtual_size);
         UniValue fees(UniValue::VOBJ);
-        fees.pushKV("base", ValueFromAmount(fee));
+        fees.pushKV("base", mapToString(fee));
         result_0.pushKV("fees", fees);
     } else {
         if (state.IsInvalid()) {

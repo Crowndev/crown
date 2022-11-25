@@ -89,7 +89,7 @@ bool NodeWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, 
 
     CCoinControl coinControl;
     int nChangePosRet = -1;
-    CAmount nFeeRequired = 0;
+    CAmountMap nFeeRequired;
     bilingual_str error;
     FeeCalculation fee_calc_out;
 
@@ -158,9 +158,6 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
     //
     // Create new block
     //
-    CBlockIndex* pindexPrev = ::ChainActive().Tip();
-    if (!pindexPrev) return;
-
     CScript dummyscript;
 
     std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(*g_rpc_node->mempool, chainparams).CreateNewBlock(dummyscript, true));
@@ -176,17 +173,10 @@ void NodeMinter(const CChainParams& chainparams, CConnman& connman)
     // Process this block the same as if we had received it from another node
     std::shared_ptr<CBlock> shared_pblock = std::make_shared<CBlock>(*pblock);
 
-    //! guts of ProcessBlockFound()
-    if (pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
-        LogPrintf("%s - generated block is stale\n", __func__);
-        return;
-    } else {
-        LOCK(cs_main);
-        if (!g_chainman.ProcessNewBlock(chainparams, shared_pblock, true, nullptr)) {
-            LogPrintf("%s - ProcessNewBlock() failed, block not accepted\n", __func__);
-            return;
-        }
-    }
+	if (!g_chainman.ProcessNewBlock(chainparams, shared_pblock, true, nullptr)) {
+		LogPrintf("%s - ProcessNewBlock() failed, block not accepted\n", __func__);
+		return;
+	}
 
     return;
 }
@@ -262,8 +252,10 @@ bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const
         uint256 nTarget = ArithToUint256(arith_uint256().SetCompact(nBits));
         nLastStakeAttempt = GetTime();
 
-        if (!SearchTimeSpan(kernel, nTime, nTime + STAKE_SEARCH_INTERVAL, nTarget))
+        if (!SearchTimeSpan(kernel, nTime, nTime + STAKE_SEARCH_INTERVAL, nTarget)){
+			
             continue;
+		}
 
         LogPrintf("%s: Found valid kernel for mn/sn collateral %s\n", __func__, pvinActiveNode->prevout.ToString());
         LogPrintf("%s: %s\n", __func__, kernel.ToString());

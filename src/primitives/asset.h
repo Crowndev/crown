@@ -18,8 +18,6 @@
 **/
 typedef uint256 CAssetID;
 
-#define MAX_CACHE_ASSETS_SIZE 2500
-#define MAX_ASSET_LENGTH 32
 class AssetMetadata
 {
 
@@ -49,7 +47,9 @@ public:
         // ASSET_STAKEABLE means the asset can be staked
         ASSET_STAKEABLE = (1 << 4),
         // ASSET_INFLATABLE means the asset supply can grow
-        ASSET_INFLATABLE = (1 << 5)
+        ASSET_INFLATABLE = (1 << 5),
+        // ASSET_DIVISIBLE means the asset (unit) can be broken down 
+        ASSET_DIVISIBLE = (1 << 6)
     };
 
     enum AssetType : uint32_t
@@ -95,12 +95,8 @@ public:
     bool isStakeable() const;
 
     bool isInflatable() const;
-
-    CAssetID getInputAssetID() const;
-
-    CAmount getInputAmount() const;
-
-    CAmount getIssuedAmount() const;
+    
+    bool isDivisible() const;
 
     /** Compute the hash of this CAsset. This is computed on the fly.*/
     uint256 GetMetaHash() const;
@@ -215,6 +211,8 @@ CAmountMap operator+=(const CAmountMap& a, const CAmount& b);
 CAmountMap operator-(const CAmountMap& a, const CAmount& b);
 CAmountMap operator-=(const CAmountMap& a, const CAmount& b);
 
+CAmountMap operator%(const CAmountMap& a, const CAmount& b);
+
 std::ostream& operator <<(std::ostream& os,const CAmountMap& a);
 
 template<class T>
@@ -255,10 +253,10 @@ bool operator!(const CAmountMap& a); // Check if all values are 0
 
 inline bool MoneyRange(const CAmountMap& mapValue) {
     for(CAmountMap::const_iterator it = mapValue.begin(); it != mapValue.end(); it++) {
-        if (it->second < 0 || it->second > MAX_MONEY) {
+        if (it->second < 0) {
             return false;
         }
-    }
+    }    
    return true;
 }
 

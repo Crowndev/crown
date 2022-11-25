@@ -412,7 +412,7 @@ UniValue SendMoney(CWallet* const pwallet, const CCoinControl &coin_control, std
     std::shuffle(recipients.begin(), recipients.end(), FastRandomContext());
 
     // Send
-    CAmount nFeeRequired = 0;
+    CAmountMap nFeeRequired;
     int nChangePosRet = -1;
     bilingual_str error;
     CTransactionRef tx;
@@ -3341,7 +3341,7 @@ static RPCHelpMan listunspent()
     };
 }
 
-void FundTransaction(CWallet* const pwallet, CMutableTransaction& tx, CAmount& fee_out, int& change_position, const UniValue& options, CCoinControl& coinControl, bool override_min_fee)
+void FundTransaction(CWallet* const pwallet, CMutableTransaction& tx, CAmountMap& fee_out, int& change_position, const UniValue& options, CCoinControl& coinControl, bool override_min_fee)
 {
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -3564,7 +3564,7 @@ static RPCHelpMan fundrawtransaction()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     }
 
-    CAmount fee;
+    CAmountMap fee;
     int change_position;
     CCoinControl coin_control;
     // Automatically select (additional) coins. Can be overridden by options.add_inputs.
@@ -3573,7 +3573,11 @@ static RPCHelpMan fundrawtransaction()
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("hex", EncodeHexTx(CTransaction(tx)));
-    result.pushKV("fee", ValueFromAmount(fee));
+
+    UniValue res1(UniValue::VOBJ);
+    AmountMapToUniv(fee, res1);
+    result.pushKV("fee", res1);
+        
     result.pushKV("changepos", change_position);
 
     return result;
@@ -3788,8 +3792,8 @@ static RPCHelpMan bumpfee_helper(std::string method_name)
 
 
     std::vector<bilingual_str> errors;
-    CAmount old_fee;
-    CAmount new_fee;
+    CAmountMap old_fee;
+    CAmountMap new_fee;
     CMutableTransaction mtx;
     feebumper::Result res;
     // Targeting feerate bump.
@@ -3839,9 +3843,12 @@ static RPCHelpMan bumpfee_helper(std::string method_name)
         ssTx << psbtx;
         result.pushKV("psbt", EncodeBase64(ssTx.str()));
     }
-
-    result.pushKV("origfee", ValueFromAmount(old_fee));
-    result.pushKV("fee", ValueFromAmount(new_fee));
+    UniValue res1(UniValue::VOBJ);
+    AmountMapToUniv(old_fee, res1);
+    result.pushKV("origfee", res1);
+    UniValue res2(UniValue::VOBJ);
+    AmountMapToUniv(new_fee, res2);
+    result.pushKV("fee", res2);
     UniValue result_errors(UniValue::VARR);
     for (const bilingual_str& error : errors) {
         result_errors.push_back(error.original);
@@ -4431,7 +4438,7 @@ static RPCHelpMan send()
 
             const bool psbt_opt_in = options.exists("psbt") && options["psbt"].get_bool();
 
-            CAmount fee;
+            CAmountMap fee;
             int change_position;
             bool rbf = pwallet->m_signal_rbf;
             if (options.exists("replaceable")) {
@@ -4726,7 +4733,7 @@ static RPCHelpMan walletcreatefundedpsbt()
         }, true
     );
 
-    CAmount fee;
+    CAmountMap fee;
     int change_position;
     bool rbf = pwallet->m_signal_rbf;
     const UniValue &replaceable_arg = request.params[4]["replaceable"];
@@ -4766,13 +4773,14 @@ static RPCHelpMan walletcreatefundedpsbt()
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;
 
-CAmountMap mFee{{asset,fee}};
+
+    CAmountMap mFee{{asset,0}};
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("psbt", EncodeBase64(ssTx.str()));
 
     UniValue v1{UniValue::VOBJ};
-    AmountMapToUniv(mFee, v1);
+    AmountMapToUniv(mFee+fee, v1);
     result.pushKV("fee", v1);
 
     result.pushKV("changepos", change_position);

@@ -264,7 +264,7 @@ public:
         const CCoinControl& coin_control,
         bool sign,
         int& change_pos,
-        CAmount& fee,
+        CAmountMap& fee,
         bilingual_str& fail_reason) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -296,8 +296,8 @@ public:
     bool createBumpTransaction(const uint256& txid,
         const CCoinControl& coin_control,
         std::vector<bilingual_str>& errors,
-        CAmount& old_fee,
-        CAmount& new_fee,
+        CAmountMap& old_fee,
+        CAmountMap& new_fee,
         CMutableTransaction& mtx) override
     {
         return feebumper::CreateRateBumpTransaction(*m_wallet.get(), txid, coin_control, errors, old_fee, new_fee, mtx) == feebumper::Result::OK;

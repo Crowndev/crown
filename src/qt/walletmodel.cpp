@@ -277,7 +277,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     }
 
     {
-        CAmount nFeeRequired = 0;
+        CAmountMap nFeeRequired;
         int nChangePosRet = -1;
         bilingual_str error;
 
@@ -301,7 +301,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         // Reject absurdly high fee. (This can never happen because the
         // wallet never creates transactions with fee greater than
         // m_default_max_tx_fee. This merely a belt-and-suspenders check).
-        if (nFeeRequired > m_wallet->getDefaultMaxTxFee()) {
+        if (nFeeRequired.begin()->second > m_wallet->getDefaultMaxTxFee()) {
             return AbsurdFee;
         }
     }
@@ -586,8 +586,8 @@ bool WalletModel::bumpFee(uint256 hash, uint256& new_hash)
     CCoinControl coin_control;
     coin_control.m_signal_bip125_rbf = true;
     std::vector<bilingual_str> errors;
-    CAmount old_fee;
-    CAmount new_fee;
+    CAmountMap old_fee;
+    CAmountMap new_fee;
     CMutableTransaction mtx;
     if (!m_wallet->createBumpTransaction(hash, coin_control, errors, old_fee, new_fee, mtx)) {
         QMessageBox::critical(nullptr, tr("Fee bump error"), tr("Increasing transaction fee failed") + "<br />(" +
@@ -604,15 +604,15 @@ bool WalletModel::bumpFee(uint256 hash, uint256& new_hash)
     questionString.append("<tr><td>");
     questionString.append(tr("Current fee:"));
     questionString.append("</td><td>");
-    questionString.append(CrownUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), old_fee));
+    questionString.append(formatMultiAssetAmount(old_fee, getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
     questionString.append("</td></tr><tr><td>");
     questionString.append(tr("Increase:"));
     questionString.append("</td><td>");
-    questionString.append(CrownUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), new_fee - old_fee));
+    questionString.append(formatMultiAssetAmount(new_fee - old_fee, getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
     questionString.append("</td></tr><tr><td>");
     questionString.append(tr("New fee:"));
     questionString.append("</td><td>");
-    questionString.append(CrownUnits::formatHtmlWithUnit(getOptionsModel()->getDisplayUnit(), new_fee));
+    questionString.append(formatMultiAssetAmount(new_fee, getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
     questionString.append("</td></tr></table>");
     SendConfirmationDialog confirmationDialog(tr("Confirm fee bump"), questionString);
     confirmationDialog.exec();

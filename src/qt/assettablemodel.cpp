@@ -41,7 +41,8 @@ public:
     QString txhash;
     QString contract_hash;
     CAmount inputAmount;
-    QString issuedAmount;
+    CAmount issuedAmount;
+    CAmount supply;
     QString inputAssetID;
     uint32_t nTime;
     bool fIsAdministrator;
@@ -53,6 +54,7 @@ public:
     bool restricted;
     bool stakeable;
     bool inflatable;
+    bool divisible;
 
     /**@}*/
 };
@@ -85,8 +87,8 @@ public:
                 rec.sAssetShortName = QString::fromStdString(asset.getShortName());
                 rec.inputAmount = data.inputAmount;
                 //qDebug() << "ISSUED AMOUNT : " << QString::fromStdString(asset.getShortName()) <<  " "  << clientModel->node().getMoneySupply()[asset] ;
-                rec.issuedAmount = QString::number(clientModel->node().getMoneySupply()[asset]/COIN);
-                rec.inputAssetID = QString::fromStdString(HexStr(data.inputAssetID));
+                rec.issuedAmount = data.issuedAmount; //QString::number(clientModel->node().getMoneySupply()[asset]/COIN);
+                rec.supply = clientModel->node().getMoneySupply()[asset]/COIN;
                 rec.nTime = data.nTime;
                 rec.txhash = QString::fromStdString(HexStr(data.txhash));
                 rec.contract_hash = QString::fromStdString(HexStr(asset.contract_hash));
@@ -200,7 +202,7 @@ QVariant AssetTableModel::data(const QModelIndex &index, int role) const
             case BalanceRole:
                 return (double) rec->balance/COIN;
             case IssuedRole:
-                return rec->issuedAmount;
+                return (double) rec->issuedAmount/COIN;
             case IssuerRole:
                 return rec->issuerAddress;
         case TypeRole:
@@ -252,10 +254,6 @@ QModelIndex AssetTableModel::index(int row, int column, const QModelIndex &paren
 
 void AssetTableModel::update()
 {
-    Q_EMIT layoutAboutToBeChanged();
-    beginResetModel();
-    endResetModel();
-    priv->refreshWallet();
-    Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
-    Q_EMIT layoutChanged();
+    if (!walletModel->getClientModel()->node().isInitialBlockDownload())
+        priv->refreshWallet();
 }

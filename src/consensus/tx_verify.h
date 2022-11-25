@@ -6,9 +6,10 @@
 #define CROWN_CONSENSUS_TX_VERIFY_H
 
 #include <amount.h>
-
+#include <primitives/asset.h>
 #include <stdint.h>
 #include <vector>
+#include <chainparams.h>
 
 class CBlockIndex;
 class CCoinsViewCache;
@@ -24,7 +25,7 @@ namespace Consensus {
  * @param[out] txfee Set to the transaction fee if successful.
  * Preconditions: tx.IsCoinBase() is false.
  */
-bool CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee);
+bool CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmountMap& txfee);
 } // namespace Consensus
 
 /** Auxiliary functions for transaction validation (ideally should not be exposed) */

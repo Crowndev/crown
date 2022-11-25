@@ -40,7 +40,7 @@
 #include <algorithm>
 #include <assert.h>
 #include <regex>
-
+#include <ratio>
 #include <boost/algorithm/string/replace.hpp>
 
 using interfaces::FoundBlock;
@@ -1324,26 +1324,25 @@ isminetype CWallet::IsMine(const CTxIn &txin) const
 // and a not-"is mine" (according to the filter) input.
 CAmountMap CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
 {
+    CAmountMap amounts;
+
+    LOCK(cs_wallet);
+    std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+    if (mi != mapWallet.end())
     {
-        LOCK(cs_wallet);
-        std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
-        if (mi != mapWallet.end())
-        {
-            const CWalletTx& prev = (*mi).second;
-            if (txin.prevout.n < (prev.tx->nVersion >= TX_ELE_VERSION ? prev.tx->vpout.size() : prev.tx->vout.size())){
-                CAmountMap amounts;
-                CTxOutAsset mout = (prev.tx->nVersion >= TX_ELE_VERSION ? prev.tx->vpout[txin.prevout.n] : prev.tx->vout[txin.prevout.n]);
-                if (IsMine(mout) & filter) {
-                    if(prev.tx->nVersion >= TX_ELE_VERSION)
-                        amounts[prev.tx->vpout[txin.prevout.n].nAsset] = prev.tx->vpout[txin.prevout.n].nValue;
-                    else
-                        amounts[Params().GetConsensus().subsidy_asset] = prev.tx->vout[txin.prevout.n].nValue;
-                }
-                return amounts;
+        const CWalletTx& prev = (*mi).second;
+        if (txin.prevout.n < (prev.tx->nVersion >= TX_ELE_VERSION ? prev.tx->vpout.size() : prev.tx->vout.size())){
+            CTxOutAsset mout = (prev.tx->nVersion >= TX_ELE_VERSION ? prev.tx->vpout[txin.prevout.n] : prev.tx->vout[txin.prevout.n]);
+            if (IsMine(mout) & filter) {
+                if(prev.tx->nVersion >= TX_ELE_VERSION)
+                    amounts[prev.tx->vpout[txin.prevout.n].nAsset] = prev.tx->vpout[txin.prevout.n].nValue;
+                else
+                    amounts[Params().GetConsensus().subsidy_asset] = prev.tx->vout[txin.prevout.n].nValue;
             }
         }
     }
-    return CAmountMap();
+
+    return amounts;
 }
 
 isminetype CWallet::IsMine(const CTxOutAsset& txout) const
@@ -1439,7 +1438,7 @@ CAmountMap CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter)
     {
         nDebit += GetDebit(txin, filter);
         if (!MoneyRange(nDebit))
-            throw std::runtime_error(std::string(__func__) + ": value out of range");
+            throw std::runtime_error(std::string(__func__) + ": value out of range " + mapToString(nDebit));
     }
     return nDebit;
 }
@@ -2742,14 +2741,32 @@ bool CWallet::SelectCoinsMinConf(const CAmountMap& mapTargetValue, const CoinEli
     mapValueRet.clear();
 
     std::vector<OutputGroup> utxo_pool;
-    if (coin_selection_params.use_bnb) {
+    if (coin_selection_params.use_bnb && mapTargetValue.size() == 1) {
+        // ELEMENTS:
         CAsset asset = mapTargetValue.begin()->first;
         CAmount nTargetValue = mapTargetValue.begin()->second;
+        // Get output groups that only contain this asset.
+        std::vector<OutputGroup> asset_groups;
+        for (OutputGroup g : groups) {
+            bool add = true;
+            for (CInputCoin c : g.m_outputs) {
+                if (c.asset != asset) {
+                    add = false;
+                    break;
+                }
+            }
+
+            if (add) {
+                asset_groups.push_back(g);
+            }
+        }
+        // END ELEMENTS
+
         // Calculate cost of change
         CAmount cost_of_change = coin_selection_params.m_discard_feerate.GetFee(coin_selection_params.change_spend_size) + coin_selection_params.m_effective_feerate.GetFee(coin_selection_params.change_output_size);
 
         // Filter by the min conf specs and add to utxo_pool and calculate effective value
-        for (OutputGroup& group : groups) {
+        for (OutputGroup& group : asset_groups) {
             if (!group.EligibleForSpending(eligibility_filter)) continue;
 
             if (coin_selection_params.m_subtract_fee_outputs) {
@@ -2884,6 +2901,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn& vinRet, CPubKey& pubKe
 
 bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmountMap& mapTargetValue, std::set<CInputCoin>& setCoinsRet, CAmountMap& mapValueRet, const CCoinControl& coin_control, CoinSelectionParams& coin_selection_params, bool& bnb_used) const
 {
+    AssertLockHeld(cs_wallet); // mapWallet
     std::vector<COutput> vCoins(vAvailableCoins);
     CAmountMap value_to_select = mapTargetValue;
 
@@ -2962,6 +2980,16 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     size_t max_descendants = (size_t)std::max<int64_t>(1, limit_descendant_count);
     bool fRejectLongChains = gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
+    // ELEMENTS: filter coins for assets we are interested in; always keep policyAsset for fees
+    for (std::vector<COutput>::iterator it = vCoins.begin(); it != vCoins.end() && coin_control.HasSelected();) {
+        CAsset asset = it->GetInputCoin().asset;
+        if (asset != Params().GetConsensus().subsidy_asset && mapTargetValue.find(asset) == mapTargetValue.end()) {
+            it = vCoins.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // form groups from remaining coins; note that preset coins will not
     // automatically have their associated (same address) coins included
     if (coin_control.m_avoid_partial_spends && vCoins.size() > OUTPUT_GROUP_MAX_ENTRIES) {
@@ -3026,6 +3054,7 @@ bool CWallet::SignTransaction(CMutableTransaction& tx) const
 bool CWallet::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, std::string>& input_errors) const
 {
     // Try to sign with all ScriptPubKeyMans
+    tx.witness.vtxinwit.resize(tx.vin.size());
     for (ScriptPubKeyMan* spk_man : GetAllScriptPubKeyMans()) {
         // spk_man->SignTransaction will return true if the transaction is complete,
         // so we can exit early and return true if that happens
@@ -3100,13 +3129,19 @@ SigningResult CWallet::SignMessage(const std::string& message, const PKHash& pkh
     return SigningResult::PRIVATE_KEY_NOT_AVAILABLE;
 }
 
-bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nChangePosInOut, bilingual_str& error, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, CCoinControl coinControl)
+bool CWallet::FundTransaction(CMutableTransaction& tx, CAmountMap& nFeeRet, int& nChangePosInOut, bilingual_str& error, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, CCoinControl coinControl)
 {
     std::vector<CRecipient> vecSend;
 
     // Turn the txout set into a CRecipient vector.
     for(unsigned int i = 0; i < (tx.nVersion >= TX_ELE_VERSION ? tx.vpout.size() : tx.vout.size()) ; i++){
         CTxOutAsset txOut = (tx.nVersion >= TX_ELE_VERSION ? tx.vpout[i] : tx.vout[i]);
+
+        // Fee outputs should not be added to avoid overpayment of fees
+        if (txOut.IsFee()) {
+            continue;
+        }
+
         CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, 0, txOut.nAsset, CAsset(), false, setSubtractFeeFromOutputs.count(i) == 1};
         vecSend.push_back(recipient);
     }
@@ -3354,7 +3389,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
     recipients.push_back(recipient);
 
     // Send
-    CAmount nFeeRequired;
+    CAmountMap nFeeRequired;
     int nChangePosRet = -1;
     bilingual_str error;
     FeeCalculation fee_calc_out;
@@ -3368,7 +3403,42 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
     contract = newcontract;
     return true;
 }
+/*
+bool CWallet::ConvertAsset(CAmountMap &assetin){
 
+    if (IsLocked()){
+        strFailReason = "Wallet Locked";
+        return false;
+    }
+
+    if (assetin.size > 1){
+        strFailReason = "Only one input asset allowed at conversion";
+        return false;
+    }
+
+    //Asset checks
+
+    CAsset asset = assetin.begin()->first;
+    CAmount amountin = assetin.begin()->second;
+    uint256 thash = uint256();
+    bool exists = assetExists(asset, thash);
+    if(!exists){
+        strFailReason = "Asset not found";
+        return false;
+    }
+
+    // first check that the asset is convertible
+    if (!asset.isConvertable()){
+        strFailReason = "Asset is not convertible";
+        return false;
+    }
+
+    // what is it's conversion rate ?
+    CAssetData assetdata = GetAssetData(asset.getAssetName());
+
+
+}
+*/
 bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited)
 {
     if (IsLocked()){
@@ -3379,6 +3449,16 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     // or reserved
 
     std::vector<CAsset> AllAssets = chain().getAllAssets();
+    //typedef std::ratio<1, 100> ratio1;
+    //typedef std::ratio<inputamt, outputamt> ratio2;
+    double ratio = 0.0;
+    if (outputamt > inputamt){
+        ratio = outputamt / inputamt;
+        if (ratio > 100){
+            strFailReason = "Input / Output ratio capped at 1:100";
+            return false;
+        }
+    }
 
     for(auto const& x : AllAssets){
         if(chain().isequals(x.getAssetName() , assetname)){
@@ -3435,9 +3515,99 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     //Create the Asset
 
     CAsset assetNew = CAsset(meta);
+    
+	if(assetNew.nType == 1){
+		if(!asset.isTransferable()){
+		   strFailReason = "Asset type is Token but not marked transferable";
+		   return false;
+		}
+		if(asset.isConvertable()){
+		   strFailReason = "Asset type is Token, Assets conversion is currently disabled";
+		   return false;
+		}
+		if(asset.isInflatable()){
+		   strFailReason = "Asset type is Token, but marked inflatable";
+		   return false;
+		}
+		if(asset.isStakeable()){
+		   strFailReason = "Asset type is Token, Stakeable Tokens are disabled.";
+		   return false;
+		}
+		if(!asset.isDivisible()){
+		   strFailReason = "Asset type is Token, but marked indivisible.";
+		   return false;
+		}
+
+        if(asset.nExpiry != 0){
+		   strFailReason = "Asset type is Token, but has expiry, use other(Point/Credits)";
+		   return false;
+	    }		
+	}
+
+    if(assetNew.nType == 2){
+		if(asset.isConvertable()){
+		   strFailReason = "Asset type is UNIQUE(NFT), Asset conversion is disallowed";
+		   return false;
+		}
+		
+		if(asset.isInflatable()){
+		   strFailReason = "Asset type is UNIQUE(NFT), but marked inflatable";
+		   return false;
+		}
+		
+		if(asset.isStakeable()){
+		   strFailReason = "Asset type is UNIQUE(NFT), but marked stakable";
+		   return false;
+		}
+		
+		if(asset.isDivisible()){
+		   strFailReason = "Asset type is UNIQUE(NFT), but marked divisible.";
+		   return false;
+		}
+
+		if (outputamt > 1 * COIN){
+		   strFailReason = "Asset type is UNIQUE(NFT), one unit max.";
+		   return false;
+		}
+
+		if(outputamt % COIN != 0)
+		{
+		   strFailReason = "Asset type is UNIQUE(NFT), whole units please, use intergers.";
+		   return false;
+		}
+	}
+
+	//equity
+	if (assetNew.nType == 3){
+		if(assetNew.contract_hash == uint256()){
+		   strFailReason = "Asset type is Equity, but has no contract";
+		   return false;
+	    }		
+		if(!asset.isTransferable()){
+		   strFailReason = "Asset type is Equity but not marked transferable";
+		   return false;
+		}	
+		if(!asset.isDivisible()){
+		   strFailReason = "Asset type is Equity, but marked indivisible.";
+		   return false;
+		}
+		if(asset.isStakeable()){
+		   strFailReason = "Asset type is Equity, Stakeable Equity is disabled.";
+		   return false;
+		}
+		if(!asset.isRestricted()){
+		   strFailReason = "Asset type is Equity, but not marked restricted.";
+		   return false;
+		}
+		if(asset.isLimited()){
+		   strFailReason = "Asset type is Equity, but not marked limited.";
+		   return false;
+		}				
+	}
+
 
     // Send
-    CAmount nFeeRequired;
+    CAmountMap nFeeRequired;
     int nChangePosRet = -1;
     bilingual_str error;
     FeeCalculation fee_calc_out;
@@ -3513,7 +3683,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash)
     CScript scriptChange;
     scriptChange << OP_RETURN << ToByteVector(hash);
 
-    int64_t nFeeRet = 0;
+    CAmountMap nFeeRet;
     bilingual_str strFail;
     std::vector<CRecipient> vecSend;
     CRecipient r = {scriptChange, BUDGET_FEE_TX, 0, Params().GetConsensus().subsidy_asset, CAsset(), false, false};
@@ -3536,7 +3706,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash)
 bool CWallet::CreateTransactionInternal(
         const std::vector<CRecipient>& vecSend,
         CTransactionRef& tx,
-        CAmount& nFeeRet,
+        CAmountMap& nFeeRet,
         int& nChangePosInOut,
         bilingual_str& error,
         const CCoinControl& coin_control,
@@ -3570,11 +3740,14 @@ bool CWallet::CreateTransactionInternal(
         if(recipient.OutAsset != CAsset())
             newAsset=recipient.OutAsset;
 
-        if (recipient.fSubtractFeeFromAmount)
-            nSubtractFeeFromAmount++;
-
         mapValue[recipient.asset] += recipient.nAmount;
         assettosend=recipient.asset;
+
+        if (recipient.fSubtractFeeFromAmount){
+            if(assettosend.nType != 2)
+                if(!assettosend.isDivisible())
+                    nSubtractFeeFromAmount++;
+        }
     }
 
     if (fUseInstantX && (mapValue[assettosend] > GetSporkValue(SPORK_5_MAX_VALUE) * COIN))
@@ -3621,7 +3794,7 @@ bool CWallet::CreateTransactionInternal(
     }
 
     FeeCalculation feeCalc;
-    CAmount nFeeNeeded;
+    CAmountMap nFeeNeeded;
 
     int nBytes;
     {
@@ -3685,7 +3858,9 @@ bool CWallet::CreateTransactionInternal(
             cc_temp.m_confirm_target = chain().estimateMaxBlocks();
             coin_selection_params.m_long_term_feerate = GetMinimumFeeRate(*this, cc_temp, nullptr);
 
-            nFeeRet = 1;
+            //CAmountMap gfee {{assettosend, 1}};
+
+            //nFeeRet += gfee;
             bool pick_new_inputs = true;
             CAmountMap mapValueIn;
 
@@ -3705,35 +3880,75 @@ bool CWallet::CreateTransactionInternal(
                 txNew.vin.clear();
                 txNew.vout.clear();
                 txNew.vpout.clear();
+                txNew.witness.SetNull();
                 bool fFirst = true;
 
                 CAmountMap mapValueToSelect = mapValue;
+
                 if (nSubtractFeeFromAmount == 0)
-                    mapValueToSelect[assettosend] += nFeeRet;
+                    mapValueToSelect += nFeeRet;
 
                 // vouts to the payees
                 if (!coin_selection_params.m_subtract_fee_outputs) {
                     coin_selection_params.tx_noinputs_size = 11; // Static vsize overhead + outputs vsize. 4 nVersion, 4 nLocktime, 1 input count, 1 output count, 1 witness overhead (dummy, flag, stack size)
                 }
 
+                // Account for the fee output in the tx.
+                if (assettosend != Params().GetConsensus().subsidy_asset){
+                    if( assettosend.nType == 2 || !assettosend.isDivisible()){
+
+                        CAmount nfeer = 0.0001 * COIN;
+                        CTxOutAsset fee(Params().GetConsensus().subsidy_asset, nfeer, CScript());
+                        assert(fee.IsFee());
+                        coin_selection_params.tx_noinputs_size += ::GetSerializeSize(fee, PROTOCOL_VERSION);
+
+                        CAmountMap mfeer{{Params().GetConsensus().subsidy_asset, nfeer}};
+                        mapValueToSelect += mfeer;
+                        //get available CRW to pay the fee
+                        std::vector<COutput> vAvailableCoinsfee;
+                        AvailableCoins(vAvailableCoinsfee, Params().GetConsensus().subsidy_asset, true, &coin_control, ALL_COINS, 1, MAX_MONEY, MAX_MONEY, 0);
+                        // add to available coins
+                        vAvailableCoins.insert(vAvailableCoins.end(), std::make_move_iterator(vAvailableCoinsfee.begin()), std::make_move_iterator(vAvailableCoinsfee.end()));
+                    }
+                }
+
                 for (const auto& recipient : vecSend)
                 {
-                    CTxOutAsset txout(fNewAsset ? recipient.OutAsset : recipient.asset, fNewAsset ? recipient.OutAmount : recipient.nAmount, recipient.scriptPubKey);
+					//NFTs and non divisble assets must not create outputs with
+
+                    CAmount m_amount = fNewAsset ? recipient.OutAmount : recipient.nAmount;
+                    CAsset m_asset = fNewAsset ? recipient.OutAsset : recipient.asset;
+
+					if(m_asset.nType == 2 || !m_asset.isDivisible()){
+						if( m_amount % COIN != 0 )
+						{
+						   m_amount = m_amount / COIN;
+						   assert(m_amount >= 1 * COIN);
+						}
+					}
+
+                    CTxOutAsset txout(m_asset, m_amount, recipient.scriptPubKey);
 
                     if (recipient.fSubtractFeeFromAmount)
                     {
+
                         if (recipient.asset != assettosend) {
                             error = strprintf(_("Wallet does not support paying fees in different asset, therefore can not subtract fee from address amount, which is of a different asset id. fee asset: %s recipient asset: %s"), assettosend.GetHex(), recipient.asset.GetHex());
                             return false;
                         }
 
                         assert(nSubtractFeeFromAmount != 0);
-                        txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
+
+                        if(recipient.asset.nType != 2)
+                            if(!recipient.asset.isDivisible())
+                                txout.nValue -= (nFeeRet / nSubtractFeeFromAmount)[txout.nAsset]; // Subtract fee equally from each selected recipient
 
                         if (fFirst) // first receiver pays the remainder not divisible by output count
                         {
                             fFirst = false;
-                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
+                            if(recipient.asset.nType != 2)
+                                if(!recipient.asset.isDivisible())
+                                    txout.nValue -= (nFeeRet % nSubtractFeeFromAmount)[txout.nAsset];
                         }
                     }
                     // Include the fee cost for outputs. Note this is only used for BnB right now
@@ -3743,7 +3958,7 @@ bool CWallet::CreateTransactionInternal(
 
                     if (IsDust(txout, chain().relayDustFee()))
                     {
-                        if (recipient.fSubtractFeeFromAmount && nFeeRet > 0)
+                        if (recipient.fSubtractFeeFromAmount && nFeeRet > CAmountMap())
                         {
                             if (txout.nValue < 0)
                                 error = _("The transaction amount is too small to pay the fee");
@@ -3824,7 +4039,7 @@ bool CWallet::CreateTransactionInternal(
 
                             vChangePosInOut[assetChange.first] = newPos;
                         }
-                        else if ((unsigned int)nChangePosInOut > txNew.vout.size())
+                        else if ((unsigned int)nChangePosInOut > (txNew.nVersion >= TX_ELE_VERSION ? txNew.vpout.size() : txNew.vout.size()))
                         {
                             error = _("Change index out of range");
                             return false;
@@ -3840,6 +4055,23 @@ bool CWallet::CreateTransactionInternal(
 
                     }
                 }
+
+                // Account for the fee output in the tx in CRW
+                if (assettosend != Params().GetConsensus().subsidy_asset){
+                    if( assettosend.nType == 2 || !assettosend.isDivisible()){
+
+                        CAmount nfeer = 0.0001 * COIN; //flat fee for now
+                        CTxOutAsset fee(Params().GetConsensus().subsidy_asset, nfeer, CScript());
+                        assert(fee.IsFee());
+
+                        if(txNew.nVersion >= TX_ELE_VERSION)
+                            txNew.vpout.push_back(fee);
+                        else
+                            txNew.vout.push_back(fee);
+                    }
+                }
+
+                LogPrintf("%s ----- %s \n", __func__, txNew.ToString());
 
                 // Dummy fill vin for maximum size estimation
                 //
@@ -3858,7 +4090,7 @@ bool CWallet::CreateTransactionInternal(
                     nBytes += GetSizeOfCompactSize(extraPayloadSize) + extraPayloadSize;
                 }
 
-                nFeeNeeded = coin_selection_params.m_effective_feerate.GetFee(nBytes);
+                nFeeNeeded[assettosend] = coin_selection_params.m_effective_feerate.GetFee(nBytes);
                 if (nFeeRet >= nFeeNeeded) {
                     // Reduce fee to only the needed amount if possible. This
                     // prevents potential overpayment in fees if the coins
@@ -3872,8 +4104,8 @@ bool CWallet::CreateTransactionInternal(
                     // change output. Only try this once.
                     if (nChangePosInOut == -1 && nSubtractFeeFromAmount == 0 && pick_new_inputs) {
                         unsigned int tx_size_with_change = nBytes + coin_selection_params.change_output_size + 2; // Add 2 as a buffer in case increasing # of outputs changes compact size
-                        CAmount fee_needed_with_change = coin_selection_params.m_effective_feerate.GetFee(tx_size_with_change);
-                        CAmount minimum_value_for_change = GetDustThreshold(change_prototype_txout, coin_selection_params.m_discard_feerate);
+                        CAmountMap fee_needed_with_change {{ assettosend, coin_selection_params.m_effective_feerate.GetFee(tx_size_with_change)}};
+                        CAmountMap minimum_value_for_change {{ assettosend,  GetDustThreshold(change_prototype_txout, coin_selection_params.m_discard_feerate)}};
                         if (nFeeRet >= fee_needed_with_change + minimum_value_for_change) {
                             pick_new_inputs = false;
                             nFeeRet = fee_needed_with_change;
@@ -3883,13 +4115,13 @@ bool CWallet::CreateTransactionInternal(
 
                     // If we have change output already, just increase it
                     if (nFeeRet > nFeeNeeded && nChangePosInOut != -1 && nSubtractFeeFromAmount == 0) {
-                        CAmount extraFeePaid = nFeeRet - nFeeNeeded;
+                        CAmountMap extraFeePaid = nFeeRet - nFeeNeeded;
                         std::vector<CTxOut>::iterator change_position = txNew.vout.begin()+nChangePosInOut;
                         std::vector<CTxOutAsset>::iterator change_positionr = txNew.vpout.begin()+nChangePosInOut;
                         if(txNew.nVersion >= TX_ELE_VERSION)
-                            change_positionr->nValue += extraFeePaid;
+                            change_positionr->nValue += extraFeePaid[change_positionr->nAsset];
                         else
-                            change_position->nValue += extraFeePaid;
+                            change_position->nValue += extraFeePaid[change_positionr->nAsset];
                         nFeeRet -= extraFeePaid;
                     }
                     break; // Done, enough fee included.
@@ -3905,22 +4137,22 @@ bool CWallet::CreateTransactionInternal(
 
                 // Try to reduce change to include necessary fee
                 if (nChangePosInOut != -1 && nSubtractFeeFromAmount == 0) {
-                    CAmount additionalFeeNeeded = nFeeNeeded - nFeeRet;
+                    CAmountMap additionalFeeNeeded = nFeeNeeded - nFeeRet;
                     std::vector<CTxOut>::iterator change_position = txNew.vout.begin()+nChangePosInOut;
                     std::vector<CTxOutAsset>::iterator change_positionr = txNew.vpout.begin()+nChangePosInOut;
 
                     if(txNew.nVersion >= TX_ELE_VERSION){
                         // Only reduce change if remaining amount is still a large enough output.
-                        if (change_positionr->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
-                            change_positionr->nValue -= additionalFeeNeeded;
+                        if (change_positionr->nValue >= (additionalFeeNeeded + MIN_FINAL_CHANGE)[assettosend]) {
+                            change_positionr->nValue -= additionalFeeNeeded[assettosend];
                             nFeeRet += additionalFeeNeeded;
                             break; // Done, able to increase fee from change
                         }
                     }
                     else {
                         // Only reduce change if remaining amount is still a large enough output.
-                        if (change_position->nValue >= MIN_FINAL_CHANGE + additionalFeeNeeded) {
-                            change_position->nValue -= additionalFeeNeeded;
+                        if (change_position->nValue >= (additionalFeeNeeded + MIN_FINAL_CHANGE)[assettosend]) {
+                            change_position->nValue -= additionalFeeNeeded[assettosend];
                             nFeeRet += additionalFeeNeeded;
                             break; // Done, able to increase fee from change
                         }
@@ -3968,6 +4200,11 @@ bool CWallet::CreateTransactionInternal(
             return false;
         }
 
+        // Normalize the witness in case it is not serialized before mempool
+        if (!txNew.HasWitness()) {
+            txNew.witness.SetNull();
+        }
+
         // Return the constructed transaction data.
         tx = MakeTransactionRef(std::move(txNew));
 
@@ -3979,7 +4216,7 @@ bool CWallet::CreateTransactionInternal(
         }
     }
 
-    if (nFeeRet > m_default_max_tx_fee) {
+    if (nFeeRet[assettosend] > m_default_max_tx_fee) {
         error = TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED);
         return false;
     }
@@ -4011,7 +4248,7 @@ bool CWallet::CreateTransactionInternal(
 bool CWallet::CreateTransaction(
         const std::vector<CRecipient>& vecSend,
         CTransactionRef& tx,
-        CAmount& nFeeRet,
+        CAmountMap& nFeeRet,
         int& nChangePosInOut,
         bilingual_str& error,
         const CCoinControl& coin_control,
@@ -4022,10 +4259,10 @@ bool CWallet::CreateTransaction(
     CTransactionRef tx2 = tx;
     bool res = CreateTransactionInternal(vecSend, tx, nFeeRet, nChangePosInOut, error, coin_control, fee_calc_out, sign, datar, coin_type, extraPayloadSize);
     // try with avoidpartialspends unless it's enabled already
-    if (res && nFeeRet > 0 /* 0 means non-functional fee rate estimation */ && m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
+    if (res && nFeeRet > CAmountMap() /* 0 means non-functional fee rate estimation */ && m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
         CCoinControl tmp_cc = coin_control;
         tmp_cc.m_avoid_partial_spends = true;
-        CAmount nFeeRet2;
+        CAmountMap nFeeRet2;
         int nChangePosInOut2 = nChangePosIn;
         bilingual_str error2; // fired and forgotten; if an error occurs, we discard the results
         if (CreateTransactionInternal(vecSend, tx2, nFeeRet2, nChangePosInOut2, error2, tmp_cc, fee_calc_out, sign, datar, coin_type, extraPayloadSize)) {
@@ -4856,6 +5093,9 @@ std::shared_ptr<CWallet> CWallet::Create(interfaces::Chain& chain, const std::st
                                _("This is the transaction fee you may pay when fee estimates are not available."));
         }
         walletInstance->m_fallback_fee = CFeeRate(nFeePerK);
+    } else {
+        // ELEMENTS: re-enable fallbackfee at 0.1 sat/byte
+        walletInstance->m_fallback_fee = CFeeRate(100);
     }
     // Disable fallback fee in case value was set to 0, enable if non-null value
     walletInstance->m_allow_fallback_fee = walletInstance->m_fallback_fee.GetFeePerK() != 0;
@@ -5121,18 +5361,19 @@ bool CWalletTx::IsImmatureCoinBase() const
 
 std::vector<OutputGroup> CWallet::GroupOutputs(const std::vector<COutput>& outputs, bool single_coin, const size_t max_ancestors) const {
     std::vector<OutputGroup> groups;
-    std::map<CTxDestination, OutputGroup> gmap;
-    std::set<CTxDestination> full_groups;
+    std::map<std::pair<CAsset, CTxDestination>, OutputGroup> gmap;
+    std::set<std::pair<CAsset, CTxDestination>> full_groups;
 
     for (const auto& output : outputs) {
         if (output.fSpendable) {
-            CTxDestination dst;
+            std::pair<CAsset, CTxDestination> dst;
             CInputCoin input_coin = output.GetInputCoin();
+            dst.first = input_coin.asset;
 
             size_t ancestors, descendants;
             chain().getTransactionAncestry(output.tx->GetHash(), ancestors, descendants);
             CTxOutAsset mns = (output.tx->tx->nVersion >= TX_ELE_VERSION ?  output.tx->tx->vpout[output.i] :  output.tx->tx->vout[output.i]);
-            if (!single_coin && ExtractDestination(mns.scriptPubKey, dst)) {
+            if (!single_coin && ExtractDestination(mns.scriptPubKey, dst.second)) {
                 auto it = gmap.find(dst);
                 if (it != gmap.end()) {
                     // Limit output groups to no more than OUTPUT_GROUP_MAX_ENTRIES

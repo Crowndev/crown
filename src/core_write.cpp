@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <core_io.h>
+#include <assetdb.h>
+#include <contractdb.h>
 
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -209,6 +211,39 @@ void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
     }
 };
 
+void AssetToUniv(const CAssetData& assetdata, UniValue &entry){
+	
+	CAsset asset = assetdata.asset;
+    entry.pushKV("version", (int)asset.nVersion);
+    uint32_t type = asset.GetType();
+    entry.pushKV("type", AssetTypeToString(type));
+    entry.pushKV("name", asset.getAssetName());
+    entry.pushKV("symbol", asset.getShortName());
+    entry.pushKV("id", asset.GetHex());
+    entry.pushKV("collateral", assetdata.inputAmount);
+    entry.pushKV("Issued", assetdata.issuedAmount);
+    entry.pushKV("Transaction", assetdata.txhash.GetHex());
+    entry.pushKV("Time", (int64_t)assetdata.nTime);
+/*    
+    if (asset.contract_hash != uint256()){
+        const CContract &contract = GetContractByHash(asset.contract_hash);
+        UniValue a(UniValue::VOBJ);
+        ContractToUniv(contract, a);
+        entry.pushKV("contract", a);
+    }
+*/    
+    entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+    entry.pushKV("expiry", (int64_t)asset.GetExpiry());
+    entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
+    entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
+    entry.pushKV("limited", asset.isLimited() ? "yes" : "no");
+    entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
+    entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
+    entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");
+    entry.pushKV("divisible", asset.isDivisible() ? "yes" : "no");
+
+}
+
 void AssetToUniv(const CAsset& asset, UniValue &entry){
 
     entry.pushKV("version", (int)asset.nVersion);
@@ -218,12 +253,6 @@ void AssetToUniv(const CAsset& asset, UniValue &entry){
     entry.pushKV("name", asset.getAssetName());
     entry.pushKV("symbol", asset.getShortName());
     entry.pushKV("id", asset.GetHex());
-    //if (asset.contract_hash != uint256()){
-    //  CContract contract = GetContract(asset.getAssetName());
-    //  UniValue a(UniValue::VOBJ);
-    //  ContractToUniv(&contract, a);
-    //    entry.pushKV("contract", a);
-    //}
     entry.pushKV("contract_hash", asset.contract_hash.GetHex());
     entry.pushKV("expiry", (int64_t)asset.GetExpiry());
     entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
@@ -232,6 +261,7 @@ void AssetToUniv(const CAsset& asset, UniValue &entry){
     entry.pushKV("restricted", asset.isRestricted() ? "yes" : "no");
     entry.pushKV("stakeable", asset.isStakeable() ? "yes" : "no");
     entry.pushKV("inflation", asset.isInflatable() ? "yes" : "no");
+    entry.pushKV("divisible", asset.isDivisible() ? "yes" : "no");
 
 }
 
