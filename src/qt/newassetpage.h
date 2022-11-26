@@ -26,6 +26,7 @@ public:
 	bool getconvertable();
 	bool getrestricted();
 	bool getlimited();
+	bool getdivisible();
 	QString getexpiry();
     void setWalletModel(WalletModel* walletModel);
     ContractFilterProxy *mycontractFilter = nullptr;

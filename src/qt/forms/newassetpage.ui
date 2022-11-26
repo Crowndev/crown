@@ -124,6 +124,13 @@
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QCheckBox" name="divisiblecheckBox">
+           <property name="text">
+            <string>Divisible</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>

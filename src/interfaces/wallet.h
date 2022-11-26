@@ -145,7 +145,7 @@ public:
     virtual bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
          std::string& shortname, CAmount& amountin, CAmount& amountout,
          int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, 
-         bool transferable, bool convertable, bool restricted, bool limited) =0;
+         bool transferable, bool convertable, bool restricted, bool limited, bool divisible) =0;
 
     virtual CContract getContract(std::string& name) =0;    
 

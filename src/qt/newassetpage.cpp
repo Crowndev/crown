@@ -51,46 +51,44 @@ void NewAssetPage::on_Create_clicked()
     bool convertable = getconvertable();
     bool restricted = getrestricted();
     bool limited = getlimited();
+    bool divisible = getdivisible();
     QString expiry  = getexpiry();
     std::string strFailReason;
 
     QString format = "dd-MM-yyyy hh:mm:ss";
     QDateTime expiryDate = QDateTime::fromString(expiry, format);
+	QMessageBox* msgbox = new QMessageBox(this);
+
     WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
     if(encStatus == walletModel->Locked) {
         WalletModel::UnlockContext ctx(walletModel->requestUnlock());
         if(!ctx.isValid()) {
             return;
         }
-		if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, expiryDate, strFailReason)){
-			QMessageBox* msgbox = new QMessageBox(this);
+		if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
 			msgbox->setWindowTitle("Note");
 			msgbox->setText(QString::fromStdString(strFailReason));
 			msgbox->open();
 		}
 		else {
-			QMessageBox* msgbox = new QMessageBox(this);
 			msgbox->setWindowTitle("Note");
 			msgbox->setText("Success");
 			msgbox->open();
-			//close();
 		}
         return;
     }
 
-    if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, expiryDate, strFailReason)){
-        QMessageBox* msgbox = new QMessageBox(this);
+    if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
         msgbox->setWindowTitle("Note");
         msgbox->setText(QString::fromStdString(strFailReason));
         msgbox->open();
     }
     else {
-        QMessageBox* msgbox = new QMessageBox(this);
         msgbox->setWindowTitle("Note");
         msgbox->setText("Success");
         msgbox->open();
-        //close();
     }
+    QDialog::accept();
 }
 
 QString NewAssetPage::getinputamount(){
@@ -123,6 +121,10 @@ bool NewAssetPage::getrestricted(){
 
 bool NewAssetPage::getlimited(){
     return ui->limitedcheckBox->isChecked();
+}
+
+bool NewAssetPage::getdivisible(){
+    return ui->divisiblecheckBox->isChecked();
 }
 
 QString NewAssetPage::getexpiry(){

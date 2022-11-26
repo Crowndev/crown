@@ -45,6 +45,8 @@ void NewContractPage::on_Create_clicked()
     QString script  = getscript();
     qWarning() << name << " " << shortname << " " << chainID << " " << website_url << " " << contract_url << " " << description << " " << script;
     std::string strFailReason;
+    QMessageBox* msgbox = new QMessageBox(this);
+
     WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
     if(encStatus == walletModel->Locked) {
         WalletModel::UnlockContext ctx(walletModel->requestUnlock());
@@ -52,32 +54,25 @@ void NewContractPage::on_Create_clicked()
             return;
         }
         if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
-            QMessageBox* msgbox = new QMessageBox(this);
             msgbox->setWindowTitle("Note");
-            msgbox->setText(QString::fromStdString(strFailReason));
-            msgbox->open();
+            msgbox->setText(QString::fromStdString(strFailReason));            
         }
         else {
-            QMessageBox* msgbox = new QMessageBox(this);
             msgbox->setWindowTitle("Note");
             msgbox->setText("Success");
-            msgbox->open();
         }
         return;
     }
     if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
-        QMessageBox* msgbox = new QMessageBox(this);
         msgbox->setWindowTitle("Note");
         msgbox->setText(QString::fromStdString(strFailReason));
-        msgbox->open();
     }
     else {
-        QMessageBox* msgbox = new QMessageBox(this);
         msgbox->setWindowTitle("Note");
         msgbox->setText("Success");
-        msgbox->open();
     }
-    close();
+    if (msgbox->exec()) 
+        accept();
 }
 
 

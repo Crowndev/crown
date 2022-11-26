@@ -197,6 +197,7 @@ static RPCHelpMan createasset()
                     {"convertable", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can be converted to another asset (set false for NFTs)"},
                     {"restricted", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can only be issued/reissued by creation address"},
                     {"limited", RPCArg::Type::BOOL, RPCArg::Optional::NO, "other assets cannot be converted to this one"},
+                    {"divisibl", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset is divisible (units smaller than 1.0)"},
                     {"contract", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Contract to issue asset to"},
                 },
                 RPCResult{
@@ -234,7 +235,8 @@ static RPCHelpMan createasset()
     bool convertable = request.params[7].get_bool();
     bool restricted = request.params[8].get_bool();
     bool limited = request.params[9].get_bool();
-    std::string contractstring = request.params[10].get_str();
+    bool divisible = request.params[10].get_bool();
+    std::string contractstring = request.params[11].get_str();
 
     std::vector<unsigned char> contractData(ParseHex(contractstring));
 
@@ -247,7 +249,7 @@ static RPCHelpMan createasset()
     CTransactionRef tx;
     std::string strFailReason;
 
-    if(!pwallet->CreateAsset(asset, tx, name, shortname, nAmount, nAssetAmount, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited))
+    if(!pwallet->CreateAsset(asset, tx, name, shortname, nAmount, nAssetAmount, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited, divisible))
         throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
 
     return tx->GetHash().GetHex();
