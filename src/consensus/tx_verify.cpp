@@ -215,9 +215,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
     // enforce asset rules
     {
-        //prevent asset merging
+        //enforce input asset limit
         if(inputAssets.size() > 2)
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-multiple", strprintf("found (%d) , expected 2", inputAssets.size()));
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-multiple", strprintf("found (%d) , max 2", inputAssets.size()));
 
         CAmountMap::iterator it = inputAssets.find(subsidy_asset);
         if (it == inputAssets.end())
@@ -227,13 +227,14 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         if(outputAssets.size() > 2)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset", strprintf("found (%d) , expected 2", outputAssets.size()));
 
-        //check asset conversion
-        if (outputAssets.size() == 2 && !inputAssets.begin()->first.isConvertable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-not-convertable ");
+        //check asset conversion / merger
+        if (inputAssets.size() == 2 && outputAssets.size() == 1) // only case where there is non creation conversion and it has to be absolute
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-conversion-disabled");
 
         //check asset transfer
-        if(!inputAssets.begin()->first.isTransferable())
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-not-transferable ", strprintf("Asset : (%s)", inputAssets.begin()->first.ToString(false)));
+        for(auto & b : inputAssets)
+           if(!b.first.isTransferable())
+               return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset-not-transferable ", strprintf("Asset : (%s)", b.first.ToString(false)));
 
         for(auto & a : outputAssets){
             CAsset asset = a.first;
