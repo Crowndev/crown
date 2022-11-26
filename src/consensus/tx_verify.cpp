@@ -336,6 +336,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 if(asset.nType == 2){
                     if(asset.isConvertable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-convertable");
+
                     if(asset.isInflatable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unique-asset-inflatable");
 
@@ -348,6 +349,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(asset.isStakeable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Stakeable \n", AssetTypeToString(asset.nType)));
 
+                    if(asset.isDivisible())
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but marked divisible \n", AssetTypeToString(asset.nType)));
+
                 }
 
                 //equity
@@ -358,16 +362,16 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(!asset.isTransferable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked transferable \n", AssetTypeToString(asset.nType)));
 
-					if(!asset.isDivisible())
+                    if(!asset.isDivisible())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but marked indivisible \n", AssetTypeToString(asset.nType)));
 
-					if(asset.isStakeable())
+                    if(asset.isStakeable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, Stakeable Equity is disabled \n", AssetTypeToString(asset.nType)));
 
-					if(!asset.isRestricted())
+                    if(!asset.isRestricted())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked restricted \n", AssetTypeToString(asset.nType)));
 
-					if(asset.isLimited())
+                    if(asset.isLimited())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked limited\n", AssetTypeToString(asset.nType)));
 
                 }
