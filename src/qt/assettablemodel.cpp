@@ -254,6 +254,6 @@ QModelIndex AssetTableModel::index(int row, int column, const QModelIndex &paren
 
 void AssetTableModel::update()
 {
-    if (!walletModel->getClientModel()->node().isInitialBlockDownload())
+    //if (!walletModel->getClientModel()->node().isInitialBlockDownload())
         priv->refreshWallet();
 }

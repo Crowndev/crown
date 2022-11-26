@@ -3332,7 +3332,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         return false;
     }
 
-    CAmount nAmount = 10.0001 * COIN;
+    CAmount nAmount = 100.0001 * COIN;
     CAsset asset = Params().GetConsensus().subsidy_asset;
 
     CCoinControl coin_control;
@@ -3383,6 +3383,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
     mapValue_t mapValue;
 
     coin_control.m_add_inputs = false;
+    coin_control.destChange = dest;
     std::vector<CRecipient> recipients;
 
     CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
@@ -3439,7 +3440,7 @@ bool CWallet::ConvertAsset(CAmountMap &assetin){
 
 }
 */
-bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited)
+bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
 {
     if (IsLocked()){
         strFailReason = "Wallet Locked";
@@ -3498,6 +3499,8 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         meta.nFlags |= AssetMetadata::AssetFlags::ASSET_RESTRICTED;
     if (limited)
         meta.nFlags |= AssetMetadata::AssetFlags::ASSET_LIMITED;
+    if (divisible)
+        meta.nFlags |= AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
 
     meta.nVersion = 1;
     meta.setName(contract.asset_name);
@@ -3515,95 +3518,101 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     //Create the Asset
 
     CAsset assetNew = CAsset(meta);
-    
-	if(assetNew.nType == 1){
-		if(!asset.isTransferable()){
-		   strFailReason = "Asset type is Token but not marked transferable";
-		   return false;
-		}
-		if(asset.isConvertable()){
-		   strFailReason = "Asset type is Token, Assets conversion is currently disabled";
-		   return false;
-		}
-		if(asset.isInflatable()){
-		   strFailReason = "Asset type is Token, but marked inflatable";
-		   return false;
-		}
-		if(asset.isStakeable()){
-		   strFailReason = "Asset type is Token, Stakeable Tokens are disabled.";
-		   return false;
-		}
-		if(!asset.isDivisible()){
-		   strFailReason = "Asset type is Token, but marked indivisible.";
-		   return false;
-		}
 
-        if(asset.nExpiry != 0){
-		   strFailReason = "Asset type is Token, but has expiry, use other(Point/Credits)";
-		   return false;
-	    }		
-	}
+    if(assetNew.nType == 1){
+        if(!assetNew.isTransferable()){
+           strFailReason = "Asset type is Token but not marked transferable";
+           return false;
+        }
+        
+        if(assetNew.isConvertable()){
+           strFailReason = "Asset type is Token, Assets conversion is currently disabled";
+           return false;
+        }
+        
+        if(assetNew.isInflatable()){
+           strFailReason = "Asset type is Token, but marked inflatable";
+           return false;
+        }
+        
+        if(assetNew.isStakeable()){
+           strFailReason = "Asset type is Token, Stakeable Tokens are disabled.";
+           return false;
+        }
+        
+        if(!assetNew.isDivisible()){
+           strFailReason = "Asset type is Token, but marked indivisible.";
+           return false;
+        }
+
+        if(assetNew.nExpiry != 0){
+           if(assetNew.nExpiry != std::numeric_limits<uint32_t>::max()){
+               strFailReason = strprintf("Asset type is Token, but has expiry %d, use other (Point/Credits)", assetNew.nExpiry);
+               return false;
+		   }
+        }
+    }
 
     if(assetNew.nType == 2){
-		if(asset.isConvertable()){
-		   strFailReason = "Asset type is UNIQUE(NFT), Asset conversion is disallowed";
-		   return false;
-		}
-		
-		if(asset.isInflatable()){
-		   strFailReason = "Asset type is UNIQUE(NFT), but marked inflatable";
-		   return false;
-		}
-		
-		if(asset.isStakeable()){
-		   strFailReason = "Asset type is UNIQUE(NFT), but marked stakable";
-		   return false;
-		}
-		
-		if(asset.isDivisible()){
-		   strFailReason = "Asset type is UNIQUE(NFT), but marked divisible.";
-		   return false;
-		}
+        if(assetNew.isConvertable()){
+           strFailReason = "Asset type is UNIQUE(NFT), Asset conversion is disallowed";
+           return false;
+        }
 
-		if (outputamt > 1 * COIN){
-		   strFailReason = "Asset type is UNIQUE(NFT), one unit max.";
-		   return false;
-		}
+        if(assetNew.isInflatable()){
+           strFailReason = "Asset type is UNIQUE(NFT), but marked inflatable";
+           return false;
+        }
 
-		if(outputamt % COIN != 0)
-		{
-		   strFailReason = "Asset type is UNIQUE(NFT), whole units please, use intergers.";
-		   return false;
-		}
-	}
+        if(assetNew.isStakeable()){
+           strFailReason = "Asset type is UNIQUE(NFT), but marked stakable";
+           return false;
+        }
 
-	//equity
-	if (assetNew.nType == 3){
-		if(assetNew.contract_hash == uint256()){
-		   strFailReason = "Asset type is Equity, but has no contract";
-		   return false;
-	    }		
-		if(!asset.isTransferable()){
-		   strFailReason = "Asset type is Equity but not marked transferable";
-		   return false;
-		}	
-		if(!asset.isDivisible()){
-		   strFailReason = "Asset type is Equity, but marked indivisible.";
-		   return false;
-		}
-		if(asset.isStakeable()){
-		   strFailReason = "Asset type is Equity, Stakeable Equity is disabled.";
-		   return false;
-		}
-		if(!asset.isRestricted()){
-		   strFailReason = "Asset type is Equity, but not marked restricted.";
-		   return false;
-		}
-		if(asset.isLimited()){
-		   strFailReason = "Asset type is Equity, but not marked limited.";
-		   return false;
-		}				
-	}
+        if(assetNew.isDivisible()){
+           strFailReason = "Asset type is UNIQUE(NFT), but marked divisible.";
+           return false;
+        }
+
+        if (outputamt > 1 * COIN){
+           strFailReason = "Asset type is UNIQUE(NFT), one unit max.";
+           return false;
+        }
+
+        if(outputamt % COIN != 0)
+        {
+           strFailReason = "Asset type is UNIQUE(NFT), whole units please, use intergers.";
+           return false;
+        }
+    }
+
+    //equity
+    if (assetNew.nType == 3){
+        if(assetNew.contract_hash == uint256()){
+           strFailReason = "Asset type is Equity, but has no contract";
+           return false;
+        }
+        if(!assetNew.isTransferable()){
+           strFailReason = "Asset type is Equity but not marked transferable";
+           return false;
+        }
+        if(!assetNew.isDivisible()){
+           strFailReason = "Asset type is Equity, but marked indivisible.";
+           return false;
+        }
+        if(assetNew.isStakeable()){
+           strFailReason = "Asset type is Equity, Stakeable Equity is disabled.";
+           return false;
+        }
+        if(!assetNew.isRestricted()){
+           strFailReason = "Asset type is Equity, but not marked restricted.";
+           return false;
+        }
+        if(assetNew.isLimited()){
+           strFailReason = "Asset type is Equity, but not marked limited.";
+           return false;
+        }
+    }
 
 
     // Send
@@ -3659,6 +3668,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
 
     mapValue_t mapValue;
     coin_control.m_add_inputs = false;
+    coin_control.destChange = dest;
 
     std::vector<CRecipient> recipients;
 
@@ -3895,7 +3905,7 @@ bool CWallet::CreateTransactionInternal(
 
                 // Account for the fee output in the tx.
                 if (assettosend != Params().GetConsensus().subsidy_asset){
-                    if( assettosend.nType == 2 || !assettosend.isDivisible()){
+                    //if( assettosend.nType == 2 || !assettosend.isDivisible()){
 
                         CAmount nfeer = 0.0001 * COIN;
                         CTxOutAsset fee(Params().GetConsensus().subsidy_asset, nfeer, CScript());
@@ -3909,23 +3919,23 @@ bool CWallet::CreateTransactionInternal(
                         AvailableCoins(vAvailableCoinsfee, Params().GetConsensus().subsidy_asset, true, &coin_control, ALL_COINS, 1, MAX_MONEY, MAX_MONEY, 0);
                         // add to available coins
                         vAvailableCoins.insert(vAvailableCoins.end(), std::make_move_iterator(vAvailableCoinsfee.begin()), std::make_move_iterator(vAvailableCoinsfee.end()));
-                    }
+                    //}
                 }
 
                 for (const auto& recipient : vecSend)
                 {
-					//NFTs and non divisble assets must not create outputs with
+                    //NFTs and non divisble assets must not create outputs with
 
                     CAmount m_amount = fNewAsset ? recipient.OutAmount : recipient.nAmount;
                     CAsset m_asset = fNewAsset ? recipient.OutAsset : recipient.asset;
 
-					if(m_asset.nType == 2 || !m_asset.isDivisible()){
-						if( m_amount % COIN != 0 )
-						{
-						   m_amount = m_amount / COIN;
-						   assert(m_amount >= 1 * COIN);
-						}
-					}
+                    if(m_asset.nType == 2 || !m_asset.isDivisible()){
+                        if( m_amount % COIN != 0 )
+                        {
+                           m_amount = m_amount / COIN;
+                           assert(m_amount >= 1 * COIN);
+                        }
+                    }
 
                     CTxOutAsset txout(m_asset, m_amount, recipient.scriptPubKey);
 
@@ -4058,7 +4068,7 @@ bool CWallet::CreateTransactionInternal(
 
                 // Account for the fee output in the tx in CRW
                 if (assettosend != Params().GetConsensus().subsidy_asset){
-                    if( assettosend.nType == 2 || !assettosend.isDivisible()){
+                    //if( assettosend.nType == 2 || !assettosend.isDivisible()){
 
                         CAmount nfeer = 0.0001 * COIN; //flat fee for now
                         CTxOutAsset fee(Params().GetConsensus().subsidy_asset, nfeer, CScript());
@@ -4068,10 +4078,10 @@ bool CWallet::CreateTransactionInternal(
                             txNew.vpout.push_back(fee);
                         else
                             txNew.vout.push_back(fee);
-                    }
+                    //}
                 }
 
-                LogPrintf("%s ----- %s \n", __func__, txNew.ToString());
+                //LogPrintf("%s ----- %s \n", __func__, txNew.ToString());
 
                 // Dummy fill vin for maximum size estimation
                 //

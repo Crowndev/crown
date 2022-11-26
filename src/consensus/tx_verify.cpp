@@ -326,9 +326,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(!asset.isDivisible())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but marked indivisible\n", AssetTypeToString(asset.nType)));
 
-                    if(asset.nExpiry != 0)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has expiry, use other(Point/Credits)\n", AssetTypeToString(asset.nType)));
-
+                    if(asset.nExpiry != 0){
+                        if(asset.nExpiry != std::numeric_limits<uint32_t>::max())
+                            return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has expiry %d, use other(Point/Credits)\n", AssetTypeToString(asset.nType), asset.nExpiry));
+                    }
                 }
 
                 if(asset.nType == 2){
@@ -358,16 +359,16 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
 					if(!asset.isDivisible())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but marked indivisible \n", AssetTypeToString(asset.nType)));
-					
+
 					if(asset.isStakeable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, Stakeable Equity is disabled \n", AssetTypeToString(asset.nType)));
-					
+
 					if(!asset.isRestricted())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked restricted \n", AssetTypeToString(asset.nType)));
-					
+
 					if(asset.isLimited())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked limited\n", AssetTypeToString(asset.nType)));
-					
+
                 }
 
                 //points
@@ -401,11 +402,12 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         // Tally transaction fees
         CAmountMap txfee_aux = (inputAssets - outputAssets);
-        if(txfee_aux[subsidy_asset] < 0)
-            txfee_aux[subsidy_asset] *= -1;
+        for(auto &m : txfee_aux)
+            if(m.second < 0)
+                m.second *= -1;
 
         //identify the fee asset
-        txfee += GetFeeMap(tx);
+        //txfee += GetFeeMap(tx);
         txfee += txfee_aux;
         if (!MoneyRange(txfee))
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-out-of-range ", strprintf("got (%s)", mapToString(txfee)));

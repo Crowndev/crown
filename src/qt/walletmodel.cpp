@@ -176,7 +176,7 @@ bool WalletModel::CreateContract(QString &strchainID, QString &strcontract_url, 
     return m_wallet->createContract(contract, tx, strID, contract_url, website_url, description, script, name, shortname, strFailReason);
 }
 
-bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString assettype,  QString assetcontract,  bool transferable, bool convertable, bool restricted, bool limited, QDateTime expiryDate , std::string& strFailReason)
+bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString assettype,  QString assetcontract,  bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason)
 {
     std::string contractstr = assetcontract.toStdString();
     CContract contract = m_wallet->getContract(contractstr);
@@ -221,7 +221,7 @@ bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString
     CTransactionRef tx;
     CAsset asset;
 
-    return m_wallet->createAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited);
+    return m_wallet->createAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited, divisible);
 
 }
 

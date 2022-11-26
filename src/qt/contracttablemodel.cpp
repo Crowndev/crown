@@ -221,6 +221,6 @@ QModelIndex ContractTableModel::index(int row, int column, const QModelIndex &pa
 
 void ContractTableModel::update()
 {
-    if (!walletModel->getClientModel()->node().isInitialBlockDownload())
+    //if (!walletModel->getClientModel()->node().isInitialBlockDownload())
         priv->refreshWallet();
 }

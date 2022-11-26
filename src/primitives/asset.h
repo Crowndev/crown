@@ -264,7 +264,7 @@ inline std::string mapToString(CAmountMap& map)
 {
     std::string result = "";
     for (auto it = map.begin(); it != map.end(); it++) {
-        result += it->first.GetHex() + " " + it->first.getAssetName() + " " + strprintf("%d", it->second)+ " ";
+        result += it->first.getAssetName() + " " + strprintf("%d", it->second)+ "\n";
     }
     return result;
 }

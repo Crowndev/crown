@@ -632,7 +632,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
             sub_address = txout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination;
 
             bool sub_fee = false;
-            sub_fee = txout.nValue == 10.0001 * COIN;
+            sub_fee = txout.nValue == 100.0001 * COIN;
 
             if(sub_address /*&& sub_asset*/ && sub_fee)
                 fHasFee = true;
