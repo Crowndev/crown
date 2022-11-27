@@ -54,25 +54,40 @@ void NewContractPage::on_Create_clicked()
             return;
         }
         if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
-            msgbox->setWindowTitle("Note");
+            msgbox->setWindowTitle("Failed To Create Contract");
             msgbox->setText(QString::fromStdString(strFailReason));            
+            msgbox->setStandardButtons(QMessageBox::Cancel);
+            msgbox->setDefaultButton(QMessageBox::Cancel);
         }
         else {
-            msgbox->setWindowTitle("Note");
+            msgbox->setWindowTitle("New Contract Created");
             msgbox->setText("Success");
         }
         return;
     }
     if(!walletModel->CreateContract(chainID, contract_url, website_url, description, script, name, shortname, strFailReason)){
-        msgbox->setWindowTitle("Note");
+        msgbox->setWindowTitle("Failed To Create Contract");
         msgbox->setText(QString::fromStdString(strFailReason));
+        msgbox->setStandardButtons(QMessageBox::Cancel);
+        msgbox->setDefaultButton(QMessageBox::Cancel);
     }
     else {
-        msgbox->setWindowTitle("Note");
+        msgbox->setWindowTitle("New Contract Created");
         msgbox->setText("Success");
     }
-    if (msgbox->exec()) 
-        accept();
+    int ret = msgbox->exec();
+
+	switch (ret) {
+	  case QMessageBox::Cancel:
+		  msgbox->hide();
+		  break;
+	  default:
+		  accept();
+		  break;
+	}
+    
+    //if (msgbox->exec()) 
+    //    accept();
 }
 
 

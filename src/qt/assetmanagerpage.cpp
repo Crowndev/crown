@@ -23,7 +23,6 @@ AssetManagerPage::AssetManagerPage(const PlatformStyle *_platformStyle) :
     ui(new Ui::AssetManagerPage)
 {
     ui->setupUi(this);
-    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
 }
 
 AssetManagerPage::~AssetManagerPage()
@@ -40,9 +39,6 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
 
     walletModel = _walletModel;
 
-    assetTableModel = new AssetTableModel(walletModel, clientModel);
-    coinControlModel = new CoinControlModel(walletModel);
-
     contractFilter = new ContractFilterProxy(this);
     contractFilter->setSourceModel(walletModel->getContractTableModel());
     contractFilter->setSortRole(ContractTableModel::NameRole);
@@ -50,14 +46,13 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
     assetFilter = new AssetFilterProxy(this);
-    assetFilter->setSourceModel(assetTableModel);
+    assetFilter->setSourceModel(walletModel->getAssetTableModel());
     assetFilter->setDynamicSortFilter(true);
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
-
+    connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
     update();
 
-    //connect(walletModel, &WalletModel::balanceChanged, this, &AssetManagerPage::update);
 }
 
 void AssetManagerPage::updateAssetList()

@@ -3305,6 +3305,16 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         strFailReason = "Contract name already reserved";
         return false;
     }
+    
+    if(name == "" || shortname == "") {
+        strFailReason = "Contract name or symbol cannot be empty";
+        return false;
+    }
+
+    if(name == shortname) {
+        strFailReason = "Contract name or symbol cannot match";
+        return false;
+    }
 
     CContract newcontract;
     newcontract.contract_url = contract_url;

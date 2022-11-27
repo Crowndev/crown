@@ -221,6 +221,12 @@ QModelIndex ContractTableModel::index(int row, int column, const QModelIndex &pa
 
 void ContractTableModel::update()
 {
-    //if (!walletModel->getClientModel()->node().isInitialBlockDownload())
-        priv->refreshWallet();
+    if (walletModel->getClientModel()->node().isInitialBlockDownload())
+        return;
+    Q_EMIT layoutAboutToBeChanged();
+    beginResetModel();
+    endResetModel();
+    priv->refreshWallet();
+    Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
+    Q_EMIT layoutChanged();
 }

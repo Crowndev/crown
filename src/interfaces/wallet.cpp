@@ -47,23 +47,37 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.txout_is_mine.reserve(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size());
     result.txout_address.reserve(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size());
     result.txout_address_is_mine.reserve(wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size());
-    for(unsigned int i = 0; i < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; i++){
-        const CTxOutAsset &txout = (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout[i] : wtx.tx->vout[i]);
+    const CTransactionRef &mtx = wtx.tx;
 
-        result.txout_is_mine.emplace_back(wallet.IsMine(txout));
-        result.txout_address.emplace_back();
-        result.txout_address_is_mine.emplace_back(ExtractDestination(txout.scriptPubKey, result.txout_address.back()) ?
-                                                      wallet.IsMine(result.txout_address.back()) : ISMINE_NO);
-        result.txout_is_change.push_back(wallet.IsChange(txout));
-        result.txout_amounts.emplace_back(txout.nValue);
-        result.txout_assets.emplace_back(txout.nAsset);
+    if(mtx->nVersion >= TX_ELE_VERSION){
+        for(unsigned int i = 0; i < mtx->vpout.size() ; i++){
+            result.txout_is_mine.emplace_back(wallet.IsMine(mtx->vpout[i]));
+            result.txout_address.emplace_back();
+            result.txout_address_is_mine.emplace_back(ExtractDestination(mtx->vpout[i].scriptPubKey, result.txout_address.back()) ?
+                                                          wallet.IsMine(result.txout_address.back()) : ISMINE_NO);
+            result.txout_is_change.push_back(wallet.IsChange(mtx->vpout[i]));
+            result.txout_amounts.emplace_back(mtx->vpout[i].nValue);
+            result.txout_assets.emplace_back(mtx->vpout[i].nAsset);
+        }
     }
+    else {
+        for(unsigned int i = 0; i <  mtx->vout.size() ; i++){
+            result.txout_is_mine.emplace_back(wallet.IsMine(mtx->vout[i]));
+            result.txout_address.emplace_back();
+            result.txout_address_is_mine.emplace_back(ExtractDestination(mtx->vout[i].scriptPubKey, result.txout_address.back()) ?
+                                                          wallet.IsMine(result.txout_address.back()) : ISMINE_NO);
+            result.txout_is_change.push_back(wallet.IsChange(mtx->vout[i]));
+            result.txout_amounts.emplace_back(mtx->vout[i].nValue);
+        }
+    }
+
     result.credit = wtx.GetCredit(ISMINE_ALL);
     result.debit = wtx.GetDebit(ISMINE_ALL);
     result.change = wtx.GetChange();
     result.time = wtx.GetTxTime();
     result.value_map = wtx.mapValue;
     result.is_coinbase = wtx.IsCoinBase();
+    result.is_coinstake = wtx.IsCoinStake();
     return result;
 }
 
@@ -80,6 +94,7 @@ WalletTxStatus MakeWalletTxStatus(CWallet& wallet, const CWalletTx& wtx)
     result.is_trusted = wtx.IsTrusted();
     result.is_abandoned = wtx.isAbandoned();
     result.is_coinbase = wtx.IsCoinBase();
+    result.is_coinstake = wtx.IsCoinStake();
     result.is_in_main_chain = wtx.IsInMainChain();
     return result;
 }
@@ -96,12 +111,10 @@ WalletTxOut MakeWalletTxOut(CWallet& wallet,
         result.txout = mtx->vpout[n];
     else
         result.txout = mtx->vout[n];
-        
+
     result.time = wtx.GetTxTime();
     result.depth_in_main_chain = depth;
     result.is_spent = wallet.IsSpent(wtx.GetHash(), n);
-    //LogPrintf("%s - %s\n", __func__, mtx->vpout[n].ToString());
-
     return result;
 }
 
