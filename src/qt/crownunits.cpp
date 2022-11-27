@@ -149,10 +149,10 @@ QString CrownUnits::simplestFormat(int unit, const CAmount& amount, int digits, 
 {
     QString result = format(unit, amount, plussign, separators);
     if(decimals(unit) > digits) {
-		int lenght = result.mid(result.indexOf("."), result.length() - 1).length() - 1;
-		if (lenght > digits) {
-			result.chop(lenght - digits);
-		}      
+        int lenght = result.mid(result.indexOf("."), result.length() - 1).length() - 1;
+        if (lenght > digits) {
+            result.chop(lenght - digits);
+        }      
     }
 
     return result;

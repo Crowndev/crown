@@ -367,6 +367,9 @@ struct WalletBalances
     CAmountMap balance = CAmountMap();
     CAmountMap unconfirmed_balance = CAmountMap();
     CAmountMap immature_balance = CAmountMap();
+    CAmountMap stake = CAmountMap();
+    CAmountMap watch_only_stake = CAmountMap();
+
     bool have_watch_only = false;
     CAmountMap watch_only_balance = CAmountMap();
     CAmountMap unconfirmed_watch_only_balance = CAmountMap();
@@ -376,9 +379,9 @@ struct WalletBalances
     bool balanceChanged(const WalletBalances& prev) const
     {
         return balance != prev.balance || unconfirmed_balance != prev.unconfirmed_balance ||
-               immature_balance != prev.immature_balance || watch_only_balance != prev.watch_only_balance ||
+               immature_balance != prev.immature_balance || stake != prev.stake || watch_only_balance != prev.watch_only_balance ||
                unconfirmed_watch_only_balance != prev.unconfirmed_watch_only_balance ||
-               immature_watch_only_balance != prev.immature_watch_only_balance || locked != prev.locked || unlocked != prev.unlocked;
+               immature_watch_only_balance != prev.immature_watch_only_balance || watch_only_stake != prev.watch_only_stake || locked != prev.locked || unlocked != prev.unlocked;
     }
 };
 
@@ -399,6 +402,7 @@ struct WalletTx
     int64_t time;
     std::map<std::string, std::string> value_map;
     bool is_coinbase;
+    bool is_coinstake;
 };
 
 //! Updated transaction status.
@@ -413,6 +417,7 @@ struct WalletTxStatus
     bool is_trusted;
     bool is_abandoned;
     bool is_coinbase;
+    bool is_coinstake;
     bool is_in_main_chain;
 };
 

@@ -66,29 +66,39 @@ void NewAssetPage::on_Create_clicked()
             return;
         }
 		if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
-			msgbox->setWindowTitle("Note");
+			msgbox->setWindowTitle("Failed To Create Asset");
 			msgbox->setText(QString::fromStdString(strFailReason));
-			msgbox->open();
+            msgbox->setStandardButtons(QMessageBox::Cancel);
+            msgbox->setDefaultButton(QMessageBox::Cancel);
 		}
 		else {
-			msgbox->setWindowTitle("Note");
+			msgbox->setWindowTitle("New Asset Created");
 			msgbox->setText("Success");
-			msgbox->open();
 		}
         return;
     }
 
     if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
-        msgbox->setWindowTitle("Note");
+        msgbox->setWindowTitle("Failed To Create Asset");
         msgbox->setText(QString::fromStdString(strFailReason));
-        msgbox->open();
+		msgbox->setStandardButtons(QMessageBox::Cancel);
+		msgbox->setDefaultButton(QMessageBox::Cancel);
     }
     else {
-        msgbox->setWindowTitle("Note");
+        msgbox->setWindowTitle("New Asset Created");
         msgbox->setText("Success");
-        msgbox->open();
     }
-    QDialog::accept();
+    
+    int ret = msgbox->exec();
+
+	switch (ret) {
+	  case QMessageBox::Cancel:
+		  msgbox->hide();
+		  break;
+	  default:
+		  accept();
+		  break;
+	}
 }
 
 QString NewAssetPage::getinputamount(){
