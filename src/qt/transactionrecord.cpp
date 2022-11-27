@@ -32,47 +32,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     CAmountMap nCredit = wtx.credit;
     CAmountMap nDebit = wtx.debit;
     CAmountMap nNet = nCredit - nDebit;
+    CAmountMap mapTxFee = nDebit - wtx.tx->GetValueOutMap();
     uint256 hash = wtx.tx->GetHash();
     std::map<std::string, std::string> mapValue = wtx.value_map;
     const CTransactionRef &mtx = wtx.tx;
 
-    isminetype fAllFromMe = ISMINE_SPENDABLE;
-    bool any_from_me = false;
-    std::set<CAsset> assets_issued_to_me_only;
-    if (wtx.is_coinbase) {
-        fAllFromMe = ISMINE_NO;
-    }
-    else
+    if (nNet > CAmountMap() || wtx.is_coinbase)
     {
-        CAmountMap assets_received_by_me_only;
-
-        for (unsigned int i = 0; i < (mtx->nVersion >= TX_ELE_VERSION ? mtx->vpout.size() : mtx->vout.size()); i++) {
-            CTxOutAsset txout;
-            if(mtx->nVersion >= TX_ELE_VERSION)
-                txout = mtx->vpout[i];
-            else
-                txout = mtx->vout[i];
-
-            if (txout.IsFee()) {
-                continue;
-            }
-
-            if (assets_received_by_me_only.count(txout.nAsset) && assets_received_by_me_only.at(txout.nAsset) < 0) {
-                // Already known to be received by not-me
-                continue;
-            }
-
-            isminetype mine = wtx.txout_address_is_mine[i];
-
-            if (!mine) {
-                assets_received_by_me_only[txout.nAsset] = -1;
-            } else {
-                assets_received_by_me_only[txout.nAsset] += wtx.txout_amounts[i];
-            }
-        }
-    }
-
-    if (fAllFromMe || !any_from_me) {
+        //
+        // Credit
+        //
         for (unsigned int i = 0; i < (mtx->nVersion >= TX_ELE_VERSION ? mtx->vpout.size() : mtx->vout.size()); i++) {
             CTxOutAsset txout;
             if(mtx->nVersion >= TX_ELE_VERSION)
@@ -85,50 +54,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 continue;
             }
 
-            if (fAllFromMe && assets_issued_to_me_only.count(txout.nAsset) == 0) {
-                // Change is only really possible if we're the sender
-                // Otherwise, someone just sent bitcoins to a change address, which should be shown
-
-                if (wtx.txout_is_change[i]) {
-                    continue;
-                }
-
-                //
-                // Debit
-                //
-                TransactionRecord sub(hash, nTime);
-                sub.idx = i;
-                sub.amount = -txout.nValue;
-                sub.asset = txout.nAsset;
-                if (!std::get_if<CNoDestination>(&wtx.txout_address[i]))
-                {
-                    // Sent to Crown Address
-                    sub.type = TransactionRecord::SendToAddress;
-                    sub.address = EncodeDestination(wtx.txout_address[i]);
-                }
-                else
-                {
-                    // Sent to IP, or other non-address transaction like OP_EVAL
-                    sub.type = TransactionRecord::SendToOther;
-                    sub.address = mapValue["to"];
-                }
-                if(!wtx.is_coinstake)
-                    parts.append(sub);
-            }
-
             isminetype mine = wtx.txout_is_mine[i];
             if(mine)
             {
-                //
-                // Credit
-                //
-
                 TransactionRecord sub(hash, nTime);
                 sub.idx = i; // vout index
                 sub.amount = txout.nValue;
-                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 sub.asset = txout.nAsset;
-
+                sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (wtx.txout_address_is_mine[i])
                 {
                     // Received by Crown Address
@@ -146,6 +79,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
+                
                 if (wtx.is_coinstake)
                 {
                     // Generated
@@ -155,25 +89,98 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 parts.append(sub);
             }
         }
-
-        if (fAllFromMe) {
-            for (const auto& tx_fee : GetFeeMap(*wtx.tx)) {
-                if (!tx_fee.second) continue;
-
-                TransactionRecord sub(hash, nTime);
-                sub.type = TransactionRecord::Fee;
-                sub.asset = tx_fee.first;
-                sub.amount = -tx_fee.second;
-                parts.append(sub);
-            }
-        }
     }
     else
     {
-        //
-        // Mixed debit transaction, can't break down payees
-        //
-        parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet.begin()->second, CAsset()));
+        bool involvesWatchAddress = false;
+        isminetype fAllFromMe = ISMINE_SPENDABLE;
+        for (const isminetype mine : wtx.txin_is_mine)
+        {
+            if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
+            if(fAllFromMe > mine) fAllFromMe = mine;
+        }
+
+        isminetype fAllToMe = ISMINE_SPENDABLE;
+        for (const isminetype mine : wtx.txout_is_mine)
+        {
+            if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
+            if(fAllToMe > mine) fAllToMe = mine;
+        }
+
+        if (fAllFromMe && fAllToMe)
+        {
+            // Payment to self
+            std::string address;
+            for (auto it = wtx.txout_address.begin(); it != wtx.txout_address.end(); ++it) {
+                if (it != wtx.txout_address.begin()) address += ", ";
+                address += EncodeDestination(*it);
+            }
+
+            TransactionRecord sub(hash, nTime);
+            sub.idx = 0;
+            sub.involvesWatchAddress = involvesWatchAddress;
+            sub.type = TransactionRecord::Fee;
+            sub.address = address;
+            sub.asset = wtx.txout_assets[0];
+            sub.amount = (mapTxFee*-1)[wtx.txout_assets[0]];
+            parts.append(sub);
+        }
+        else if (fAllFromMe)
+        {
+            //
+            // Debit
+            //
+            CAmountMap nTxFee = nDebit - wtx.tx->GetValueOutMap();
+            for (unsigned int nOut = 0; nOut < (wtx.tx->nVersion >= TX_ELE_VERSION ? wtx.tx->vpout.size() : wtx.tx->vout.size()) ; nOut++){
+
+                CTxOutAsset txout;
+                if(mtx->nVersion >= TX_ELE_VERSION)
+                    txout = mtx->vpout[nOut];
+                else
+                    txout = mtx->vout[nOut];
+
+                TransactionRecord sub(hash, nTime);
+                sub.idx = nOut;
+                sub.involvesWatchAddress = involvesWatchAddress;
+
+                if(wtx.txout_is_mine[nOut])
+                {
+                    // Ignore parts sent to self, as this is usually the change
+                    // from a transaction sent back to our own address.
+                    continue;
+                }
+
+                if (!std::get_if<CNoDestination>(&wtx.txout_address[nOut]))
+                {
+                    // Sent to Crown Address
+                    sub.type = TransactionRecord::SendToAddress;
+                    sub.address = EncodeDestination(wtx.txout_address[nOut]);
+                }
+                else
+                {
+                    // Sent to IP, or other non-address transaction like OP_EVAL
+                    sub.type = TransactionRecord::SendToOther;
+                    sub.address = mapValue["to"];
+                }
+
+                /* Add fee to first output */
+                if (nTxFee > CAmountMap())
+                {
+                    nTxFee = CAmountMap();
+                }
+                sub.amount = -txout.nValue;
+                sub.asset = txout.nAsset;
+
+                parts.append(sub);
+            }
+        }
+        else
+        {
+            //
+            // Mixed debit transaction, can't break down payees
+            //
+            parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet.begin()->second, CAsset()));
+        }
     }
 
     return parts;
