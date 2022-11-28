@@ -257,6 +257,52 @@ static RPCHelpMan createasset()
     };
 }
 
+static RPCHelpMan convertasset()
+{
+    return RPCHelpMan{"convertasset",
+                "\nconvert asset to CRW\n",
+                {
+                    {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 10 characters"},
+                    {"input_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "In put amount in Crown. (minimum 1)"},
+                },
+                RPCResult{
+                    RPCResult::Type::STR, "TXID", "The txid of the asset conversion in hex"
+                },
+                RPCExamples{
+            "\nconvert an asset\n"
+            + HelpExampleCli("convertasset", "\"name\" \"input_amount\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("convertasset", "\"name\", \"input_amount\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    if (!wallet) return NullUniValue;
+    CWallet* const pwallet = wallet.get();
+
+    LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(*wallet);
+
+    LOCK2(pwallet->cs_wallet, spk_man.cs_KeyStore);
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    std::string name = request.params[0].get_str();
+    CAmount nAmount = AmountFromValue(request.params[1].get_int());
+    CAsset asset = GetAsset(name);
+
+    CAmountMap assetAmount{{asset,nAmount}};
+    CTransactionRef tx;
+    std::string strFailReason;
+
+    if(!pwallet->ConvertAsset(assetAmount, tx, strFailReason))
+        throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
+
+    return tx->GetHash().GetHex();
+},
+    };
+}
+
+
 static RPCHelpMan getasset()
 {
     return RPCHelpMan{"getasset",
@@ -356,6 +402,7 @@ static const CRPCCommand commands[] =
     { "contracts",  "getcontract",         &getcontract,            {}    },
     { "contracts",  "createcontract",      &createcontract,         {}    },
     { "contracts",  "createasset",         &createasset,            {}    },
+    { "contracts",  "convertasset",        &convertasset,           {}    },
     { "contracts",  "getasset",            &getasset,               {}    },
     { "contracts",  "getassets",           &getassets,              {}    },
     { "contracts",  "getnumassets",        &getnumassets,           {}    },

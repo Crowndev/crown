@@ -5,6 +5,7 @@
 
 #include <wallet/wallet.h>
 #include <chain.h>
+#include <assetdb.h>
 
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -3414,15 +3415,15 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
     contract = newcontract;
     return true;
 }
-/*
-bool CWallet::ConvertAsset(CAmountMap &assetin){
+
+bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& strFailReason){
 
     if (IsLocked()){
         strFailReason = "Wallet Locked";
         return false;
     }
 
-    if (assetin.size > 1){
+    if (assetin.size() > 1){
         strFailReason = "Only one input asset allowed at conversion";
         return false;
     }
@@ -3443,13 +3444,62 @@ bool CWallet::ConvertAsset(CAmountMap &assetin){
         strFailReason = "Asset is not convertible";
         return false;
     }
+    // NFTs (Unique) cannot be converted
+    if(asset.nType == 2){
+        strFailReason = "Asset type is UNIQUE (NFT), conversion is disallowed";
+        return false;
+    }
 
     // what is it's conversion rate ?
     CAssetData assetdata = GetAssetData(asset.getAssetName());
+    double rate = (assetdata.issuedAmount / assetdata.inputAmount) + (assetdata.issuedAmount % assetdata.inputAmount);
+    rate *= amountin;
+    CCoinControl coin_control;
+
+    // Do we have the coins ?
+    std::vector<COutput> vecOutputs;
+    {
+        CCoinControl cctl;
+        cctl.m_avoid_address_reuse = false;
+        cctl.m_min_depth = 1;
+        cctl.m_max_depth = 9999999;
+        AvailableCoins(vecOutputs, asset, false, &cctl, ALL_COINS, 0, MAX_MONEY, amountin, 0);
+    }
+    CAmount available =0;
+    for (const COutput& out : vecOutputs) {
+        // Elements
+        CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
+        CAsset assetid;
+        if(out.tx->tx->nVersion >= TX_ELE_VERSION)
+            assetid = out.tx->tx->vpout[out.i].nAsset;
+
+        if ((amount < 0 || assetid.IsNull())) {
+            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
+            continue;
+        }
+
+        if (asset != assetid) {
+            continue;
+        }
+        available += amount;
+
+        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
+    }
+
+
+    if(coin_control.setSelected.size() < 1){
+        strFailReason ="No suitable output found";
+        return false;
+    } 
+
+    if(available < amountin){
+        strFailReason ="Insufficient Funds of this asset";
+        return false;
+    }    
 
 
 }
-*/
+
 bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
 {
     if (IsLocked()){
@@ -3464,7 +3514,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     //typedef std::ratio<inputamt, outputamt> ratio2;
     double ratio = 0.0;
     if (outputamt > inputamt){
-        ratio = outputamt / inputamt;
+        ratio = (outputamt / inputamt) + (outputamt % inputamt);
         if (ratio > 100){
             strFailReason = "Input / Output ratio capped at 1:100";
             return false;
