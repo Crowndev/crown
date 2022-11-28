@@ -112,7 +112,7 @@ bool IsBlockPayeeValid(const CAmount& nAmountCreated, const CTransaction& txNew,
         LogPrint(BCLog::NET, "%s: Chain stall, time between blocks=%d\n", __func__, nTime - nTimePrevBlock);
         return true;
     } else {
-        LogPrint(BCLog::MASTERNODE, "Invalid mn payment detected %s\n", txNew.ToString().c_str());
+        LogPrint(BCLog::MASTERNODE, "Invalid mn payment detected \n");
         if (IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)) {
             return false;
         } else {
