@@ -3306,7 +3306,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         strFailReason = "Contract name already reserved";
         return false;
     }
-    
+
     if(name == "" || shortname == "") {
         strFailReason = "Contract name or symbol cannot be empty";
         return false;
@@ -3416,7 +3416,7 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
     return true;
 }
 
-bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& strFailReason){
+bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& address, std::string& strFailReason){
 
     if (IsLocked()){
         strFailReason = "Wallet Locked";
@@ -3455,49 +3455,139 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
     double rate = (assetdata.issuedAmount / assetdata.inputAmount) + (assetdata.issuedAmount % assetdata.inputAmount);
     rate *= amountin;
     CCoinControl coin_control;
-
-    // Do we have the coins ?
-    std::vector<COutput> vecOutputs;
+    std::set<CInputCoin> setCoins;
+    LOCK(cs_wallet);
     {
-        CCoinControl cctl;
-        cctl.m_avoid_address_reuse = false;
-        cctl.m_min_depth = 1;
-        cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, asset, false, &cctl, ALL_COINS, 0, MAX_MONEY, amountin, 0);
-    }
-    CAmount available =0;
-    for (const COutput& out : vecOutputs) {
-        // Elements
-        CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
-        CAsset assetid;
-        if(out.tx->tx->nVersion >= TX_ELE_VERSION)
-            assetid = out.tx->tx->vpout[out.i].nAsset;
+        // Do we have the coins ?
+        std::vector<COutput> vecOutputs;
+        {
+            coin_control.m_avoid_address_reuse = false;
+            coin_control.m_min_depth = 1;
+            coin_control.m_max_depth = 9999999;
+            AvailableCoins(vecOutputs, asset, false, &coin_control, ALL_COINS, 0, MAX_MONEY, amountin, 0);
+        }
+        CAmount available =0;
+        for (const COutput& out : vecOutputs) {
+            // Elements
+            CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
+            CAsset assetid;
+            if(out.tx->tx->nVersion >= TX_ELE_VERSION)
+                assetid = out.tx->tx->vpout[out.i].nAsset;
 
-        if ((amount < 0 || assetid.IsNull())) {
-            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
-            continue;
+            if ((amount < 0 || assetid.IsNull())) {
+                WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
+                continue;
+            }
+
+            if (asset != assetid) {
+                continue;
+            }
+            available += amount;
+
+            coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
         }
 
-        if (asset != assetid) {
-            continue;
+        if(coin_control.setSelected.size() < 1){
+            strFailReason ="No suitable output found";
+            return false;
         }
-        available += amount;
 
-        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
+        if(available < amountin){
+            strFailReason ="Insufficient Funds of this asset";
+            return false;
+        }
+
+        CTxDestination dest = DecodeDestination(address);
+        if (!IsValidDestination(dest)) {
+            strFailReason = "Invalid Crown address";
+            return false;
+        }
+        CAmount m_amount = std::max(available, amountin);
+
+        CMutableTransaction txNew;
+        txNew.vin.clear();
+        txNew.vout.clear();
+        txNew.vpout.clear();
+        txNew.witness.SetNull();
+        txNew.nLockTime = GetLocktimeForNewTransaction(chain(), GetLastBlockHash(), GetLastBlockHeight());
+        txNew.nVersion=chain().getTxVersion();
+
+        CTxOutAsset txout(Params().GetConsensus().subsidy_asset, m_amount*0.9, GetScriptForDestination(dest));
+        CTxOutAsset txfee(Params().GetConsensus().subsidy_asset, m_amount*0.1, CScript());
+        assert(txfee.IsFee());
+
+        txNew.vpout.push_back(txout);
+        txNew.vpout.push_back(txfee);
+
+        bool pick_new_inputs = true;
+        CAmountMap mapValueIn;
+        CAmountMap mapValueToSelect{{asset, m_amount}};
+        CoinSelectionParams coin_selection_params; // Parameters for coin selection, init with dummy
+
+        // Choose coins to use
+        bool bnb_used = false;
+        if (pick_new_inputs) {
+            mapValueIn.clear();
+            setCoins.clear();
+            // If the wallet doesn't know how to sign change output, assume p2sh-p2wpkh
+            // as lower-bound to allow BnB to do it's thing
+
+            if (!SelectCoins(vecOutputs, mapValueToSelect, setCoins, mapValueIn, coin_control, coin_selection_params, bnb_used))
+            {
+                // If BnB was used, it was the first pass. No longer the first pass and continue loop with knapsack.
+                if (bnb_used) {
+                    coin_selection_params.use_bnb = false;
+                }
+                else {
+                    LogPrintf("Insufficient funds vAvailableCoins %d\n mapValueToSelect %s\n setCoins %d mapValueIn %s", vecOutputs.size(), mapValueToSelect, setCoins.size(), mapValueIn);
+                    strFailReason = "Insufficient funds";
+                    return false;
+                }
+            }
+        } else {
+            bnb_used = false;
+        }
+
+        // Shuffle selected coins and fill in final vin
+        txNew.vin.clear();
+        std::vector<CInputCoin> selected_coins(setCoins.begin(), setCoins.end());
+        Shuffle(selected_coins.begin(), selected_coins.end(), FastRandomContext());
+
+        // Note how the sequence number is set to non-maxint so that
+        // the nLockTime set above actually works.
+        //
+        // BIP125 defines opt-in RBF as any nSequence < maxint-1, so
+        // we use the highest possible value in that range (maxint-2)
+        // to avoid conflicting with other possible uses of nSequence,
+        // and in the spirit of "smallest possible change from prior
+        // behavior."
+        const uint32_t nSequence = coin_control.m_signal_bip125_rbf.value_or(m_signal_rbf) ? MAX_BIP125_RBF_SEQUENCE : (CTxIn::SEQUENCE_FINAL - 1);
+        for (const auto& coin : selected_coins) {
+            txNew.vin.push_back(CTxIn(coin.outpoint, CScript(), nSequence));
+        }
+
+        if (!SignTransaction(txNew)) {
+            strFailReason = "Signing transaction failed";
+            return false;
+        }
+
+        // Normalize the witness in case it is not serialized before mempool
+        if (!txNew.HasWitness()) {
+            txNew.witness.SetNull();
+        }
+        // Return the constructed transaction data.
+        tx = MakeTransactionRef(std::move(txNew));
+        // Limit size
+        if (GetTransactionWeight(*tx) > MAX_STANDARD_TX_WEIGHT)
+        {
+            strFailReason = "Transaction too large";
+            return false;
+        }
     }
+    mapValue_t mapValue;
 
-
-    if(coin_control.setSelected.size() < 1){
-        strFailReason ="No suitable output found";
-        return false;
-    } 
-
-    if(available < amountin){
-        strFailReason ="Insufficient Funds of this asset";
-        return false;
-    }    
-
-
+    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    return true;
 }
 
 bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
@@ -3584,22 +3674,22 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
            strFailReason = "Asset type is Token but not marked transferable";
            return false;
         }
-        
+
         if(assetNew.isConvertable()){
            strFailReason = "Asset type is Token, Assets conversion is currently disabled";
            return false;
         }
-        
+
         if(assetNew.isInflatable()){
            strFailReason = "Asset type is Token, but marked inflatable";
            return false;
         }
-        
+
         if(assetNew.isStakeable()){
            strFailReason = "Asset type is Token, Stakeable Tokens are disabled.";
            return false;
         }
-        
+
         if(!assetNew.isDivisible()){
            strFailReason = "Asset type is Token, but marked indivisible.";
            return false;
@@ -3609,7 +3699,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
            if(assetNew.nExpiry != std::numeric_limits<uint32_t>::max()){
                strFailReason = strprintf("Asset type is Token, but has expiry %d, use other (Point/Credits)", assetNew.nExpiry);
                return false;
-		   }
+           }
         }
     }
 

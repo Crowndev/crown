@@ -41,9 +41,15 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
 
     contractFilter = new ContractFilterProxy(this);
     contractFilter->setSourceModel(walletModel->getContractTableModel());
-    contractFilter->setSortRole(ContractTableModel::NameRole);
    	contractFilter->setOnlyMine(false);
+    contractFilter->setSortRole(ContractTableModel::NameRole);
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
+
+	mycontractFilter = new ContractFilterProxy(this);
+	mycontractFilter->setSourceModel(walletModel->getContractTableModel());
+	mycontractFilter->setOnlyMine(true);
+    mycontractFilter->setSortRole(ContractTableModel::NameRole);
+    mycontractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
     assetFilter = new AssetFilterProxy(this);
     assetFilter->setSourceModel(walletModel->getAssetTableModel());
@@ -114,7 +120,7 @@ void AssetManagerPage::on_CreateNewAsset_clicked()
     NewAssetPage dialog(this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Asset");
-    dialog.setWalletModel(walletModel);
+    dialog.setWalletModel(walletModel, mycontractFilter);
     if(dialog.exec())
         update();
 }

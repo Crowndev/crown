@@ -21,10 +21,23 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QComboBox" name="contractcomboBox"/>
+          <widget class="QComboBox" name="contractcomboBox">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="currentText">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>Select Contract</string>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QComboBox" name="typecomboBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="layoutDirection">
             <enum>Qt::LeftToRight</enum>
            </property>
@@ -60,6 +73,9 @@
          </item>
          <item>
           <widget class="QDateTimeEdit" name="expiry">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
            </property>
@@ -74,6 +90,9 @@
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
           <widget class="QLineEdit" name="inputAmount">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
            </property>
@@ -84,6 +103,9 @@
          </item>
          <item>
           <widget class="QLineEdit" name="outputAmount">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
            </property>
@@ -98,6 +120,9 @@
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
           <widget class="QCheckBox" name="convertcheckBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="text">
             <string>Convertable</string>
            </property>
@@ -105,6 +130,9 @@
          </item>
          <item>
           <widget class="QCheckBox" name="transfercheckBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="text">
             <string>Transferable</string>
            </property>
@@ -112,6 +140,9 @@
          </item>
          <item>
           <widget class="QCheckBox" name="restrictedcheckBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="text">
             <string>Restricted</string>
            </property>
@@ -119,6 +150,9 @@
          </item>
          <item>
           <widget class="QCheckBox" name="limitedcheckBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="text">
             <string>Limited</string>
            </property>
@@ -126,6 +160,9 @@
          </item>
          <item>
           <widget class="QCheckBox" name="divisiblecheckBox">
+           <property name="toolTip">
+            <string/>
+           </property>
            <property name="text">
             <string>Divisible</string>
            </property>
@@ -165,6 +202,9 @@
        </item>
        <item>
         <widget class="QPushButton" name="Create">
+         <property name="toolTip">
+          <string extracomment="Create the Asset"/>
+         </property>
          <property name="text">
           <string>Create</string>
          </property>

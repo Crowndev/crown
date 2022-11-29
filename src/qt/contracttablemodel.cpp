@@ -8,6 +8,9 @@
 #include <interfaces/node.h>
 #include <qt/clientmodel.h>
 
+#include <masternode/masternode-sync.h>
+#include <systemnode/systemnode-sync.h>
+
 #include <key_io.h>
 #include <outputtype.h>
 #include <qt/guiconstants.h>
@@ -223,10 +226,15 @@ void ContractTableModel::update()
 {
     if (walletModel->getClientModel()->node().isInitialBlockDownload())
         return;
-    Q_EMIT layoutAboutToBeChanged();
-    beginResetModel();
-    endResetModel();
+
+    if (!masternodeSync.IsSynced() || !systemnodeSync.IsSynced()) {
+        return;
+    }
+
+//    Q_EMIT layoutAboutToBeChanged();
+//    beginResetModel();
+//    endResetModel();
     priv->refreshWallet();
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
-    Q_EMIT layoutChanged();
+//    Q_EMIT layoutChanged();
 }

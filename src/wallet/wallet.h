@@ -1068,7 +1068,7 @@ public:
      */
     bool CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason);
     bool CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable = false, bool convertable = false, bool restricted = false, bool limited = false, bool divisible = false);
-    bool ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& strFailReason);
+    bool ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& address, std::string& strFailReason);
     void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
 
     bool DummySignTx(CMutableTransaction &txNew, const std::set<CTxOutAsset> &txouts, bool use_max_sig = false) const
