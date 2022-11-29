@@ -69,6 +69,7 @@ void NewAssetPage::on_Create_clicked()
     QString outputamount  = getoutputamount();
     QString assettype  = getassettype();
     QString assetcontract  = getassetcontract();
+    std::string mdata  = getnftdata().toStdString();
     bool transferable = gettransferable();
     bool convertable = getconvertable();
     bool restricted = getrestricted();
@@ -76,6 +77,9 @@ void NewAssetPage::on_Create_clicked()
     bool divisible = getdivisible();
     QString expiry  = getexpiry();
     std::string strFailReason;
+
+    CTxData rdata;
+    rdata.vData.assign(mdata.begin(), mdata.end());
 
     QString format = "dd-MM-yyyy hh:mm:ss";
     QDateTime expiryDate = QDateTime::fromString(expiry, format);
@@ -87,7 +91,7 @@ void NewAssetPage::on_Create_clicked()
         if(!ctx.isValid()) {
             return;
         }
-        if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
+        if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
             msgbox->setWindowTitle("Failed To Create Asset");
             msgbox->setText(QString::fromStdString(strFailReason));
             msgbox->setStandardButtons(QMessageBox::Cancel);
@@ -100,7 +104,7 @@ void NewAssetPage::on_Create_clicked()
         return;
     }
 
-    if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason)){
+    if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
         msgbox->setWindowTitle("Failed To Create Asset");
         msgbox->setText(QString::fromStdString(strFailReason));
         msgbox->setStandardButtons(QMessageBox::Cancel);
@@ -121,6 +125,10 @@ void NewAssetPage::on_Create_clicked()
           accept();
           break;
     }
+}
+
+QString NewAssetPage::getnftdata(){
+    return ui->nftTextEdit->toPlainText();
 }
 
 QString NewAssetPage::getinputamount(){

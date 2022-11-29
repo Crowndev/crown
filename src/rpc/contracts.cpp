@@ -197,8 +197,9 @@ static RPCHelpMan createasset()
                     {"convertable", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can be converted to another asset (set false for NFTs)"},
                     {"restricted", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset can only be issued/reissued by creation address"},
                     {"limited", RPCArg::Type::BOOL, RPCArg::Optional::NO, "other assets cannot be converted to this one"},
-                    {"divisibl", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset is divisible (units smaller than 1.0)"},
+                    {"divisible", RPCArg::Type::BOOL, RPCArg::Optional::NO, "asset is divisible (units smaller than 1.0)"},
                     {"contract", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Contract to issue asset to"},
+                    {"data", RPCArg::Type::STR, RPCArg::Optional::NO, "Text form NFT data"},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "assetID", "The id of the asset encoded in hex"
@@ -225,8 +226,8 @@ static RPCHelpMan createasset()
     std::string shortname = request.params[1].get_str();
     CAmount nAmount = AmountFromValue(request.params[2].get_int());
 
-    if(nAmount < 10 * COIN)
-        throw JSONRPCError(RPC_MISC_ERROR, "Input error, input amount must be greater than 10 Crown for asset creation");
+    //if(nAmount < 10 * COIN)
+    //    throw JSONRPCError(RPC_MISC_ERROR, "Input error, input amount must be greater than 10 Crown for asset creation");
 
     CAmount nAssetAmount = AmountFromValue(request.params[3].get_int());
     int64_t expiry = request.params[4].get_int();
@@ -237,9 +238,12 @@ static RPCHelpMan createasset()
     bool limited = request.params[9].get_bool();
     bool divisible = request.params[10].get_bool();
     std::string contractstring = request.params[11].get_str();
+    std::string datastring = request.params[12].get_str();
 
     std::vector<unsigned char> contractData(ParseHex(contractstring));
-
+    CTxData rdata;
+    rdata.vData.assign(datastring.begin(), datastring.end());
+    
     CContract contract;
 
     CDataStream ssCt(contractData, SER_NETWORK, PROTOCOL_VERSION);
@@ -249,7 +253,7 @@ static RPCHelpMan createasset()
     CTransactionRef tx;
     std::string strFailReason;
 
-    if(!pwallet->CreateAsset(asset, tx, name, shortname, nAmount, nAssetAmount, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited, divisible))
+    if(!pwallet->CreateAsset(asset, tx, name, shortname, nAmount, nAssetAmount, expiry, type, contract, rdata, strFailReason, transferable, convertable, restricted, limited, divisible))
         throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
 
     return tx->GetHash().GetHex();
