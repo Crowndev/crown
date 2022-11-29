@@ -288,13 +288,14 @@ static RPCHelpMan convertasset()
 
     std::string name = request.params[0].get_str();
     CAmount nAmount = AmountFromValue(request.params[1].get_int());
+    std::string address = request.params[3].get_str();
     CAsset asset = GetAsset(name);
 
     CAmountMap assetAmount{{asset,nAmount}};
     CTransactionRef tx;
     std::string strFailReason;
 
-    if(!pwallet->ConvertAsset(assetAmount, tx, strFailReason))
+    if(!pwallet->ConvertAsset(assetAmount, tx, address, strFailReason))
         throw JSONRPCError(RPC_MISC_ERROR, strFailReason);
 
     return tx->GetHash().GetHex();

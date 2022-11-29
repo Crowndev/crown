@@ -28,9 +28,7 @@ public:
 	bool getlimited();
 	bool getdivisible();
 	QString getexpiry();
-    void setWalletModel(WalletModel* walletModel);
-    ContractFilterProxy *mycontractFilter = nullptr;
-    ContractTableModel *contractTableModel;
+    void setWalletModel(WalletModel* walletModel, ContractFilterProxy *mycontractFilter);
 
 private:
     WalletModel* walletModel;

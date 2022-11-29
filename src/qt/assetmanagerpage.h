@@ -38,6 +38,7 @@ public:
     AssetFilterProxy *assetFilter = nullptr;
     ContractFilterProxy *contractFilter = nullptr;
     CoinControlFilterProxy *coincontrolfilter = nullptr;
+    ContractFilterProxy *mycontractFilter = nullptr;
 
     void updateAssetList();
     void updateContractList();

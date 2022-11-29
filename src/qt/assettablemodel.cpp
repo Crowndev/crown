@@ -8,6 +8,9 @@
 #include <interfaces/node.h>
 #include <qt/clientmodel.h>
 
+#include <masternode/masternode-sync.h>
+#include <systemnode/systemnode-sync.h>
+
 #include <key_io.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
@@ -256,6 +259,11 @@ void AssetTableModel::update()
 {
     if (walletModel->getClientModel()->node().isInitialBlockDownload())
         return;
+
+    if (!masternodeSync.IsSynced() || !systemnodeSync.IsSynced()) {
+        return;
+    }
+
     Q_EMIT layoutAboutToBeChanged();
     beginResetModel();
     endResetModel();
