@@ -32,7 +32,9 @@ CreateNodeDialog::~CreateNodeDialog()
 
 void CreateNodeDialog::setWalletModel(WalletModel* model)
 {
-    this->walletmodel = model;
+    if(!model)
+        return;	
+    walletmodel = model;
 }
 
 QString CreateNodeDialog::getAlias()
@@ -145,54 +147,60 @@ void CreateNodeDialog::accept()
     {
         return;
     }
+    
+    if(!walletmodel)
+        return;
+        
+    if(!editMode){
 
-	// OK Pressed
-	QString label = getLabel();
-	QString address = walletmodel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
-	SendAssetsRecipient recipient(address, label,(mode == 0 ? 10000 * COIN : 500 * COIN) , "");
-	recipient.asset = Params().GetConsensus().subsidy_asset;
-	QList<SendAssetsRecipient> recipients;
-	recipients.append(recipient);
+		// OK Pressed
+		QString label = getLabel();
+		QString address = walletmodel->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", OutputType::LEGACY);
+		SendAssetsRecipient recipient(address, label,(mode == 0 ? 10000 * COIN : 500 * COIN) , "");
+		recipient.asset = Params().GetConsensus().subsidy_asset;
+		QList<SendAssetsRecipient> recipients;
+		recipients.append(recipient);
 
-	std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+		std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
 
-	// Get outputs before and after transaction
-	std::vector<COutput> vPossibleCoinsBefore;
-	wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
+		// Get outputs before and after transaction
+		std::vector<COutput> vPossibleCoinsBefore;
+		wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
-    SendCollateralDialog sendDialog(platformStyle, (mode == 0 ? SendCollateralDialog::MASTERNODE : SendCollateralDialog::SYSTEMNODE) , this);
+		SendCollateralDialog sendDialog(platformStyle, (mode == 0 ? SendCollateralDialog::MASTERNODE : SendCollateralDialog::SYSTEMNODE) , this);
 
-	sendDialog.setModel(walletmodel);
-	sendDialog.send(recipients);
+		sendDialog.setModel(walletmodel);
+		sendDialog.send(recipients);
 
-	std::vector<COutput> vPossibleCoinsAfter;
-	wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
+		std::vector<COutput> vPossibleCoinsAfter;
+		wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
-	for (auto& out : vPossibleCoinsAfter)
-	{
-		std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
-		if (it == vPossibleCoinsBefore.end()) {
-			// Not found so this is a new element
+		for (auto& out : vPossibleCoinsAfter)
+		{
+			std::vector<COutput>::iterator it = std::find(vPossibleCoinsBefore.begin(), vPossibleCoinsBefore.end(), out);
+			if (it == vPossibleCoinsBefore.end()) {
+				// Not found so this is a new element
 
-			COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
-			wallets[0]->LockCoin(outpoint);
+				COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
+				wallets[0]->LockCoin(outpoint);
 
-			// Generate a key
-			CKey secret;
-			secret.MakeNewKey(false);
-			std::string privateKey = EncodeSecret(secret);
-			std::string port = "9340";
-			if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-				port = "18333";
-			}
-			
-			if(mode == 0){
-		    	masternodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
-		    	masternodeConfig.write();
-			}
-		    else{
-		        systemnodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
-				systemnodeConfig.write();	
+				// Generate a key
+				CKey secret;
+				secret.MakeNewKey(false);
+				std::string privateKey = EncodeSecret(secret);
+				std::string port = "9340";
+				if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+					port = "18333";
+				}
+				
+				if(mode == 0){
+					masternodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+					masternodeConfig.write();
+				}
+				else{
+					systemnodeConfig.add(getAlias().toStdString(), getIP().toStdString() + ":" + port, privateKey, out.tx->GetHash().ToString(), strprintf("%d", out.i));
+					systemnodeConfig.write();	
+				}
 			}
 		}
 	}

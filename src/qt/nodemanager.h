@@ -67,9 +67,12 @@ Q_SIGNALS:
 private Q_SLOTS:
     void notReady();
     void showContextMenu(const QPoint&);
+    void showSnContextMenu(const QPoint&);
+
     void on_filterLineEdit_textChanged(const QString &filterString);
     void on_startButton_clicked();
     void on_editButton_clicked();
+    void on_editSnButton_clicked();
     void on_startAllButton_clicked();
     void on_startMissingButton_clicked();
     void on_tableWidgetMySystemnodes_itemSelectionChanged();
@@ -97,6 +100,8 @@ private:
 
     QString strCurrentFilter;
     QMenu* contextMenu;
+    QMenu* sncontextMenu;
+
     int64_t nTimeFilterUpdated{0};
     bool fFilterUpdated{false};
 };

@@ -93,11 +93,20 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
     contextMenu->addAction(startAliasAction);
     contextMenu->addAction(editAction);
 
+    QAction* startSnAliasAction = new QAction(tr("Start alias SN"), this);
+    QAction *editSnAction = new QAction(tr("Edit SN"), this);
+    sncontextMenu = new QMenu();
+    sncontextMenu->addAction(startSnAliasAction);
+    sncontextMenu->addAction(editSnAction);
+
     connect(ui->tableWidgetMyMasternodes, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(showContextMenu(const QPoint&)));
-    connect(ui->tableWidgetMySystemnodes, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(showContextMenu(const QPoint&)));
+    connect(ui->tableWidgetMySystemnodes, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(showSnContextMenu(const QPoint&)));
 
     connect(startAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
     connect(editAction, SIGNAL(triggered()), this, SLOT(on_editButton_clicked()));
+
+    connect(startSnAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
+    connect(editSnAction, SIGNAL(triggered()), this, SLOT(on_editSnButton_clicked()));
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(updateNodeList()));
@@ -145,9 +154,17 @@ void NodeManager::setWalletModel(WalletModel* model)
 void NodeManager::showContextMenu(const QPoint& point)
 {
     QTableWidgetItem* item = ui->tableWidgetMyMasternodes->itemAt(point);
+
+    if (item) 
+        contextMenu->exec(QCursor::pos());
+}
+
+void NodeManager::showSnContextMenu(const QPoint& point)
+{
     QTableWidgetItem* item2 = ui->tableWidgetMySystemnodes->itemAt(point);
 
-    if (item || item2) contextMenu->exec(QCursor::pos());
+    if (item2) 
+        sncontextMenu->exec(QCursor::pos());
 }
 
 void NodeManager::StartAlias(std::string strAlias)
@@ -495,24 +512,25 @@ void NodeManager::on_filterLineEdit_textChanged(const QString &strFilterIn)
 void NodeManager::on_startButton_clicked()
 {
     // Find selected node alias
+    bool mn_mode = true;
     QItemSelectionModel* selectionModel = ui->tableWidgetMyMasternodes->selectionModel();
     QModelIndexList selected = selectionModel->selectedRows();
 
     if (selected.count() == 0) {
         selectionModel = ui->tableWidgetMySystemnodes->selectionModel();
         selected = selectionModel->selectedRows();
+        mn_mode = false;
     }
 
     if (selected.count() == 0) return;
 
     QModelIndex index = selected.at(0);
     int nSelectedRow = index.row();
-    std::string strAlias = (ui->tableWidgetMyMasternodes->item(nSelectedRow, 0)->text().toStdString() != "" ?  ui->tableWidgetMyMasternodes->item(nSelectedRow, 0)->text().toStdString() : ui->tableWidgetMySystemnodes->item(nSelectedRow, 0)->text().toStdString()) ;
-
+    std::string strAlias = mn_mode ? ui->tableWidgetMyMasternodes->item(nSelectedRow, 0)->text().toStdString() : ui->tableWidgetMySystemnodes->item(nSelectedRow, 0)->text().toStdString() ;
 
     // Display message box
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm masternode start"),
-        tr("Are you sure you want to start masternode %1?").arg(QString::fromStdString(strAlias)),
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm node start"),
+        tr("Are you sure you want to start node %1?").arg(QString::fromStdString(strAlias)),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 
@@ -534,31 +552,24 @@ void NodeManager::on_startButton_clicked()
 
 void NodeManager::on_editButton_clicked()
 {
-    int g =0;
+
     QItemSelectionModel* selectionModel = ui->tableWidgetMyMasternodes->selectionModel();
     QModelIndexList selected = selectionModel->selectedRows();
-    if(selected.count() == 0){
-        selectionModel = ui->tableWidgetMySystemnodes->selectionModel();
-        selected = selectionModel->selectedRows();
-        g=1;
-    }
+    
     if(selected.count() == 0)
         return;
 
     QModelIndex index = selected.at(0);
     int r = index.row();
-    QString strAlias = ui->tableWidgetMyMasternodes->item(r, 0)->text() == "" ? ui->tableWidgetMyMasternodes->item(r, 0)->text() : ui->tableWidgetMySystemnodes->item(r, 0)->text();
-    QString strIP = ui->tableWidgetMyMasternodes->item(r, 1)->text() == "" ? ui->tableWidgetMyMasternodes->item(r, 0)->text() : ui->tableWidgetMySystemnodes->item(r, 1)->text();
+    QString strAlias = ui->tableWidgetMyMasternodes->item(r, 0)->text();
+    QString strIP = ui->tableWidgetMyMasternodes->item(r, 1)->text();
     strIP.replace(QRegExp(":+\\d*"), "");
 
     CreateMasternodeDialog dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setEditMode();
-
-    if(g==0)
-        dialog.setWindowTitle("Edit Masternode");
-    else
-        dialog.setWindowTitle("Edit Systemnode");
+    dialog.setWindowTitle("Edit Masternode");
+    dialog.setWalletModel(walletModel);
 
     dialog.setAlias(strAlias);
     dialog.setIP(strIP);
@@ -578,6 +589,39 @@ void NodeManager::on_editButton_clicked()
                 ui->tableWidgetMyMasternodes->removeRow(r);
                 updateMyNodeList(true);
             }
+        }
+    }
+}
+
+void NodeManager::on_editSnButton_clicked()
+{
+
+    QItemSelectionModel* selectionModel = ui->tableWidgetMySystemnodes->selectionModel();
+    QModelIndexList selected = selectionModel->selectedRows();
+
+    if(selected.count() == 0)
+        return;
+
+    QModelIndex index = selected.at(0);
+    int r = index.row();
+    QString strAlias = ui->tableWidgetMySystemnodes->item(r, 0)->text();
+    QString strIP = ui->tableWidgetMySystemnodes->item(r, 1)->text();
+    strIP.replace(QRegExp(":+\\d*"), "");
+
+    CreateSystemnodeDialog dialog(platformStyle, this);
+    dialog.setWindowModality(Qt::ApplicationModal);
+    dialog.setEditMode();
+    dialog.setWindowTitle("Edit Systemnode");
+    dialog.setWalletModel(walletModel);
+
+    dialog.setAlias(strAlias);
+    dialog.setIP(strIP);
+    if (dialog.exec())
+    {
+        // OK pressed
+        std::string port = "9340";
+        if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+            port = "18333";
         }
 
         for(CNodeEntry &sne: systemnodeConfig.getEntries()) {
