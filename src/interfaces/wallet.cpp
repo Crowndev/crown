@@ -261,10 +261,10 @@ public:
 
     bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
          std::string& shortname, CAmount& amountin, CAmount& amountout,
-         int64_t& expiry, int& type, CContract& contract, std::string& strFailReason,
+         int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason,
          bool transferable, bool convertable, bool restricted, bool limited, bool divisible) override
     {
-        return m_wallet->CreateAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, strFailReason, transferable, convertable, restricted, limited, divisible);
+        return m_wallet->CreateAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, rdata, strFailReason, transferable, convertable, restricted, limited, divisible);
     }
 
     CContract getContract(std::string& name) override

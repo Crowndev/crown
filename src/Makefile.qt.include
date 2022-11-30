@@ -32,8 +32,6 @@ QT_FORMS_UI = \
   qt/forms/sendcoinsdialog.ui \
   qt/forms/sendcoinsentry.ui \
   qt/forms/signverifymessagedialog.ui \
-  qt/forms/masternodelist.ui \
-  qt/forms/systemnodelist.ui \
   qt/forms/transactiondescdialog.ui \
   qt/forms/createnodedialog.ui \
   qt/forms/startmissingdialog.ui \
@@ -73,7 +71,6 @@ QT_MOC_CPP = \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_modaloverlay.cpp \
-  qt/moc_masternodelist.cpp \
   qt/moc_notificator.cpp \
   qt/moc_openuridialog.cpp \
   qt/moc_optionsdialog.cpp \
@@ -94,8 +91,6 @@ QT_MOC_CPP = \
   qt/moc_sendcoinsentry.cpp \
   qt/moc_signverifymessagedialog.cpp \
   qt/moc_splashscreen.cpp \
-  qt/moc_masternodelist.cpp \
-  qt/moc_systemnodelist.cpp \
   qt/moc_trafficgraphwidget.cpp \
   qt/moc_transactiondesc.cpp \
   qt/moc_transactiondescdialog.cpp \
@@ -189,8 +184,6 @@ CROWN_QT_H = \
   qt/sendcollateraldialog.h \
   qt/signverifymessagedialog.h \
   qt/splashscreen.h \
-  qt/masternodelist.h \
-  qt/systemnodelist.h \
   qt/datetablewidgetitem.h \
   qt/privatekeywidget.h \
   qt/createsystemnodedialog.h \
@@ -325,8 +318,6 @@ CROWN_QT_WALLET_CPP = \
   qt/sendcollateraldialog.cpp \
   qt/sendcoinsentry.cpp \
   qt/signverifymessagedialog.cpp \
-  qt/masternodelist.cpp \
-  qt/systemnodelist.cpp \
   qt/datetablewidgetitem.cpp \
   qt/createnodedialog.cpp \
   qt/startmissingdialog.cpp \

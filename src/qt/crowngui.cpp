@@ -18,8 +18,6 @@
 #include <qt/platformstyle.h>
 #include <qt/rpcconsole.h>
 #include <qt/utilitydialog.h>
-#include <qt/masternodelist.h>
-#include <qt/systemnodelist.h>
 #include <masternode/masternode.h>
 #include <masternode/masternode-sync.h>
 #include <masternode/masternodeconfig.h>

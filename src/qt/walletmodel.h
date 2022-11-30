@@ -108,7 +108,7 @@ public:
 
     bool CreateID(QString &strAddress, QString &alias, QString &email, std::string& strFailReason);
     bool CreateContract(QString &strchainID, QString &strcontract_url, QString &strwebsite_url, QString &strdescription, QString &strscript, QString &strname, QString &strshortname, std::string& strFailReason);
-    bool CreateAsset(QString inputamount, QString outputamount, QString assettype, QString assetcontract, bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason);
+    bool CreateAsset(QString inputamount, QString outputamount, QString assettype, QString assetcontract, bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason, CTxData& rdata);
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl);

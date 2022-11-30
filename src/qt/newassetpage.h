@@ -28,6 +28,7 @@ public:
 	bool getlimited();
 	bool getdivisible();
 	QString getexpiry();
+    QString getnftdata();	
     void setWalletModel(WalletModel* walletModel, ContractFilterProxy *mycontractFilter);
 
 private:

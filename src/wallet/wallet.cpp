@@ -3590,7 +3590,7 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
     return true;
 }
 
-bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
+bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
 {
     if (IsLocked()){
         strFailReason = "Wallet Locked";
@@ -3825,7 +3825,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     CRecipient recipient = {GetScriptForDestination(dest), inputamt, outputamt, Params().GetConsensus().subsidy_asset, assetNew, false, true};
     recipients.push_back(recipient);
 
-    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
+    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS), rdata);
     if (!fCreated) {
         strFailReason = "Failed to create Asset " + error.original;
         return false;
