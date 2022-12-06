@@ -105,7 +105,7 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
     connect(startAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
     connect(editAction, SIGNAL(triggered()), this, SLOT(on_editButton_clicked()));
 
-    connect(startSnAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
+    connect(startSnAliasAction, SIGNAL(triggered()), this, SLOT(on_startSnButton_clicked()));
     connect(editSnAction, SIGNAL(triggered()), this, SLOT(on_editSnButton_clicked()));
 
     timer = new QTimer(this);
@@ -549,6 +549,41 @@ void NodeManager::on_startButton_clicked()
 
     StartAlias(strAlias);
 }
+
+void NodeManager::on_startSnButton_clicked()
+{
+    // Find selected node alias
+    QItemSelectionModel* selectionModel = ui->tableWidgetMySystemnodes->selectionModel();
+    QModelIndexList selected = selectionModel->selectedRows();
+
+    if (selected.count() == 0) return;
+
+    QModelIndex index = selected.at(0);
+    int nSelectedRow = index.row();
+    std::string strAlias = ui->tableWidgetMySystemnodes->item(nSelectedRow, 0)->text().toStdString() ;
+
+    // Display message box
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm node start"),
+        tr("Are you sure you want to start node %1?").arg(QString::fromStdString(strAlias)),
+        QMessageBox::Yes | QMessageBox::Cancel,
+        QMessageBox::Cancel);
+
+    if (retval != QMessageBox::Yes) return;
+
+    WalletModel::EncryptionStatus encStatus = walletModel->getEncryptionStatus();
+
+    if(encStatus == walletModel->Locked) {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+
+        if (!ctx.isValid()) return; // Unlock wallet was cancelled
+
+        StartAlias(strAlias);
+        return;
+    }
+
+    StartAlias(strAlias);
+}
+
 
 void NodeManager::on_editButton_clicked()
 {

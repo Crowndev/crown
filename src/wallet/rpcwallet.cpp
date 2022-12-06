@@ -5,6 +5,7 @@
 
 #include <amount.h>
 #include <assetdb.h>
+#include <contractdb.h>
 
 #include <core_io.h>
 #include <interfaces/chain.h>
@@ -517,6 +518,10 @@ static RPCHelpMan sendtoaddress()
     }
 
     CCoinControl coin_control;
+    const CContract &contract = GetContractByHash(asset.contract_hash);
+    if(asset.isRestricted())
+        coin_control.destChange = DecodeDestination(contract.sIssuingaddress);
+
     if (!request.params[6].isNull()) {
         coin_control.m_signal_bip125_rbf = request.params[6].get_bool();
     }
@@ -960,6 +965,10 @@ static RPCHelpMan sendmany()
         subtractFeeFromAmount = request.params[5].get_array();
 
     CCoinControl coin_control;
+    const CContract &contract = GetContractByHash(asset.contract_hash);
+    if(asset.isRestricted())
+        coin_control.destChange = DecodeDestination(contract.sIssuingaddress);
+
     if (!request.params[6].isNull()) {
         coin_control.m_signal_bip125_rbf = request.params[6].get_bool();
     }

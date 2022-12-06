@@ -418,6 +418,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
     CAmount nPayFee             = 0;
     CAmount nAfterFee           = 0;
     CAmount nChange             = 0;
+    CAsset asset                = CAsset();
     unsigned int nBytes         = 0;
     unsigned int nBytesInputs   = 0;
     unsigned int nQuantity      = 0;
@@ -444,6 +445,7 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
 
         // Amount
         nAmount += out.txout.nValue;
+        asset = out.txout.nAsset;
 
         // Bytes
         CTxDestination address;
@@ -539,12 +541,12 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
 
     // stats
     l1->setText(QString::number(nQuantity));                                 // Quantity
-    l2->setText(CrownUnits::formatWithUnit(nDisplayUnit, nAmount));        // Amount
-    l3->setText(CrownUnits::formatWithUnit(nDisplayUnit, nPayFee));        // Fee
-    l4->setText(CrownUnits::formatWithUnit(nDisplayUnit, nAfterFee));      // After Fee
+    l2->setText(formatAssetAmount(asset, nAmount, nDisplayUnit, CrownUnits::SeparatorStyle::ALWAYS));        // Amount
+    l3->setText(formatAssetAmount(asset, nPayFee, nDisplayUnit, CrownUnits::SeparatorStyle::ALWAYS) + " " + formatAssetAmount(Params().GetConsensus().subsidy_asset, nPayFee, nDisplayUnit, CrownUnits::SeparatorStyle::ALWAYS));        // Fee
+    l4->setText(formatAssetAmount(asset, nAfterFee, nDisplayUnit, CrownUnits::SeparatorStyle::ALWAYS));      // After Fee
     l5->setText(((nBytes > 0) ? ASYMP_UTF8 : "") + QString::number(nBytes));        // Bytes
     l7->setText(fDust ? tr("yes") : tr("no"));                               // Dust
-    l8->setText(CrownUnits::formatWithUnit(nDisplayUnit, nChange));        // Change
+    l8->setText(formatAssetAmount(asset, nChange, nDisplayUnit, CrownUnits::SeparatorStyle::ALWAYS));        // Change
     if (nPayFee > 0)
     {
         l3->setText(ASYMP_UTF8 + l3->text());
