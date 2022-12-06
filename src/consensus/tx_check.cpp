@@ -4,11 +4,18 @@
 
 #include <consensus/tx_check.h>
 #include <logging.h>
-
+#include <contractdb.h>
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
 #include <chainparams.h>
+#include <key_io.h>
+
+std::string removeSpaces(std::string str)
+{
+    str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+    return str;
+}
 
 static bool CheckData(TxValidationState &state, const CTxData *p)
 {
@@ -26,6 +33,30 @@ static bool CheckData(TxValidationState &state, const CTxData *p)
 
 static bool CheckContract(TxValidationState &state, const CContract *p)
 {
+    //p.contract_url ;
+    //p.website_url ;
+    //p.description ;
+    //p.scriptcode ;
+
+    CTxDestination dest = DecodeDestination(p->sIssuingaddress);
+    if (!IsValidDestination(dest))
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Invalid Crown address");
+
+    if(ExistsContract(p->asset_name))
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name already reserved");
+
+    if(p->asset_name == "" || p->asset_symbol == "")
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name or symbol cannot be empty");
+
+    if(p->asset_name == p->asset_symbol)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name or symbol cannot match");
+
+    if(p->asset_name.length() > 10)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract Name too long");
+
+    if(p->asset_symbol.length() > 4)
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract Symbol too long");
+
     return true;
 }
 
@@ -34,13 +65,13 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty");
-        
+
     if (tx.nVersion < TX_ELE_VERSION && tx.vout.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s , bad-txns-vout-empty, %s", __func__, tx.ToString()));
 
     if(tx.nVersion >= TX_ELE_VERSION && tx.vpout.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s , bad-txns-vpout-empty, %s", __func__, tx.ToString()));
-    
+
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");

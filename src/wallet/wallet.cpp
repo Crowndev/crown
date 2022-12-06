@@ -3157,6 +3157,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmountMap& nFeeRet, int&
     if (tx.nVersion >= 3 && tx.nType != TRANSACTION_NORMAL)
         extraPayloadSize = (int)tx.extraPayload.size();
 
+
+
     // Acquire the locks to prevent races to the new locked unspents between the
     // CreateTransaction call and LockCoin calls (when lockUnspents is true).
     LOCK(cs_wallet);
@@ -3285,6 +3287,15 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
     return m_default_address_type;
 }
 
+void removeSpaces(char *str)
+{
+    int count = 0;
+    for (int i = 0; str[i]; i++)
+        if (str[i] != ' ')
+            str[count++] = str[i];
+                                   
+    str[count] = '\0';
+}
 
 bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
 {
@@ -3317,6 +3328,16 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         return false;
     }
 
+    if(name.length() > 10) {
+        strFailReason = "Name too long";
+        return false;
+    }
+
+    if(shortname.length() > 4) {
+        strFailReason = "Symbol too long";
+        return false;
+    }
+    
     CContract newcontract;
     newcontract.contract_url = contract_url;
     newcontract.website_url = website_url;
@@ -3984,6 +4005,7 @@ bool CWallet::CreateTransactionInternal(
                 // Reserve a new key pair from key pool. If it fails, provide a dummy
                 // destination in case we don't need change.
                 CTxDestination dest;
+
                 if (!reservedest.GetReservedDestination(dest, true)) {
                     error = _("Transaction needs a change address, but we can't generate it. Please call keypoolrefill first.");
                 }

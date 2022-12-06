@@ -71,6 +71,7 @@ private Q_SLOTS:
 
     void on_filterLineEdit_textChanged(const QString &filterString);
     void on_startButton_clicked();
+    void on_startSnButton_clicked();
     void on_editButton_clicked();
     void on_editSnButton_clicked();
     void on_startAllButton_clicked();

@@ -96,7 +96,7 @@ CContract GetContract(const std::string& name)
 	return cCheck;
 }
 
-CContract GetContractByHash(uint256 & hash)
+CContract GetContractByHash(const uint256 & hash)
 {
 	CContract cCheck;
     for(auto const& x : pcontractCache->GetItemsMap()){
