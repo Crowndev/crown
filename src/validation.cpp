@@ -774,11 +774,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return false; // state filled in by CheckTxInputs
     }
 
-    // If fee_out is passed, return the fee to the caller
-    if (args.m_fee_out) {
-        *args.m_fee_out = fee_map;
-    }
-
     // Check for non-standard pay-to-script-hash in inputs
     const auto& params = args.m_chainparams.GetConsensus();
     auto taproot_state = VersionBitsState(::ChainActive().Tip(), params, Consensus::DEPLOYMENT_TAPROOT, versionbitscache);
@@ -792,8 +787,24 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     int64_t nSigOpsCost = GetTransactionSigOpCost(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
+    // We only consider policyAsset
+    CAmount nPolicyFees = 0;
+    CAmount nAssetFees = 0;
+
+    for(auto &a : fee_map){
+        if(a.first == Params().GetConsensus().subsidy_asset)
+            nPolicyFees += a.second;
+        else
+            nAssetFees += a.second;
+    }
+
+    // If fee_out is passed, return the fee to the caller
+    if (args.m_fee_out) {
+        *args.m_fee_out = fee_map;
+    }
+
     // nModifiedFees includes any fee deltas from PrioritiseTransaction
-    nModifiedFees = fee_map.begin()->second;
+    nModifiedFees = nPolicyFees > 0 ? nPolicyFees : nAssetFees;
     m_pool.ApplyDelta(hash, nModifiedFees);
 
     // Keep track of transactions that spend a coinbase, which we re-scan
@@ -807,7 +818,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         }
     }
 
-    entry.reset(new CTxMemPoolEntry(ptx, fee_map.begin()->second, nAcceptTime, ::ChainActive().Height(),
+    LogPrintf("FEES %s \n", nModifiedFees);
+
+    entry.reset(new CTxMemPoolEntry(ptx, nModifiedFees, nAcceptTime, ::ChainActive().Height(),
             fSpendsCoinbase, nSigOpsCost, lp));
     unsigned int nSize = entry->GetTxSize();
 

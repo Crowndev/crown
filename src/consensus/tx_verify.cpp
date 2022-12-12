@@ -211,7 +211,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-size");
 
     CAsset subsidy_asset = GetSubsidyAsset();
-    CAsset dev_asset = GetDevAsset(); //exposed for asset conversion tests 
+    CAsset dev_asset = GetDevAsset(); //exposed for asset conversion tests
 
     // enforce asset rules
     {
@@ -384,6 +384,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(asset.isInflatable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is marked Inflatable \n", AssetTypeToString(asset.nType)));
                 }
+
+                if(asset.isConvertable() && asset.isInflatable())
+                    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, Assets conversion and inflation is currently disabled \n", AssetTypeToString(asset.nType)));
             }
         }
     }
@@ -394,7 +397,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             if(tx.vpout[k].nAsset.IsEmpty())
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-not-explicit-asset", strprintf("%s: %s", __func__, tx.ToString()));
 
-        if(outputAssets.size() == 1)
+        if(outputAssets.size() == 1 && inputAssets.begin()->first == outputAssets.begin()->first)
             if(inputAssets.begin()->second < outputAssets.begin()->second)
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-below-out", strprintf("value in (%s) < value out (%s)", FormatMoney(inputAssets.begin()->second), FormatMoney(outputAssets.begin()->second)));
 
@@ -402,15 +405,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange");
         }
 
-        // Tally transaction fees
-        CAmountMap txfee_aux = (inputAssets - outputAssets);
-        for(auto &m : txfee_aux)
-            if(m.second < 0)
-                m.second *= -1;
+        // Tally transaction fees (let's observe cases)
+        CAmountMap fee_map = GetFeeMap(tx);
 
-        //identify the fee asset
-        //txfee += GetFeeMap(tx);
-        txfee += txfee_aux;
+        txfee += fee_map;
         if (!MoneyRange(txfee))
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-out-of-range ", strprintf("got (%s)", mapToString(txfee)));
 

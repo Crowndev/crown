@@ -59,6 +59,7 @@ public:
         QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
         QString address = index.data(Qt::DisplayRole).toString();
         qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
+        QString asset = index.data(TransactionTableModel::AssetRole).toString();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
         QVariant value = index.data(Qt::ForegroundRole);
         QColor foreground = option.palette.color(QPalette::Text);
@@ -92,7 +93,9 @@ public:
             foreground = option.palette.color(QPalette::Text);
         }
         painter->setPen(foreground);
-        QString amountText = CrownUnits::formatWithUnit(unit, amount, true, CrownUnits::SeparatorStyle::ALWAYS);
+        QString amountText = CrownUnits::simpleFormat(unit, amount, true, CrownUnits::SeparatorStyle::ALWAYS) + QString(" ") + asset;
+        //QString amountText = formatAssetAmount(asset, amount, walletModel->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS);
+
         if(!confirmed)
         {
             amountText = QString("[") + amountText + QString("]");

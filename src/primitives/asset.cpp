@@ -211,7 +211,7 @@ bool operator!(const CAmountMap& a)
 
 std::ostream& operator <<(std::ostream& os, const CAmountMap& a){
     for(auto&b:a)
-        os << b.first.ToString() << " : " << b.second <<std::endl;
+        os << b.first.ToString() << " : " << b.second << " ";
     return os;
 }
 
