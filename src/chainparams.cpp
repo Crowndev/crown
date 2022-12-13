@@ -313,10 +313,10 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1669396608, 1247729, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1670864619, 563412, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x000007307851eddd4d27c0e0f3cda1b42a4c2c7bc6b59721f09eb8259d60246a"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000a372e60e093ec38a01f698474fb5d7cf8b71fb0d44b4c98165625235a85"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();

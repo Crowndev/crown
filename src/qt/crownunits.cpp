@@ -44,9 +44,9 @@ QString CrownUnits::longName(int unit)
 {
     switch(unit)
     {
-    case CRW: return QString("CRW");
-    case mCRW: return QString("mCRW");
-    case uCRW: return QString::fromUtf8("µCRW (bits)");
+    case CRW: return QString("COIN");
+    case mCRW: return QString("mCOIN");
+    case uCRW: return QString::fromUtf8("µCOIN (bits)");
     case SAT: return QString("Satoshi (sat)");
     default: return QString("???");
     }
@@ -66,9 +66,9 @@ QString CrownUnits::description(int unit)
 {
     switch(unit)
     {
-    case CRW: return QString("Crowns");
-    case mCRW: return QString("Milli-Crowns (1 / 1" THIN_SP_UTF8 "000)");
-    case uCRW: return QString("Micro-Crowns (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+    case CRW: return QString("Coins");
+    case mCRW: return QString("Milli-Coins (1 / 1" THIN_SP_UTF8 "000)");
+    case uCRW: return QString("Micro-Coins (bits) (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     case SAT: return QString("Satoshi (sat) (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
     default: return QString("???");
     }
