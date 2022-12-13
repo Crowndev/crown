@@ -119,7 +119,7 @@ ContractTableModel::ContractTableModel(WalletModel *parent) :
         QAbstractTableModel(parent), walletModel(parent), priv(new ContractTablePriv(parent, this))
 {
     columns << tr("Name") << tr("Shortname") << tr("Contract URL") << tr("Website URL") << tr("Issuer") << tr("Description") << tr("Script");
-    connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &ContractTableModel::update);
+    connect(walletModel->getClientModel(), &ClientModel::numBlocksChanged, this, &ContractTableModel::checkBlocksChanged);
     priv->refreshWallet();
 };
 
@@ -231,10 +231,10 @@ void ContractTableModel::update()
         return;
     }
 
-//    Q_EMIT layoutAboutToBeChanged();
-//    beginResetModel();
-//    endResetModel();
+    //Q_EMIT layoutAboutToBeChanged();
+    //beginResetModel();
+    //endResetModel();
     priv->refreshWallet();
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(priv->size(), columns.length()-1, QModelIndex()));
-//    Q_EMIT layoutChanged();
+    Q_EMIT layoutChanged();
 }

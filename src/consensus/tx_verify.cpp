@@ -227,9 +227,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset", strprintf("found (%d) , expected 2", outputAssets.size()));
 
         //check asset conversion / merger
-        if (inputAssets.size() == 2 && outputAssets.size() == 1)// only case where there is non creation conversion and it has to be absolute
-            if(inputAssets.find(dev_asset) == inputAssets.end()) // dev asset only for now
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-conversion-disabled");
+        //if (inputAssets.size() == 2 && outputAssets.size() == 1)// only case where there is non creation conversion and it has to be absolute
+        //    if(inputAssets.find(dev_asset) == inputAssets.end()) // dev asset only for now
+        //        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-conversion-disabled");
 
         //check asset transfer
         for(auto & b : inputAssets)
@@ -284,12 +284,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 if(inputAssets.begin()->first != subsidy_asset)
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-asset", strprintf("found (%s) , expected (%s)", asset.getAssetName(), subsidy_asset.getAssetName()));
 
-                double ratio = 0.0;
-                if(outputAssets[asset] > inputAssets[subsidy_asset]){
-                    ratio = outputAssets[asset] / inputAssets[subsidy_asset];
-                    if(ratio > 100.0)
+                if(outputAssets[asset] > inputAssets[subsidy_asset] * 100)
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-ratio", strprintf("Input / Output ratio capped at 1:100 found 1:(%d)", inputAssets[subsidy_asset]/ outputAssets[asset]));
-                }
 
                 if (asset.nVersion > 1)
                     return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid asset version %d \n", asset.nVersion));
@@ -315,8 +311,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                     if(!asset.isTransferable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but is not marked Transferable \n", AssetTypeToString(asset.nType)));
 
-                    if(asset.isConvertable())
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, Assets conversion is currently disabled\n", AssetTypeToString(asset.nType)));
+                    //if(asset.isConvertable())
+                    //    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, Assets conversion is currently disabled\n", AssetTypeToString(asset.nType)));
 
                     if(asset.isInflatable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but marked inflatable\n", AssetTypeToString(asset.nType)));

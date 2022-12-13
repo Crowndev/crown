@@ -41,6 +41,7 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
 
     contractFilter = new ContractFilterProxy(this);
     contractFilter->setSourceModel(walletModel->getContractTableModel());
+    //contractFilter->setDynamicSortFilter(true);
    	contractFilter->setOnlyMine(false);
     contractFilter->setSortRole(ContractTableModel::NameRole);
     contractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
@@ -50,6 +51,7 @@ void AssetManagerPage::setWalletModel(WalletModel *_walletModel, ClientModel *_c
     assetFilter->setDynamicSortFilter(true);
     assetFilter->setSortRole(AssetTableModel::NameRole);
     assetFilter->sort(AssetTableModel::Name, Qt::AscendingOrder);
+
     connect(clientModel, &ClientModel::numBlocksChanged, this, &AssetManagerPage::update);
     update();
 

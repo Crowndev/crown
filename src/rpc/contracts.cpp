@@ -268,6 +268,7 @@ static RPCHelpMan convertasset()
                 {
                     {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "Max 10 characters"},
                     {"input_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "In put amount in Crown. (minimum 1)"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Destination address"},
                 },
                 RPCResult{
                     RPCResult::Type::STR, "TXID", "The txid of the asset conversion in hex"
@@ -290,10 +291,9 @@ static RPCHelpMan convertasset()
 
     EnsureWalletIsUnlocked(pwallet);
 
-    std::string name = request.params[0].get_str();
-    CAmount nAmount = AmountFromValue(request.params[1].get_int());
-    std::string address = request.params[3].get_str();
-    CAsset asset = GetAsset(name);
+    CAsset asset = GetAsset(request.params[0].get_str());
+    CAmount nAmount = AmountFromValue(request.params[1]);
+    std::string address = request.params[2].get_str();
 
     CAmountMap assetAmount{{asset,nAmount}};
     CTransactionRef tx;
@@ -306,7 +306,6 @@ static RPCHelpMan convertasset()
 },
     };
 }
-
 
 static RPCHelpMan getasset()
 {

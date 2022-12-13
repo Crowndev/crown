@@ -23,22 +23,19 @@ CAssetData::CAssetData(const CAsset& _asset, const CTransactionRef& assetTx, con
     asset = _asset;
     nTime = _nTime;
     txhash = assetTx->GetHash();
+
+	for (unsigned int k = 0; k < (assetTx->nVersion >= TX_ELE_VERSION ? assetTx->vpout.size() : assetTx->vout.size()) ; k++){
+		const CTxOutAsset &rout = (assetTx->nVersion >= TX_ELE_VERSION ? assetTx->vpout[k] : assetTx->vout[k]);
+		if(rout.scriptPubKey == Params().GetConsensus().mandatory_coinbase_destination)
+			inputAmount = rout.nValue;
+	}
+
     CTxOutAsset txout = (assetTx->nVersion >= TX_ELE_VERSION ? assetTx->vpout[nOut] : assetTx->vout[nOut]);
 
     issuingAddress = txout.scriptPubKey;
     if(txout.nValue)
        issuedAmount = txout.nValue;
 
-    CCoinsViewCache& view = ::ChainstateActive().CoinsTip();
-
-    CAmountMap nValueInMap = view.GetValueInMap(*assetTx);
-    CAmountMap nValueOutMap = assetTx->GetValueOutMap();
-    CAmountMap nFees = nValueInMap - nValueOutMap;
-
-    //for (const CTxIn& txin : assetTx->vin)
-    //    inputAmount += view.AccessCoin(txin.prevout).out.nValue;
-    inputAmount +=nFees[Params().GetConsensus().subsidy_asset];
-    
 }
 
 CAssetData::CAssetData()
