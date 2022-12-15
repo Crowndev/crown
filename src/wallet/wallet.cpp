@@ -3657,6 +3657,12 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     }
 
     if(assetNew.nType == 2){
+
+        if(!assetNew.isLimited()){
+           strFailReason = "Asset type is UNIQUE(NFT), but not marked limited";
+           return false;
+        }
+
         if(assetNew.isConvertable()){
            strFailReason = "Asset type is UNIQUE(NFT), Asset conversion is disallowed";
            return false;
@@ -3695,23 +3701,28 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
            strFailReason = "Asset type is Equity, but has no contract";
            return false;
         }
+        
         if(!assetNew.isTransferable()){
            strFailReason = "Asset type is Equity but not marked transferable";
            return false;
         }
+        
         if(!assetNew.isDivisible()){
            strFailReason = "Asset type is Equity, but marked indivisible.";
            return false;
         }
+        
         if(assetNew.isStakeable()){
            strFailReason = "Asset type is Equity, Stakeable Equity is disabled.";
            return false;
         }
+        
         if(!assetNew.isRestricted()){
            strFailReason = "Asset type is Equity, but not marked restricted.";
            return false;
         }
-        if(assetNew.isLimited()){
+        
+        if(!assetNew.isLimited()){
            strFailReason = "Asset type is Equity, but not marked limited.";
            return false;
         }
