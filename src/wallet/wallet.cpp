@@ -3469,10 +3469,10 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
         strFailReason = "Asset type is UNIQUE (NFT), conversion is disallowed";
         return false;
     }
-    
+
     CCoinControl coin_control;
     LOCK(cs_wallet);
-    
+
     // Do we have the coins ?
     std::vector<COutput> vecOutputs;
     {
@@ -3516,7 +3516,7 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
         strFailReason = "Invalid Crown address";
         return false;
     }
-    
+
     CAmountMap nFeeRequired;
     int nChangePosRet = -1;
     bilingual_str error;
@@ -3537,7 +3537,7 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
 
     CRecipient burn = {Params().GetConsensus().mandatory_coinbase_destination, amountin, 0, asset, CAsset(), false, false}; //burn asset
     recipients.push_back(burn);
-    
+
     bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
     if (!fCreated) {
         strFailReason = "Failed to convert Asset " + error.original;
@@ -4029,7 +4029,7 @@ bool CWallet::CreateTransactionInternal(
                     CAmount m_amount = recipient.fNewAsset ? recipient.OutAmount : recipient.nAmount;
                     CAsset m_asset = recipient.fNewAsset ? recipient.OutAsset : recipient.asset;
 
-                    if((m_asset.nType == 2 || !m_asset.isDivisible()) && m_amount % COIN != 0 ){
+                    if(!m_asset.isDivisible() && m_amount % COIN != 0 ){
                        m_amount = m_amount / COIN;
                        assert(m_amount >= 1 * COIN);
                     }
@@ -4046,16 +4046,14 @@ bool CWallet::CreateTransactionInternal(
 
                         assert(nSubtractFeeFromAmount != 0);
 
-                        if(recipient.asset.nType != 2)
-                            if(!recipient.asset.isDivisible())
-                                txout.nValue -= (nFeeRet / nSubtractFeeFromAmount)[txout.nAsset]; // Subtract fee equally from each selected recipient
+                        if(recipient.asset.isDivisible())
+                            txout.nValue -= (nFeeRet / nSubtractFeeFromAmount)[txout.nAsset]; // Subtract fee equally from each selected recipient
 
                         if (fFirst) // first receiver pays the remainder not divisible by output count
                         {
                             fFirst = false;
-                            if(recipient.asset.nType != 2)
-                                if(!recipient.asset.isDivisible())
-                                    txout.nValue -= (nFeeRet % nSubtractFeeFromAmount)[txout.nAsset];
+                            if(recipient.asset.isDivisible())
+                                txout.nValue -= (nFeeRet % nSubtractFeeFromAmount)[txout.nAsset];
                         }
                     }
                     // Include the fee cost for outputs. Note this is only used for BnB right now
@@ -4188,16 +4186,17 @@ bool CWallet::CreateTransactionInternal(
                     // account for extra payload in fee calculation
                     nBytes += GetSizeOfCompactSize(extraPayloadSize) + extraPayloadSize;
                 }
-                
+
                 if(txNew.vdata.size() > 0){
-					nBytes += GetSizeOfCompactSize(txNew.vdata.size());
-				}
+                    nBytes += GetSizeOfCompactSize(txNew.vdata.size());
+                }
 
-                nFeeNeeded[assettosend] = coin_selection_params.m_effective_feerate.GetFee(nBytes);
+                if(assettosend.isDivisible())
+                    nFeeNeeded[assettosend] = coin_selection_params.m_effective_feerate.GetFee(nBytes);
+
                 if (assettosend != Params().GetConsensus().subsidy_asset)
-                    nFeeNeeded[Params().GetConsensus().subsidy_asset] = coin_selection_params.m_effective_feerate.GetFee(nBytes)*3;
+                    nFeeNeeded[Params().GetConsensus().subsidy_asset] += coin_selection_params.m_effective_feerate.GetFee(nBytes)*3;
 
-                //if(assettosend.nType == 2 || !assettosend.isDivisible())
                 LogPrintf("nFeeRet %s ----- %s \n", __func__, nFeeRet);
                 LogPrintf("nFeeNeeded %s ----- %s \n", __func__, nFeeNeeded);
 
@@ -4251,7 +4250,7 @@ bool CWallet::CreateTransactionInternal(
                             for(std::vector<CTxOutAsset>::iterator mi = txNew.vpout.begin(); mi != txNew.vpout.end(); ++mi)
                                 if (mi->IsFee() && mi->nAsset == assettosend)
                                     mi->nValue = nFeeRet[assettosend]; // update fee output
-                            
+
                         }
                         else
                             txNew.vout.back().nValue = nFeeRet[assettosend]; // update fee output
