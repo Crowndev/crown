@@ -1459,6 +1459,10 @@ bool CChainState::IsInitialBlockDownload() const
         return true;
     if (m_chain.Tip()->nChainWork < nMinimumChainWork)
         return true;
+   
+    if (gArgs.GetBoolArg("-jumpstart", false))
+         nMaxTipAge*=24;
+         
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
