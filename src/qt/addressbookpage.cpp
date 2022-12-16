@@ -23,11 +23,13 @@
 class AddressBookSortFilterProxyModel final : public QSortFilterProxyModel
 {
     const QString m_type;
+    bool fcontracts;
 
 public:
-    AddressBookSortFilterProxyModel(const QString& type, QObject* parent)
+    AddressBookSortFilterProxyModel(const QString& type, QObject* parent, const bool &_fcontracts)
         : QSortFilterProxyModel(parent)
         , m_type(type)
+        , fcontracts(_fcontracts)
     {
         setDynamicSortFilter(true);
         setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -45,12 +47,17 @@ protected:
         }
 
         auto address = model->index(row, AddressTableModel::Address, parent);
-
+    
         if (filterRegExp().indexIn(model->data(address).toString()) < 0 &&
             filterRegExp().indexIn(model->data(label).toString()) < 0) {
             return false;
         }
 
+        auto contract = model->index(row, AddressTableModel::Contract, parent);
+        if (fcontracts && model->data(contract, AddressTableModel::ContractRole).toString() == "") {
+            return false;
+        }
+        
         return true;
     }
 };
@@ -145,14 +152,14 @@ AddressBookPage::~AddressBookPage()
     delete ui;
 }
 
-void AddressBookPage::setModel(AddressTableModel *_model)
+void AddressBookPage::setModel(AddressTableModel *_model, const bool &contracts)
 {
     this->model = _model;
     if(!_model)
         return;
 
     auto type = tab == ReceivingTab ? AddressTableModel::Receive : AddressTableModel::Send;
-    proxyModel = new AddressBookSortFilterProxyModel(type, this);
+    proxyModel = new AddressBookSortFilterProxyModel(type, this, contracts);
     proxyModel->setSourceModel(_model);
 
     connect(ui->searchLineEdit, &QLineEdit::textChanged, proxyModel, &QSortFilterProxyModel::setFilterWildcard);

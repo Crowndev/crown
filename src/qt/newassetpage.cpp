@@ -1,6 +1,10 @@
 #include <qt/newassetpage.h>
 #include <qt/forms/ui_newassetpage.h>
 #include <qt/walletmodel.h>
+#include <qt/addressbookpage.h>
+#include <qt/guiutil.h>
+#include <qt/platformstyle.h>
+
 #include <qt/contractfilterproxy.h>
 #include <qt/contracttablemodel.h>
 
@@ -8,11 +12,20 @@
 #include <QDebug>
 #include <QDateTime>
 
-NewAssetPage::NewAssetPage(QWidget *parent) :
+NewAssetPage::NewAssetPage(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::NewAssetPage)
+    ui(new Ui::NewAssetPage),
+    platformStyle(_platformStyle)    
 {
     ui->setupUi(this);
+
+    ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
+    ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
+    ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
+     // normal crown address field
+    GUIUtil::setupAddressWidget(ui->payTo, this);
+    
+       
     ui->inputAmount->setValidator( new QDoubleValidator(0, 1000000, 4, this) );
     ui->outputAmount->setValidator( new QDoubleValidator(0, 1000000, 4, this) );
 
@@ -22,8 +35,8 @@ NewAssetPage::NewAssetPage(QWidget *parent) :
     ui->outputAmount->setStatusTip(tr("Asset amount to create"));
     ui->outputAmount->setToolTip(ui->outputAmount->statusTip());
 
-    ui->contractcomboBox->setStatusTip(tr("Select Contract to use"));
-    ui->contractcomboBox->setToolTip(ui->contractcomboBox->statusTip());
+    //ui->contractcomboBox->setStatusTip(tr("Select Contract to use"));
+    //ui->contractcomboBox->setToolTip(ui->contractcomboBox->statusTip());
     
     ui->typecomboBox->setStatusTip(tr("Select Asset Type"));
     ui->typecomboBox->setToolTip(ui->typecomboBox->statusTip());
@@ -52,13 +65,25 @@ NewAssetPage::~NewAssetPage()
     delete ui;
 }
 
+void NewAssetPage::on_addressBookButton_clicked()
+{
+    if(!walletModel)
+        return;
+    AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
+    dlg.setModel(walletModel->getAddressTableModel(), true);
+    if(dlg.exec())
+    {
+        ui->payTo->setText(dlg.getReturnValue());
+    }
+}
+
 void NewAssetPage::setWalletModel(WalletModel* model, ContractFilterProxy *mycontractFilter)
 {
     if (!model)
         return;
     this->walletModel = model;
 
-    ui->contractcomboBox->setModel(mycontractFilter);
+    //ui->contractcomboBox->setModel(mycontractFilter);
 
 }
 
@@ -144,7 +169,7 @@ QString NewAssetPage::getassettype(){
 }
 
 QString NewAssetPage::getassetcontract(){
-    return ui->contractcomboBox->currentText();
+    return ui->payTo->text();
 }
 
 bool NewAssetPage::gettransferable(){

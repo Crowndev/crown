@@ -119,7 +119,7 @@ void AssetManagerPage::on_CreateNewAsset_clicked()
     mycontractFilter->setSortRole(ContractTableModel::NameRole);
     mycontractFilter->sort(ContractTableModel::Name, Qt::AscendingOrder);
 
-    NewAssetPage dialog(this);
+    NewAssetPage dialog(platformStyle, this);
     dialog.setWindowModality(Qt::ApplicationModal);
     dialog.setWindowTitle("Create a New Asset");
     dialog.setWalletModel(walletModel, mycontractFilter);
