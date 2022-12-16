@@ -3318,6 +3318,11 @@ bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::stri
         return false;
     }
 
+    if(chain().existsContract(shortname)){
+        strFailReason = "Contract symbol already reserved";
+        return false;
+    }
+
     if(name == "" || shortname == "") {
         strFailReason = "Contract name or symbol cannot be empty";
         return false;
@@ -5242,8 +5247,8 @@ std::shared_ptr<CWallet> CWallet::Create(interfaces::Chain& chain, const std::st
         }
         walletInstance->m_fallback_fee = CFeeRate(nFeePerK);
     } else {
-        // ELEMENTS: re-enable fallbackfee at 0.1 sat/byte
-        walletInstance->m_fallback_fee = CFeeRate(100);
+        // ELEMENTS: re-enable fallbackfee at 1.0 sat/byte
+        walletInstance->m_fallback_fee = CFeeRate(1000);
     }
     // Disable fallback fee in case value was set to 0, enable if non-null value
     walletInstance->m_allow_fallback_fee = walletInstance->m_fallback_fee.GetFeePerK() != 0;

@@ -643,9 +643,12 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
             switch(vers){
                 case OUTPUT_CONTRACT:{
                     CContract *contract = (CContract*)tx.vdata[i].get();
-                    if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name)){
+                    if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name))
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
-                    }
+                    
+                    if(pcontractCache->Exists(contract->asset_symbol) || ExistsContract(contract->asset_symbol))
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this symbol.\n", __func__));
+                    
                     if(!fHasFee)
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
                 break;
@@ -1461,7 +1464,7 @@ bool CChainState::IsInitialBlockDownload() const
         return true;
    
     if (gArgs.GetBoolArg("-jumpstart", false))
-         nMaxTipAge*=24;
+         nMaxTipAge*=8;
          
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
@@ -2816,10 +2819,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     case OUTPUT_CONTRACT:{
                         CContract *contract = (CContract*)block.vtx[i]->vdata[k].get();
                         //LogPrintf("%s: FOUND CONTRACT %s\n", __func__, contract->ToString());
-                        if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name)){
+                        if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name) && !ExistsContract(contract->asset_symbol))
                             if(!fJustCheck)
                                 pcontractCache->Put(contract->asset_name, CContractData(*contract, block.vtx[i]->GetHash(), block.nTime));
-                        }
+                        
                         break;
                     }
                     case OUTPUT_DATA:{
