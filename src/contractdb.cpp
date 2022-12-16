@@ -121,11 +121,13 @@ void DumpContracts()
 bool ExistsContract(const std::string& name){
 
     for(auto const& x : pcontractCache->GetItemsMap()){
-		if(iequals(x.first , name)){
-		    return true;
-		}
-    }	
-	return false;
+        CContract cCheck = x.second->second.contract;
+        
+        if(iequals(name, cCheck.asset_symbol) || iequals(name, cCheck.asset_name))
+            return true;
+    }
+    
+    return false;
 }
 
 std::vector<CContract> GetAllContracts(){
