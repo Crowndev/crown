@@ -7,6 +7,8 @@
 #include <crown/nodewallet.h>
 #include <node/context.h>
 #include <rpc/blockchain.h>
+#include <smsg/smessage.h>
+
 class NodeWallet;
 NodeWallet currentNode;
 
@@ -226,6 +228,96 @@ bool NodeWallet::CreateCoinStake(const int nHeight, const uint32_t& nBits, const
         LogPrintf("CreateCoinStake -- Must be masternode or systemnode to create coin stake!\n");
         return false;
     }
+
+    OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
+    out0->vData.resize(4);
+    uint32_t tmp = htole32(nHeight+1);
+    memcpy(&out0->vData[0], &tmp, 4);
+    txCoinStake.vdata.push_back(out0);
+
+    int64_t m_smsg_fee_rate_target = 0;
+    uint32_t m_smsg_difficulty_target = 0; // 0 = auto
+    CTransactionRef txPrevCoinstake = nullptr;
+
+    // Place SMSG fee rate
+    {
+        CAmount smsg_fee_rate = Params().GetConsensus().smsg_fee_msg_per_day_per_k;
+
+        if (!coinStakeCache.GetCoinStake(::ChainActive().Tip()->GetBlockHash(), txPrevCoinstake)) {
+            return error("%s: Failed to get previous coinstake: %s.", __func__, ::ChainActive().Tip()->GetBlockHash().ToString());
+        }
+        txPrevCoinstake->GetSmsgFeeRate(smsg_fee_rate);
+
+        if (m_smsg_fee_rate_target > 0) {
+            int64_t diff = m_smsg_fee_rate_target - smsg_fee_rate;
+            int64_t max_delta = Params().GetMaxSmsgFeeRateDelta(smsg_fee_rate);
+            if (diff > max_delta) {
+                diff = max_delta;
+            }
+            if (diff < -max_delta) {
+                diff = -max_delta;
+            }
+            smsg_fee_rate += diff;
+        }
+        std::vector<uint8_t> vSmsgFeeRate(1), &vData = *txCoinStake.vdata[0]->GetPData();
+        vSmsgFeeRate[0] = DO_SMSG_FEE;
+        if (0 != part::PutVarInt(vSmsgFeeRate, smsg_fee_rate)) {
+            return error("%s: PutVarInt failed: %d.", __func__, smsg_fee_rate);
+        }
+        vData.insert(vData.end(), vSmsgFeeRate.begin(), vSmsgFeeRate.end());
+        CAmount test_fee = 0;
+        assert(ExtractCoinStakeInt64(vData, DO_SMSG_FEE, test_fee));
+        assert(test_fee == smsg_fee_rate);
+    }
+
+    // Place SMSG difficulty
+    {
+        uint32_t last_compact = Params().GetConsensus().smsg_min_difficulty, next_compact = m_smsg_difficulty_target;
+        if (!txPrevCoinstake && !coinStakeCache.GetCoinStake(::ChainActive().Tip()->GetBlockHash(), txPrevCoinstake)) {
+            return error("%s: Failed to get previous coinstake: %s.", __func__, ::ChainActive().Tip()->GetBlockHash().ToString());
+        }
+        txPrevCoinstake->GetSmsgDifficulty(last_compact);
+        if (m_smsg_difficulty_target == 0) {
+            next_compact = last_compact;
+            int auto_adjust = smsgModule.AdjustDifficulty(txCoinStake.nTime);
+            if (auto_adjust > 0 && last_compact != Params().GetConsensus().smsg_min_difficulty) {
+                next_compact += auto_adjust;
+            } else
+            if (auto_adjust < 0) {
+                next_compact += auto_adjust;
+            }
+        }
+
+        uint32_t test_compact;
+        if (last_compact != next_compact) {
+
+            uint32_t delta;
+            if (last_compact > next_compact) {
+                delta = last_compact - next_compact;
+                if (delta > Params().GetConsensus().smsg_difficulty_max_delta) {
+                    next_compact = last_compact - Params().GetConsensus().smsg_difficulty_max_delta;
+                }
+            } else {
+                delta = next_compact - last_compact;
+                if (delta > Params().GetConsensus().smsg_difficulty_max_delta) {
+                    next_compact = last_compact + Params().GetConsensus().smsg_difficulty_max_delta;
+                }
+            }
+
+            if (next_compact > Params().GetConsensus().smsg_min_difficulty) {
+                next_compact = Params().GetConsensus().smsg_min_difficulty;
+            }
+        }
+
+        std::vector<uint8_t> vSmsgDifficulty(5), &vData = *txCoinStake.vdata[0]->GetPData();
+        vSmsgDifficulty[0] = DO_SMSG_DIFFICULTY;
+        uint32_t tmp = htole32(next_compact);
+        memcpy(&vSmsgDifficulty[1], &tmp, 4);
+        vData.insert(vData.end(), vSmsgDifficulty.begin(), vSmsgDifficulty.end());
+        assert(ExtractCoinStakeUint32(vData, DO_SMSG_DIFFICULTY, test_compact));
+        assert(test_compact == next_compact);
+    }
+
 
     //Create kernels for each valid stake pointer and see if any create a successful proof
     for (auto pointer : vStakePointers) {

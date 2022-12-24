@@ -37,6 +37,8 @@
 #include <arpa/inet.h>
 #endif
 
+#include <smsg/net.h>
+
 
 class CScheduler;
 class CNode;
@@ -377,7 +379,7 @@ public:
     //! which is used to advertise which services we are offering
     //! that peer during `net_processing.cpp:PushNodeVersion()`.
     ServiceFlags GetLocalServices() const;
-
+    void SetLocalServices(ServiceFlags f);
     //!set the max outbound target in bytes
     void SetMaxOutboundTarget(uint64_t limit);
     uint64_t GetMaxOutboundTarget();
@@ -424,6 +426,7 @@ public:
 
     void SetAsmap(std::vector<bool> asmap) { addrman.m_asmap = std::move(asmap); }
     mutable RecursiveMutex cs_vNodes;
+    std::vector<CNode*> vNodes GUARDED_BY(cs_vNodes);
     CAddrMan addrman;
     std::vector<CNode*> CopyNodeVector(std::function<bool(const CNode* pnode)> cond);
     std::vector<CNode*> CopyNodeVector();
@@ -528,7 +531,7 @@ private:
     RecursiveMutex cs_vAddedNodes;
     std::vector<CService> vPendingMasternodes GUARDED_BY(cs_vPendingMasternodes);
     RecursiveMutex cs_vPendingMasternodes;
-    std::vector<CNode*> vNodes GUARDED_BY(cs_vNodes);
+
     std::list<CNode*> vNodesDisconnected;
     std::atomic<NodeId> nLastNodeId{0};
     unsigned int nPrevNodeCount{0};
@@ -1079,6 +1082,8 @@ public:
      * was accepted into our mempool. Used as an inbound peer eviction criterium
      * in CConnman::AttemptToEvictConnection. */
     std::atomic<int64_t> nLastTXTime{0};
+
+    SecMsgNode smsgData;
 
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.

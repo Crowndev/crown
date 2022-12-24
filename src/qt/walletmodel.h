@@ -32,7 +32,6 @@ class SendAssetsRecipient;
 class TransactionTableModel;
 class AssetTableModel;
 class CoinControlModel;
-class ContractTableModel;
 class WalletModelTransaction;
 
 class CCoinControl;
@@ -84,7 +83,6 @@ public:
     TransactionTableModel *getTransactionTableModel();
     AssetTableModel* getAssetTableModel();
     CoinControlModel* getCoinControlModel();
-    ContractTableModel* getContractTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
     std::set<CAsset> getAssetTypes() const;
@@ -105,10 +103,9 @@ public:
         StatusCode status;
         QString reasonCommitFailed;
     };
+    void AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, AvailableCoinsType coin_type=ALL_COINS, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0) const;
 
-    bool CreateID(QString &strAddress, QString &alias, QString &email, std::string& strFailReason);
-    bool CreateContract(QString &strchainID, QString &strcontract_url, QString &strwebsite_url, QString &strdescription, QString &strscript, QString &strname, QString &strshortname, std::string& strFailReason);
-    bool CreateAsset(QString inputamount, QString outputamount, QString assettype, QString assetcontract, bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason, CTxData& rdata);
+    bool CreateAsset(QString asset_name, QString asset_symbol, QString& address, QString& contract_url, CScript& script, QString inputamount, QString outputamount, QString assettype, bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason, CTxData& rdata);
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl);
@@ -146,6 +143,14 @@ public:
     };
 
     UnlockContext requestUnlock();
+
+    //bool getPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
+    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins) const;
+
+    bool isLockedCoin(uint256 hash, unsigned int n) const;
+    void lockCoin(COutPoint& output);
+    void unlockCoin(COutPoint& output);
+    void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
     void loadReceiveRequests(std::vector<std::string>& vReceiveRequests);
     bool saveReceiveRequest(const std::string &sAddress, const int64_t nId, const std::string &sRequest);
@@ -193,7 +198,6 @@ private:
     AddressTableModel *addressTableModel;
     TransactionTableModel *transactionTableModel;
     AssetTableModel* assetTableModel;
-    ContractTableModel* contractTableModel;
 
     CoinControlModel *coinControlModel;
     RecentRequestsTableModel *recentRequestsTableModel;

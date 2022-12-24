@@ -8,7 +8,6 @@
 #include <pubkey.h>
 #include <amount.h>
 
-class CContract;
 class CTxData;
 
 enum DataTypes
@@ -19,6 +18,19 @@ enum DataTypes
     OUTPUT_ID               = 3,
     OUTPUT_VOTE             = 4,
 };
+
+enum DataOutputTypes
+{
+    DO_NULL                 = 0, // Reserved
+    DO_FUND_MSG             = 1,
+    DO_SMSG_FEE             = 2,
+    DO_SMSG_DIFFICULTY      = 3,
+};
+
+bool ExtractCoinStakeInt64(const std::vector<uint8_t> &vData, DataOutputTypes get_type, CAmount &out);
+bool ExtractCoinStakeUint32(const std::vector<uint8_t> &vData, DataOutputTypes get_type, uint32_t &out);
+
+std::string dataTypeToString(DataTypes &dt);
 
 class CTxDataBase
 {
@@ -35,11 +47,8 @@ public:
             case OUTPUT_DATA:
                 READWRITE(*(CTxData*) &obj);
                 break;
-            case OUTPUT_CONTRACT:
-                READWRITE(*(CContract*) &obj);
-                break;
-            default:
-                assert(false);
+            //default:
+            //    assert(false);
         }
     }
 
@@ -56,6 +65,9 @@ public:
     virtual std::vector<uint8_t> *GetPData() { return nullptr; };
     virtual const std::vector<uint8_t> *GetPData() const { return nullptr; };
 
+    virtual bool GetSmsgFeeRate(CAmount &nCfwd) const { return false; };
+    virtual bool GetSmsgDifficulty(uint32_t &compact) const { return false; };
+
     virtual void SetEmpty() {};
 
     virtual bool IsEmpty() const { return false; };
@@ -71,48 +83,6 @@ public:
 typedef OUTPUT_PTR<CTxDataBase> CTxDataBaseRef;
 #define MAKE_OUTPUT std::make_shared
 
-class CContract : public CTxDataBase
-{
-public:
-    CContract() : CTxDataBase(OUTPUT_CONTRACT) {};
-    CContract (std::string alias);
-
-    std::string contract_url; //online human readable contract
-    std::string asset_symbol;
-    std::string asset_name;
-    std::string sIssuingaddress;
-    std::string description;
-    std::string website_url;
-    CScript scriptcode;
-
-    std::vector<unsigned char> vchContractSig; // contract signature
-
-    SERIALIZE_METHODS(CContract, obj) { READWRITE(obj.contract_url, obj.asset_symbol, obj.asset_name, obj.sIssuingaddress, obj.description, obj.website_url, obj.scriptcode, obj.vchContractSig); }
-
-    void SetEmpty() override
-    {
-        contract_url=""; //online human readable contract
-        asset_symbol="";
-        asset_name="";
-        sIssuingaddress="";
-        description="";
-        website_url="";
-        scriptcode= CScript();
-        vchContractSig.clear();
-    }
-
-    bool IsEmpty() const override {
-        return sIssuingaddress=="" || asset_name=="";
-    }
-
-    uint256 GetHashWithoutSign() const;
-
-    uint256 GetHash() const;
-
-    std::string ToString();
-
-};
-
 class CTxData : public CTxDataBase
 {
 public:
@@ -123,6 +93,16 @@ public:
     std::vector<uint8_t> vData;
 
     SERIALIZE_METHODS(CTxData, obj) { READWRITE(obj.nType, obj.vData); }
+
+    bool GetSmsgFeeRate(CAmount &fee_rate) const override
+    {
+        return ExtractCoinStakeInt64(vData, DO_SMSG_FEE, fee_rate);
+    }
+
+    bool GetSmsgDifficulty(uint32_t &compact) const override
+    {
+        return ExtractCoinStakeUint32(vData, DO_SMSG_DIFFICULTY, compact);
+    }
 
     std::vector<uint8_t> *GetPData() override
     {

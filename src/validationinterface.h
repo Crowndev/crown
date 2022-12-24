@@ -23,6 +23,10 @@ class uint256;
 class CScheduler;
 enum class MemPoolRemovalReason;
 
+namespace smsg {
+class SecureMessage;
+}
+
 /** Register subscriber */
 void RegisterValidationInterface(CValidationInterface* callbacks);
 /** Unregister subscriber. DEPRECATED. This is not safe to use when the RPC server or main message handler thread is running. */
@@ -173,6 +177,9 @@ protected:
      * Notifies listeners that a block which builds directly on our current tip
      * has been received and connected to the headers tree, though not validated yet */
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
+
+    virtual void NewSecureMessage(const smsg::SecureMessage *psmsg, const uint160 &hash) {};
+
     friend class CMainSignals;
 };
 
@@ -205,6 +212,8 @@ public:
     void ChainStateFlushed(const CBlockLocator &);
     void BlockChecked(const CBlock&, const BlockValidationState&);
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
+
+    void NewSecureMessage(const smsg::SecureMessage *psmsg, const uint160 &hash);
 };
 
 CMainSignals& GetMainSignals();

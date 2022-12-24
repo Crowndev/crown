@@ -87,6 +87,27 @@ NODISCARD inline bool HasPrefix(const T1& obj,
            std::equal(std::begin(prefix), std::end(prefix), std::begin(obj));
 }
 
+namespace part
+{
+    void *memrchr(const void *s, int c, size_t n);
+
+    int memcmp_nta(const void *cs, const void *ct, size_t count);
+
+    void ReplaceStrInPlace(std::string &subject, const std::string search, const std::string replace);
+    bool IsStringBoolPositive(const std::string &value);
+    bool IsStringBoolNegative(const std::string &value);
+    bool GetStringBool(const std::string &value, bool &fOut);
+    bool IsStrOnlyDigits(const std::string &s);
+    std::string BytesReadable(uint64_t nBytes);
+    bool stringsMatchI(const std::string &sString, const std::string &sFind, int type);
+    std::string StripQuotes(std::string s);
+    std::string &TrimQuotes(std::string &s);
+    std::string &LTrimWhitespace(std::string &s);
+    std::string &RTrimWhitespace(std::string &s);
+    std::string &TrimWhitespace(std::string &s);
+    bool endsWith(const std::string &str, const std::string &suffix);
+}
+
 /**
  * Case insensitive comparison.
  */

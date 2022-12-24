@@ -14,6 +14,7 @@
 
 #include <QMessageBox>
 #include <QPushButton>
+#include <QDebug>
 
 CreateNodeDialog::CreateNodeDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -161,19 +162,22 @@ void CreateNodeDialog::accept()
 		QList<SendAssetsRecipient> recipients;
 		recipients.append(recipient);
 
-		std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+		//std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
 
 		// Get outputs before and after transaction
 		std::vector<COutput> vPossibleCoinsBefore;
-		wallets[0]->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
+		walletmodel->AvailableCoins(vPossibleCoinsBefore, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
-		SendCollateralDialog sendDialog(platformStyle, (mode == 0 ? SendCollateralDialog::MASTERNODE : SendCollateralDialog::SYSTEMNODE) , this);
-
-		sendDialog.setModel(walletmodel);
-		sendDialog.send(recipients);
+        if(mode == 0)
+            sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, this);
+        else
+            sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, this);
+    
+		sendDialog->setModel(walletmodel);
+		sendDialog->vsend(recipients);
 
 		std::vector<COutput> vPossibleCoinsAfter;
-		wallets[0]->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
+		walletmodel->AvailableCoins(vPossibleCoinsAfter, Params().GetConsensus().subsidy_asset, true, nullptr, (mode == 0 ? ONLY_10000 : ONLY_500), 0, MAX_MONEY, MAX_MONEY, 0);
 
 		for (auto& out : vPossibleCoinsAfter)
 		{
@@ -182,7 +186,7 @@ void CreateNodeDialog::accept()
 				// Not found so this is a new element
 
 				COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
-				wallets[0]->LockCoin(outpoint);
+				walletmodel->lockCoin(outpoint);
 
 				// Generate a key
 				CKey secret;

@@ -157,6 +157,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::VALIDATION, "validation"},
     {BCLog::MASTERNODE, "masternode"},
     {BCLog::SYSTEMNODE, "systemnode"},
+    {BCLog::SMSG, "smsg"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 };

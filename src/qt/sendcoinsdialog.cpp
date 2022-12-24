@@ -22,7 +22,6 @@
 #include <chainparams.h>
 #include <interfaces/node.h>
 #include <key_io.h>
-#include <contractdb.h>
 
 #include <node/ui_interface.h>
 #include <policy/fees.h>
@@ -438,9 +437,8 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
 
     //Restricted assets should always have change set to go to the contract address
     for (const SendAssetsRecipient& rcp : recipients){
-        const CContract &contract = GetContractByHash(rcp.asset.contract_hash);
         if(rcp.asset.isRestricted())
-            coinControl.destChange = DecodeDestination(contract.sIssuingaddress);
+            coinControl.destChange = DecodeDestination(rcp.asset.sIssuingaddress);
     }
 
     if (model->getOptionsModel()->getCoinControlFeatures()) // coin control enabled

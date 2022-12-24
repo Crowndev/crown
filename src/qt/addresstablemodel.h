@@ -30,12 +30,14 @@ public:
 
     enum ColumnIndex {
         Label = 0,   /**< User specified label */
-        Address = 1  /**< Crown address */
+        Address = 1,  /**< Crown address */
+        Contract = 2
     };
 
     enum RoleIndex {
         TypeRole = Qt::UserRole, /**< Type of address (#Send or #Receive) */
-        AddressRole
+        AddressRole,
+        ContractRole,
     };
 
     /** Return status of edit/insert operation */

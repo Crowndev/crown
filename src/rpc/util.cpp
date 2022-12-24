@@ -290,6 +290,21 @@ unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target)
     return unsigned_target;
 }
 
+bool GetBool(const UniValue &uv)
+{
+    if (uv.isBool()) {
+        return uv.get_bool();
+    }
+    if (!uv.isStr()) {
+        throw std::runtime_error("Not a boolean or string value.");
+    }
+    bool rv;
+    if (!part::GetStringBool(uv.get_str(), rv)) {
+        throw std::runtime_error("String not a boolean value.");
+    }
+    return rv;
+};
+
 RPCErrorCode RPCErrorFromTransactionError(TransactionError terr)
 {
     switch (terr) {

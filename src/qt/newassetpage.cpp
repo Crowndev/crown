@@ -1,18 +1,28 @@
 #include <qt/newassetpage.h>
 #include <qt/forms/ui_newassetpage.h>
 #include <qt/walletmodel.h>
-#include <qt/contractfilterproxy.h>
-#include <qt/contracttablemodel.h>
+#include <qt/addressbookpage.h>
+#include <qt/guiutil.h>
+#include <qt/platformstyle.h>
 
 #include <QMessageBox>
 #include <QDebug>
 #include <QDateTime>
 
-NewAssetPage::NewAssetPage(QWidget *parent) :
+NewAssetPage::NewAssetPage(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::NewAssetPage)
+    ui(new Ui::NewAssetPage),
+    platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+
+    ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
+    ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
+    ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
+     // normal crown address field
+    GUIUtil::setupAddressWidget(ui->payTo, this);
+
+
     ui->inputAmount->setValidator( new QDoubleValidator(0, 1000000, 4, this) );
     ui->outputAmount->setValidator( new QDoubleValidator(0, 1000000, 4, this) );
 
@@ -22,29 +32,26 @@ NewAssetPage::NewAssetPage(QWidget *parent) :
     ui->outputAmount->setStatusTip(tr("Asset amount to create"));
     ui->outputAmount->setToolTip(ui->outputAmount->statusTip());
 
-    ui->contractcomboBox->setStatusTip(tr("Select Contract to use"));
-    ui->contractcomboBox->setToolTip(ui->contractcomboBox->statusTip());
-    
     ui->typecomboBox->setStatusTip(tr("Select Asset Type"));
     ui->typecomboBox->setToolTip(ui->typecomboBox->statusTip());
 
     ui->expiry->setStatusTip(tr("Set Expiry Date"));
-    ui->expiry->setToolTip(ui->expiry->statusTip());        
+    ui->expiry->setToolTip(ui->expiry->statusTip());
 
     ui->convertcheckBox->setStatusTip(tr("Can the asset be later liquidated"));
-    ui->convertcheckBox->setToolTip(ui->convertcheckBox->statusTip()); 
+    ui->convertcheckBox->setToolTip(ui->convertcheckBox->statusTip());
 
     ui->transfercheckBox->setStatusTip(tr("Can the asset be sent"));
-    ui->transfercheckBox->setToolTip(ui->transfercheckBox->statusTip()); 
+    ui->transfercheckBox->setToolTip(ui->transfercheckBox->statusTip());
 
     ui->restrictedcheckBox->setStatusTip(tr("Restrict sending to Issuer"));
-    ui->restrictedcheckBox->setToolTip(ui->restrictedcheckBox->statusTip()); 
+    ui->restrictedcheckBox->setToolTip(ui->restrictedcheckBox->statusTip());
 
     ui->limitedcheckBox->setStatusTip(tr("Prevent conversion from other assets"));
-    ui->limitedcheckBox->setToolTip(ui->limitedcheckBox->statusTip()); 
-    
+    ui->limitedcheckBox->setToolTip(ui->limitedcheckBox->statusTip());
+
     ui->divisiblecheckBox->setStatusTip(tr("Allow/Disallow division into smaller units"));
-    ui->divisiblecheckBox->setToolTip(ui->divisiblecheckBox->statusTip());     
+    ui->divisiblecheckBox->setToolTip(ui->divisiblecheckBox->statusTip());
 }
 
 NewAssetPage::~NewAssetPage()
@@ -52,13 +59,23 @@ NewAssetPage::~NewAssetPage()
     delete ui;
 }
 
-void NewAssetPage::setWalletModel(WalletModel* model, ContractFilterProxy *mycontractFilter)
+void NewAssetPage::on_addressBookButton_clicked()
+{
+    if(!walletModel)
+        return;
+    AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
+    dlg.setModel(walletModel->getAddressTableModel(), false);
+    if(dlg.exec())
+    {
+        ui->payTo->setText(dlg.getReturnValue());
+    }
+}
+
+void NewAssetPage::setWalletModel(WalletModel* model)
 {
     if (!model)
         return;
     this->walletModel = model;
-
-    ui->contractcomboBox->setModel(mycontractFilter);
 
 }
 
@@ -68,7 +85,16 @@ void NewAssetPage::on_Create_clicked()
     QString inputamount  = getinputamount();
     QString outputamount  = getoutputamount();
     QString assettype  = getassettype();
-    QString assetcontract  = getassetcontract();
+
+    QString name  = getname();
+    QString shortname  = getsymbol();
+    QString contracturl  = getcontracturl();
+    QString scriptcode  = getscript();
+    QString address = getaddress();
+
+    std::vector<unsigned char> scriptcodedata(ParseHex(scriptcode.toStdString()));
+    CScript script(scriptcodedata.begin(), scriptcodedata.end());
+
     std::string mdata  = getnftdata().toStdString();
     bool transferable = gettransferable();
     bool convertable = getconvertable();
@@ -91,7 +117,7 @@ void NewAssetPage::on_Create_clicked()
         if(!ctx.isValid()) {
             return;
         }
-        if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
+        if(!walletModel->CreateAsset(name, shortname, address, contracturl, script, inputamount, outputamount, assettype, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
             msgbox->setWindowTitle("Failed To Create Asset");
             msgbox->setText(QString::fromStdString(strFailReason));
             msgbox->setStandardButtons(QMessageBox::Cancel);
@@ -104,7 +130,7 @@ void NewAssetPage::on_Create_clicked()
         return;
     }
 
-    if(!walletModel->CreateAsset(inputamount, outputamount, assettype, assetcontract, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
+    if(!walletModel->CreateAsset(name, shortname, address, contracturl, script, inputamount, outputamount, assettype, transferable, convertable, restricted, limited, divisible, expiryDate, strFailReason, rdata)){
         msgbox->setWindowTitle("Failed To Create Asset");
         msgbox->setText(QString::fromStdString(strFailReason));
         msgbox->setStandardButtons(QMessageBox::Cancel);
@@ -127,6 +153,22 @@ void NewAssetPage::on_Create_clicked()
     }
 }
 
+QString NewAssetPage::getname(){
+    return ui->name->text();
+}
+
+QString NewAssetPage::getsymbol(){
+    return ui->symbol->text();
+}
+
+QString NewAssetPage::getcontracturl(){
+    return ui->contracturl->text();
+}
+
+QString NewAssetPage::getscript(){
+    return ui->scriptcode->toPlainText();
+}
+
 QString NewAssetPage::getnftdata(){
     return ui->nftTextEdit->toPlainText();
 }
@@ -143,8 +185,8 @@ QString NewAssetPage::getassettype(){
     return ui->typecomboBox->currentText();
 }
 
-QString NewAssetPage::getassetcontract(){
-    return ui->contractcomboBox->currentText();
+QString NewAssetPage::getaddress(){
+    return ui->payTo->text();
 }
 
 bool NewAssetPage::gettransferable(){

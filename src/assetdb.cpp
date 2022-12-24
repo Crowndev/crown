@@ -251,3 +251,10 @@ CAsset GetDevAsset(){
     
     return Params().GetConsensus().dev_asset;
 }
+
+
+//    for(auto const& x : passetsCache->GetItemsMap())
+//        CAsset checkasset = x.second->second.asset;
+        
+//    for(auto const& x : pcontractCache->GetItemsMap())
+//       tmp.push_back(x.second->second.contract);        

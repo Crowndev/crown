@@ -58,4 +58,9 @@ int64_t ParseISO8601DateTime(const std::string& str);
 std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime);
 std::string DurationToDHMS(int64_t nDurationTime);
 
+namespace part
+{
+    std::string GetTimeString(int64_t timestamp, char *buffer, size_t nBuffer);
+    int64_t strToEpoch(const char *input, bool fFillMax=false);
+}
 #endif // CROWN_UTIL_TIME_H

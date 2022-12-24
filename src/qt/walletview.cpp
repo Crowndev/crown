@@ -195,7 +195,7 @@ void WalletView::checkAndCreateNode(const COutput& out)
     QString title = tr("Payment to yourself - ") +
         CrownUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), credit);
     QString body = tr("Do you want to create a new ");
-    if (systemnodePayment)
+    /*if (systemnodePayment)
     {
         if (nodeManager->getSendCollateralDialog()->fAutoCreate) {
             return;
@@ -208,7 +208,7 @@ void WalletView::checkAndCreateNode(const COutput& out)
         }
         body += "Masternode?";
         dialog = new CreateMasternodeDialog(platformStyle, this);
-    }
+    }*/
     // Display message box
     QMessageBox::StandardButton retval = QMessageBox::question(this, title, body,
             QMessageBox::Yes | QMessageBox::Cancel,

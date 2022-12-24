@@ -53,6 +53,7 @@ const std::string WALLETDESCRIPTORCKEY{"walletdescriptorckey"};
 const std::string WALLETDESCRIPTORKEY{"walletdescriptorkey"};
 const std::string WATCHMETA{"watchmeta"};
 const std::string WATCHS{"watchs"};
+const std::string PART_LOCKEDUTXO{"luo"};
 } // namespace DBKeys
 
 //
@@ -559,6 +560,10 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         } else if (strType == DBKeys::OLD_KEY) {
             strErr = "Found unsupported 'wkey' record, try loading with version 0.18";
             return false;
+        } else if (strType == DBKeys::PART_LOCKEDUTXO) {
+            COutPoint output;
+            ssKey >> output;
+            pwallet->LockCoin(output);
         } else if (strType == DBKeys::ACTIVEEXTERNALSPK || strType == DBKeys::ACTIVEINTERNALSPK) {
             uint8_t type;
             ssKey >> type;
@@ -997,6 +1002,17 @@ bool WalletBatch::TxnAbort()
 {
     return m_batch->TxnAbort();
 }
+
+bool WalletBatch::WriteLockedUnspentOutput(const COutPoint &o)
+{
+    bool tmp = true;
+    return WriteIC(std::make_pair(DBKeys::PART_LOCKEDUTXO, o), tmp);
+};
+
+bool WalletBatch::EraseLockedUnspentOutput(const COutPoint &o)
+{
+    return EraseIC(std::make_pair(DBKeys::PART_LOCKEDUTXO, o));
+};
 
 std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error)
 {

@@ -8,7 +8,6 @@
 #include <arith_uint256.h>
 #include <assetdb.h>
 #include <chain.h>
-#include <contractdb.h>
 
 #include <chainparams.h>
 #include <checkqueue.h>
@@ -20,6 +19,8 @@
 #include <cuckoocache.h>
 #include <flatfile.h>
 #include <hash.h>
+#include <index/disktxpos.h>
+
 #include <index/txindex.h>
 #include <key_io.h>
 #include <crown/instantx.h>
@@ -61,6 +62,8 @@
 #include <masternode/masternode-payments.h>
 #include <masternode/masternode-budget.h>
 #include <systemnode/systemnode-payments.h>
+
+#include <smsg/smessage.h>
 
 #include <string>
 #include <regex>
@@ -175,7 +178,9 @@ arith_uint256 nMinimumChainWork;
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 
 CBlockPolicyEstimator feeEstimator;
-
+CoinStakeCache coinStakeCache GUARDED_BY(cs_main);
+CoinStakeCache smsgFeeCoinstakeCache;
+CoinStakeCache smsgDifficultyCoinstakeCache(180);
 // Internal stuff
 namespace {
     CBlockIndex* pindexBestInvalid = nullptr;
@@ -641,18 +646,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         for (unsigned int i = 0; i < tx.vdata.size(); i++){
             uint8_t vers = tx.vdata[i].get()->GetVersion();
             switch(vers){
-                case OUTPUT_CONTRACT:{
-                    CContract *contract = (CContract*)tx.vdata[i].get();
-                    if(pcontractCache->Exists(contract->asset_name) || ExistsContract(contract->asset_name))
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this name.\n", __func__));
-                    
-                    if(pcontractCache->Exists(contract->asset_symbol) || ExistsContract(contract->asset_symbol))
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract DB already contains an entry with this symbol.\n", __func__));
-                    
-                    if(!fHasFee)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("%s: Contract registry has no fees.\n", __func__));
-                break;
-            }
             case OUTPUT_DATA:{
                 CTxData *data = (CTxData*)tx.vdata[i].get();
                 break;
@@ -1304,6 +1297,41 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     return ReadBlockOrHeader(block, pindex, consensusParams);
 }
 
+bool ReadTransactionFromDiskBlock(const CBlockIndex* pindex, int nIndex, CTransactionRef &txOut)
+{
+    FlatFilePos hpos;
+    {
+        LOCK(cs_main);
+        hpos = pindex->GetBlockPos();
+    }
+
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(hpos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull())
+        return error("%s: OpenBlockFile failed for %s", __func__, hpos.ToString());
+
+    CBlockHeader blockHeader;
+    try {
+        filein >> blockHeader;
+
+        int nTxns = ReadCompactSize(filein);
+
+        if (nTxns <= nIndex || nIndex < 0)
+            return error("%s: Block %s, txn %d not in available range %d.", __func__, pindex->GetBlockPos().ToString(), nIndex, nTxns);
+
+        for (int k = 0; k <= nIndex; ++k)
+            filein >> txOut;
+    } catch (const std::exception& e)
+    {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), hpos.ToString());
+    }
+
+    if (blockHeader.GetHash() != pindex->GetBlockHash())
+        return error("%s: Hash doesn't match index for %s at %s",
+                __func__, pindex->ToString(), hpos.ToString());
+    return true;
+}
+
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
 {
     FlatFilePos hpos = pos;
@@ -1462,10 +1490,10 @@ bool CChainState::IsInitialBlockDownload() const
         return true;
     if (m_chain.Tip()->nChainWork < nMinimumChainWork)
         return true;
-   
+
     if (gArgs.GetBoolArg("-jumpstart", false))
          nMaxTipAge*=8;
-         
+
     if (m_chain.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
@@ -2674,6 +2702,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                         spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, prevout.nAsset, scriptType, uint160(hashBytes))));
                     }
                 }
+
+                if (smsg::fSecMsgEnabled && tx_state.m_funds_smsg) {
+                    smsgModule.StoreFundingTx(tx, pindex);
+                }
             }
         }
 
@@ -2816,15 +2848,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
                 uint8_t vers = block.vtx[i]->vdata[k].get()->GetVersion();
                 switch (vers) {
-                    case OUTPUT_CONTRACT:{
-                        CContract *contract = (CContract*)block.vtx[i]->vdata[k].get();
-                        //LogPrintf("%s: FOUND CONTRACT %s\n", __func__, contract->ToString());
-                        if (!pcontractCache->Exists(contract->asset_name) && !ExistsContract(contract->asset_name) && !ExistsContract(contract->asset_symbol))
-                            if(!fJustCheck)
-                                pcontractCache->Put(contract->asset_name, CContractData(*contract, block.vtx[i]->GetHash(), block.nTime));
-                        
-                        break;
-                    }
                     case OUTPUT_DATA:{
                         CTxData *data = (CTxData*)block.vtx[i]->vdata[k].get();
                         break;
@@ -2842,6 +2865,61 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
     }
+
+    if (block.IsProofOfStake() && nHeight > Params().PoSStartHeight() +1) {
+        CTransactionRef txCoinstake = block.vtx[1];
+        CTransactionRef txPrevCoinstake = nullptr;
+
+        {
+            CAmount smsg_fee_new, smsg_fee_prev = chainparams.GetConsensus().smsg_fee_msg_per_day_per_k;
+            uint32_t smsg_difficulty_new, smsg_difficulty_prev = chainparams.GetConsensus().smsg_min_difficulty;
+
+            if (!coinStakeCache.GetCoinStake(pindex->pprev->GetBlockHash(), txPrevCoinstake))
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, strprintf("ERROR: %s: Failed to get previous smsg fee.\n", __func__));
+
+            if(!txPrevCoinstake)    
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txPrevCoinstake");
+                
+            if(!txPrevCoinstake->GetSmsgFeeRate(smsg_fee_prev))
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-fee-prev");
+
+            if(!txPrevCoinstake->GetSmsgDifficulty(smsg_difficulty_prev))
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-diff-prev");
+
+            if (!txCoinstake->GetSmsgFeeRate(smsg_fee_new)) {
+                LogPrintf("ERROR: %s: Failed to get smsg fee.\n", __func__);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-fee");
+            }
+
+            if (smsg_fee_new < 1) {
+                LogPrintf("ERROR: %s: Smsg fee < 1.\n", __func__);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-fee");
+            }
+            int64_t delta = std::abs(smsg_fee_new - smsg_fee_prev);
+            int64_t max_delta = chainparams.GetMaxSmsgFeeRateDelta(smsg_fee_prev);
+            if (delta > max_delta) {
+                LogPrintf("ERROR: %s: Bad smsg-fee (delta=%d, max_delta=%d)\n", __func__, delta, max_delta);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-fee");
+            }
+
+            if (!txCoinstake->GetSmsgDifficulty(smsg_difficulty_new)) {
+                LogPrintf("ERROR: %s: Failed to get smsg difficulty.\n", __func__);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-diff");
+            }
+            if (smsg_difficulty_new < 1 || smsg_difficulty_new > chainparams.GetConsensus().smsg_min_difficulty) {
+
+                LogPrintf("ERROR: %s: Smsg difficulty out of range.\n", __func__);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-diff");
+            }
+            delta = int(smsg_difficulty_prev) - int(smsg_difficulty_new);
+            if (abs(delta) > int(chainparams.GetConsensus().smsg_difficulty_max_delta)) {
+                LogPrintf("ERROR: %s: Smsg difficulty change out of range.\n", __func__);
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-smsg-diff");
+            }
+        }
+        coinStakeCache.InsertCoinStake(block.GetHash(), txCoinstake);
+    }
+
     int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
     LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
 
@@ -6106,3 +6184,95 @@ void ChainstateManager::MaybeRebalanceCaches()
         }
     }
 }
+
+bool CoinStakeCache::GetCoinStake(const uint256 &blockHash, CTransactionRef &tx)
+{
+    for (const auto &i : lData) {
+        if (blockHash != i.first) {
+            continue;
+        }
+        tx = i.second;
+        return true;
+    }
+
+    BlockMap::iterator mi = g_chainman.BlockIndex().find(blockHash);
+    if (mi == g_chainman.BlockIndex().end()) {
+        return false;
+    }
+
+    CBlockIndex *pindex = mi->second;
+    int index = pindex->IsProofOfStake() ? 1 : 0;
+    if (ReadTransactionFromDiskBlock(pindex, index, tx)) {
+        return InsertCoinStake(blockHash, tx);
+    }
+
+    return false;
+}
+
+bool CoinStakeCache::InsertCoinStake(const uint256 &blockHash, const CTransactionRef &tx)
+{
+    lData.emplace_front(blockHash, tx);
+
+    while (lData.size() > nMaxSize) {
+        lData.pop_back();
+    }
+
+    return true;
+}
+
+int64_t GetSmsgFeeRate(const CBlockIndex *pindex, bool reduce_height) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+{
+    const Consensus::Params &consensusParams = Params().GetConsensus();
+
+    if ((pindex && pindex->nTime < consensusParams.smsg_fee_time)
+        || (!pindex && GetTime() < consensusParams.smsg_fee_time)) {
+        return consensusParams.smsg_fee_msg_per_day_per_k;
+    }
+
+    int chain_height = pindex ? pindex->nHeight : ::ChainActive().Height();
+    if (reduce_height) { // Grace period, push back to previous period
+        chain_height -= 10;
+    }
+    int fee_height = (chain_height / consensusParams.smsg_fee_period) * consensusParams.smsg_fee_period;
+
+    CBlockIndex *fee_block = ::ChainActive()[fee_height];
+    if (!fee_block || fee_block->nTime < consensusParams.smsg_fee_time) {
+        return consensusParams.smsg_fee_msg_per_day_per_k;
+    }
+
+    int64_t smsg_fee_rate = consensusParams.smsg_fee_msg_per_day_per_k;
+    CTransactionRef coinstake = nullptr;
+    if (!smsgFeeCoinstakeCache.GetCoinStake(fee_block->GetBlockHash(), coinstake)
+        || !coinstake->GetSmsgFeeRate(smsg_fee_rate)) {
+        return consensusParams.smsg_fee_msg_per_day_per_k;
+    }
+
+    return smsg_fee_rate;
+};
+
+uint32_t GetSmsgDifficulty(uint64_t time, bool verify) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+{
+    const Consensus::Params &consensusParams = Params().GetConsensus();
+
+    CBlockIndex *pindex = ::ChainActive().Tip();
+    for (size_t k = 0; k < 180; ++k) {
+        if (!pindex) {
+            break;
+        }
+        if (time >= pindex->nTime) {
+            uint32_t smsg_difficulty = 0;
+            CTransactionRef coinstake = nullptr;
+            if (smsgDifficultyCoinstakeCache.GetCoinStake(pindex->GetBlockHash(), coinstake)
+                && coinstake->GetSmsgDifficulty(smsg_difficulty)) {
+
+                if (verify && smsg_difficulty != consensusParams.smsg_min_difficulty) {
+                    return smsg_difficulty + consensusParams.smsg_difficulty_max_delta;
+                }
+                return smsg_difficulty - consensusParams.smsg_difficulty_max_delta;
+            }
+        }
+        pindex = pindex->pprev;
+    }
+
+    return consensusParams.smsg_min_difficulty - consensusParams.smsg_difficulty_max_delta;
+};

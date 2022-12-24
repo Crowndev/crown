@@ -36,11 +36,8 @@ public:
       @{*/
 
     QString sContractName;
-    QString sContractShortName;
     QString issuer;
     QString contract_url; //online human readable contract
-    QString description;
-    QString website_url;
     QString scriptcode;
     bool mine;
 
@@ -67,8 +64,8 @@ public:
 
             ContractRecord rec(QString::fromStdString(x.first));
             CContract contract = x.second->second.contract;
-            rec.sContractName = QString::fromStdString(contract.asset_name);
-            rec.sContractShortName = QString::fromStdString(contract.asset_symbol);
+            rec.sContractName = QString::fromStdString(contract.name);
+            //rec.sContractShortName = QString::fromStdString(contract.asset_symbol);
 
             CTxDestination address = DecodeDestination(contract.sIssuingaddress);
             CScript script = GetScriptForDestination(address);
@@ -82,8 +79,6 @@ public:
             }
             rec.issuer = issuer;
             rec.contract_url = QString::fromStdString(contract.contract_url);
-            rec.description = QString::fromStdString(contract.description);
-            rec.website_url = QString::fromStdString(contract.website_url);
             rec.scriptcode = QString::fromStdString(HexStr(contract.scriptcode));
             bool minew = walletModel->IsMine(address);
             if(minew)
@@ -163,16 +158,10 @@ QVariant ContractTableModel::data(const QModelIndex &index, int role) const
         {
             case NameRole:
                 return rec->sContractName;
-            case ShortnameRole:
-                return rec->sContractShortName;
             case ContractURLRole:
                 return rec->contract_url;
-            case WebsiteURLRole:
-                return rec->website_url;
             case IssuerRole:
                 return rec->issuer;
-            case DescriptionRole:
-                return rec->description;
             case ScriptRole:
                 return rec->scriptcode;
             case MineRole:

@@ -30,10 +30,13 @@ struct AddressTableEntry
     Type type;
     QString label;
     QString address;
+    QString contract;
 
     AddressTableEntry() {}
     AddressTableEntry(Type _type, const QString &_label, const QString &_address):
         type(_type), label(_label), address(_address) {}
+    AddressTableEntry(Type _type, const QString &_label, const QString &_address, const QString &_contract):
+        type(_type), label(_label), address(_address), contract(_contract) {}
 };
 
 struct AddressTableEntryLessThan
@@ -87,9 +90,12 @@ public:
                 }
                 AddressTableEntry::Type addressType = translateTransactionType(
                         QString::fromStdString(address.purpose), address.is_mine);
+                QString r_contract = "";        
+
+
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                   QString::fromStdString(address.name),
-                                  QString::fromStdString(EncodeDestination(address.dest))));
+                                  QString::fromStdString(EncodeDestination(address.dest)), r_contract));
             }
         }
         // std::lower_bound() and std::upper_bound() require our cachedAddressTable list to be sorted in asc order
@@ -166,7 +172,7 @@ public:
 AddressTableModel::AddressTableModel(WalletModel *parent, bool pk_hash_only) :
     QAbstractTableModel(parent), walletModel(parent)
 {
-    columns << tr("Label") << tr("Address");
+    columns << tr("Label") << tr("Address") << tr("Contract");
     priv = new AddressTablePriv(this);
     priv->refreshAddressTable(parent->wallet(), pk_hash_only);
 }
@@ -210,6 +216,8 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             }
         case Address:
             return rec->address;
+        case Contract:
+            return rec->contract;
         }
     }
     else if (role == Qt::FontRole)
@@ -231,6 +239,10 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             return Receive;
         default: break;
         }
+    }
+    else if (role == ContractRole)
+    {
+        return rec->contract;
     }
     else if (role == AddressRole)
     {

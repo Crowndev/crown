@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>862</width>
-    <height>535</height>
+    <width>791</width>
+    <height>578</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,17 +21,84 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
-          <widget class="QComboBox" name="contractcomboBox">
-           <property name="toolTip">
-            <string/>
+          <layout class="QHBoxLayout" name="payToLayout">
+           <property name="spacing">
+            <number>0</number>
            </property>
-           <property name="currentText">
-            <string/>
-           </property>
-           <property name="placeholderText">
-            <string>Select Contract</string>
-           </property>
-          </widget>
+           <item>
+            <widget class="QValidatedLineEdit" name="payTo">
+             <property name="toolTip">
+              <string>The Crown address to send the payment to</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="addressBookButton">
+             <property name="toolTip">
+              <string>Choose previously used address</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset resource="../crown.qrc">
+               <normaloff>:/icons/address-book</normaloff>:/icons/address-book</iconset>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>22</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="shortcut">
+              <string>Alt+A</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="pasteButton">
+             <property name="toolTip">
+              <string>Paste address from clipboard</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset resource="../crown.qrc">
+               <normaloff>:/icons/editpaste</normaloff>:/icons/editpaste</iconset>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>22</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="shortcut">
+              <string>Alt+P</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="deleteButton">
+             <property name="toolTip">
+              <string>Remove this entry</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset resource="../crown.qrc">
+               <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>22</width>
+               <height>22</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
          <item>
           <widget class="QComboBox" name="typecomboBox">
@@ -85,6 +152,30 @@
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_2"/>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QLineEdit" name="name">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string>Asset Name</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="symbol">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string>Asset Symbol</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -173,17 +264,18 @@
       </layout>
      </item>
      <item>
-      <spacer name="verticalSpacer_4">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
+      <widget class="QLineEdit" name="contracturl">
+       <property name="placeholderText">
+        <string>Contract url</string>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTextEdit" name="scriptcode">
+       <property name="placeholderText">
+        <string>Contract Script</string>
        </property>
-      </spacer>
+      </widget>
      </item>
      <item>
       <widget class="QPlainTextEdit" name="nftTextEdit">
@@ -223,6 +315,15 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <customwidgets>
+  <customwidget>
+   <class>QValidatedLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>qt/qvalidatedlineedit.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../crown.qrc"/>
+ </resources>
  <connections/>
 </ui>

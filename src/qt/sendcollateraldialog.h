@@ -13,8 +13,7 @@ public:
         MASTERNODE
     };
     explicit SendCollateralDialog(const PlatformStyle *platformStyle, Node node, QWidget *parent = 0);
-    void send(QList<SendAssetsRecipient> &recipients);
-    bool fAutoCreate;
+    void vsend(QList<SendAssetsRecipient> &recipients);
 private:
     bool instantXChecked();
     void processSendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());

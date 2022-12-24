@@ -18,6 +18,7 @@
 #include <util/ref.h>
 #include <util/system.h>
 #include <util/ui_change_type.h>
+
 #include <wallet/context.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
@@ -30,6 +31,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <smsg/smessage.h>
 
 namespace interfaces {
 namespace {
@@ -204,13 +207,16 @@ public:
         }
         return true;
     }
+
     std::vector<WalletAddress> getAddresses() override
     {
         LOCK(m_wallet->cs_wallet);
         std::vector<WalletAddress> result;
         for (const auto& item : m_wallet->m_address_book) {
             if (item.second.IsChange()) continue;
-            result.emplace_back(item.first, m_wallet->IsMine(item.first), item.second.GetLabel(), item.second.purpose);
+            std::string alias;
+            CPubKey pubkey;
+            result.emplace_back(item.first, m_wallet->IsMine(item.first), item.second.GetLabel(), item.second.purpose, alias, HexStr(pubkey));
         }
         return result;
     }
@@ -226,6 +232,13 @@ public:
         WalletBatch batch{m_wallet->GetDatabase()};
         return m_wallet->EraseDestData(batch, dest, key);
     }
+
+    void availableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, AvailableCoinsType coin_type, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->AvailableCoins(vCoins, asset_filter, fOnlySafe, coinControl, coin_type, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);					 
+	}
+
     std::vector<std::string> getDestValues(const std::string& prefix) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -251,26 +264,13 @@ public:
         LOCK(m_wallet->cs_wallet);
         return m_wallet->ListLockedCoins(outputs);
     }
-    bool createContract(CContract& contract, CTransactionRef& tx,
-         std::string& address, std::string &contract_url, std::string &website_url,
-         std::string &description, CScript &script, std::string& name,
-         std::string& shortname, std::string& strFailReason) override
-    {
-        return m_wallet->CreateContract(contract, tx, address, contract_url, website_url, description, script, name, shortname, strFailReason);
-    }
 
     bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
-         std::string& shortname, CAmount& amountin, CAmount& amountout,
-         int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason,
+         std::string& shortname, std::string& address, std::string& contract_url, CScript& script, CAmount& amountin, CAmount& amountout,
+         int64_t& expiry, int& type, CTxData& rdata, std::string& strFailReason,
          bool transferable, bool convertable, bool restricted, bool limited, bool divisible) override
     {
-        return m_wallet->CreateAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, rdata, strFailReason, transferable, convertable, restricted, limited, divisible);
-    }
-
-    CContract getContract(std::string& name) override
-    {
-        CContract contract = m_wallet->chain().getContract(name);
-        return contract;
+        return m_wallet->CreateAsset(asset, tx, name, shortname, address, contract_url, script, amountin, amountout, expiry, type, rdata, strFailReason, transferable, convertable, restricted, limited, divisible);
     }
 
     CTransactionRef createTransaction(const std::vector<CRecipient>& recipients,

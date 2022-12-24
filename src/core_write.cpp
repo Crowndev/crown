@@ -4,7 +4,6 @@
 
 #include <core_io.h>
 #include <assetdb.h>
-#include <contractdb.h>
 
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
@@ -179,17 +178,6 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
-void ContractToUniv(const CContract &s , UniValue &entry){
-    entry.pushKV("url", s.contract_url);
-    entry.pushKV("name", s.asset_name);
-    entry.pushKV("symbol", s.asset_symbol);
-    entry.pushKV("issuing address", s.sIssuingaddress);
-    entry.pushKV("description", s.description);
-    entry.pushKV("website", s.website_url);
-    entry.pushKV("script", HexStr(s.scriptcode));
-    entry.pushKV("signature", HexStr(s.vchContractSig));
-}
-
 void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
 {
     switch (baseOut->GetVersion()) {
@@ -197,12 +185,6 @@ void DataToJSON(const CTxDataBase *baseOut, UniValue &entry)
             CTxData *s = (CTxData*) baseOut;
             entry.pushKV("type", "data");
             entry.pushKV("data_hex", HexStr(s->vData));
-            break;
-        }
-        case OUTPUT_CONTRACT:{
-            entry.pushKV("type", "contract");
-            CContract *s = (CContract*) baseOut;
-            ContractToUniv(*s, entry);
             break;
         }
         default:
@@ -224,15 +206,7 @@ void AssetToUniv(const CAssetData& assetdata, UniValue &entry){
     entry.pushKV("Issued", assetdata.issuedAmount);
     entry.pushKV("Transaction", assetdata.txhash.GetHex());
     entry.pushKV("Time", (int64_t)assetdata.nTime);
-/*    
-    if (asset.contract_hash != uint256()){
-        const CContract &contract = GetContractByHash(asset.contract_hash);
-        UniValue a(UniValue::VOBJ);
-        ContractToUniv(contract, a);
-        entry.pushKV("contract", a);
-    }
-*/    
-    entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+
     entry.pushKV("expiry", (int64_t)asset.GetExpiry());
     entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
     entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");
@@ -253,7 +227,7 @@ void AssetToUniv(const CAsset& asset, UniValue &entry){
     entry.pushKV("name", asset.getAssetName());
     entry.pushKV("symbol", asset.getShortName());
     entry.pushKV("id", asset.GetHex());
-    entry.pushKV("contract_hash", asset.contract_hash.GetHex());
+//    entry.pushKV("contract_hash", asset.contract_hash.GetHex());
     entry.pushKV("expiry", (int64_t)asset.GetExpiry());
     entry.pushKV("transferable", asset.isTransferable() ? "yes" : "no");
     entry.pushKV("convertable", asset.isConvertable() ? "yes" : "no");

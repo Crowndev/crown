@@ -58,6 +58,7 @@ namespace BCLog {
         VALIDATION  = (1 << 21),
         MASTERNODE  = (1 << 22),
         SYSTEMNODE  = (1 << 23),
+        SMSG        = (1 << 24),
         ALL         = ~(uint32_t)0,
     };
 

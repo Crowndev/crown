@@ -19,7 +19,8 @@ class UniValue;
 class CTransaction;
 struct PartiallySignedTransaction;
 struct WalletContext;
-
+class CCoinControl;
+struct CRecipient;
 Span<const CRPCCommand> GetWalletRPCCommands();
 
 /**
@@ -36,4 +37,6 @@ LegacyScriptPubKeyMan& EnsureLegacyScriptPubKeyMan(CWallet& wallet, bool also_cr
 
 RPCHelpMan getaddressinfo();
 RPCHelpMan signrawtransactionwithwallet();
+void ParseCoinControlOptions(const UniValue &obj, CWallet *pwallet, CCoinControl &coin_control);
+
 #endif //CROWN_WALLET_RPCWALLET_H

@@ -289,9 +289,6 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
                 case OUTPUT_DATA:
                     tx.vdata.push_back(MAKE_OUTPUT<CTxData>());
                     break;
-                case OUTPUT_CONTRACT:
-                    tx.vdata.push_back(MAKE_OUTPUT<CContract>());
-                    break;
                 default:
                     throw std::ios_base::failure("Unknown transaction output type");
             }
@@ -444,6 +441,12 @@ public:
 
     bool IsCoinBase() const;
     bool IsCoinStake() const;
+
+    bool GetSmsgFeeRate(CAmount &fee_rate) const;
+
+    bool GetSmsgDifficulty(uint32_t &compact) const;
+
+    CAmount GetTotalSMSGFees() const;
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

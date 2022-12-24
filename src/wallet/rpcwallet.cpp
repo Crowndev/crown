@@ -5,7 +5,6 @@
 
 #include <amount.h>
 #include <assetdb.h>
-#include <contractdb.h>
 
 #include <core_io.h>
 #include <interfaces/chain.h>
@@ -13,6 +12,7 @@
 #include <node/context.h>
 #include <optional>
 #include <outputtype.h>
+
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -40,7 +40,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
-
+#include <smsg/smessage.h>
 #include <stdint.h>
 
 #include <univalue.h>
@@ -77,6 +77,133 @@ static bool ParseIncludeWatchonly(const UniValue& include_watchonly, const CWall
     // otherwise return whatever include_watchonly was set to
     return include_watchonly.get_bool();
 }
+
+static void ParseSecretKey(const std::string &s, CKey &key)
+{
+    if (IsHex(s) && (s.size() == 64)) {
+        // LE
+        uint256 tmp;
+        tmp.SetHex(s);
+        key.Set(tmp.begin(), true);
+    } else {
+        key = DecodeSecret(s);
+    }
+}
+
+void ParseCoinControlOptions(const UniValue &obj, CWallet *pwallet, CCoinControl &coin_control)
+{
+    if (obj.exists("changeaddress")) {
+        std::string sChangeAddress = obj["changeaddress"].get_str();
+
+        // Check for script
+        bool fHaveScript = false;
+        if (IsHex(sChangeAddress)) {
+            std::vector<uint8_t> vScript = ParseHex(sChangeAddress);
+            CScript script(vScript.begin(), vScript.end());
+
+            TxoutType whichType;
+            if (IsStandard(script, whichType)) {
+                coin_control.scriptChange = script;
+                fHaveScript = true;
+            }
+        }
+
+        if (!fHaveScript) {
+            CTxDestination dest = DecodeDestination(sChangeAddress);
+            if (!IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "changeAddress must be a valid particl address");
+            }
+            coin_control.destChange = dest;
+        }
+    }
+
+    const UniValue &uvInputs = obj["inputs"];
+    if (uvInputs.isArray()) {
+        for (size_t i = 0; i < uvInputs.size(); ++i) {
+            const UniValue &uvi = uvInputs[i];
+            RPCTypeCheckObj(uvi,
+            {
+                {"tx", UniValueType(UniValue::VSTR)},
+                {"n", UniValueType(UniValue::VNUM)},
+            });
+
+            COutPoint op(uint256S(uvi["tx"].get_str()), uvi["n"].get_int());
+            coin_control.setSelected.insert(op);
+
+            bool have_attribute = false;
+            CInputData im;
+            if (uvi["blind"].isStr()) {
+                std::string s = uvi["blind"].get_str();
+                if (!IsHex(s) || !(s.size() == 64)) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Blinding factor must be 32 bytes and hex encoded.");
+                }
+                //im.blind.SetHex(s);
+                have_attribute = true;
+            }
+            if (!uvi["value"].isNull()) {
+                im.nValue = AmountFromValue(uvi["value"]);
+                have_attribute = true;
+            }
+            if (uvi["pubkey"].isStr()) {
+                std::string s = uvi["pubkey"].get_str();
+                if (!IsHex(s) || !(s.size() == 66)) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Commitment must be 33 bytes and hex encoded.");
+                }
+                std::vector<uint8_t> v = ParseHex(s);
+                im.pubkey = CPubKey(v.begin(), v.end());
+                have_attribute = true;
+            }
+            if (uvi["privkey"].isStr()) {
+                std::string s = uvi["privkey"].get_str();
+                ParseSecretKey(s, im.privkey);
+                if (!im.privkey.IsValid()) {
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid secret key");
+                }
+                have_attribute = true;
+            }
+
+            if (have_attribute) {
+                coin_control.m_inputData[op] = im;
+            }
+        }
+    } else
+    if (!uvInputs.isNull()) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "coin_control inputs must be an array");
+    }
+
+    if (obj.exists("feeRate") && obj.exists("estimate_mode")) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot specify both estimate_mode and feeRate");
+    }
+    if (obj.exists("feeRate") && obj.exists("conf_target")) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot specify both conf_target and feeRate");
+    }
+
+    if (obj.exists("replaceable")) {
+        if (!obj["replaceable"].isBool())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Replaceable parameter must be boolean.");
+        coin_control.m_signal_bip125_rbf = obj["replaceable"].get_bool();
+    }
+
+    if (obj.exists("conf_target")) {
+        if (!obj["conf_target"].isNum())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "conf_target parameter must be numeric.");
+        coin_control.m_confirm_target = ParseConfirmTarget(obj["conf_target"], pwallet->chain().estimateMaxBlocks());
+    }
+
+    if (obj.exists("estimate_mode")) {
+        if (!obj["estimate_mode"].isStr())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "estimate_mode parameter must be a string.");
+        if (!FeeModeFromString(obj["estimate_mode"].get_str(), coin_control.m_fee_mode))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid estimate_mode parameter");
+    }
+
+    if (obj.exists("feeRate")) {
+        coin_control.m_feerate = CFeeRate(AmountFromValue(obj["feeRate"]));
+        coin_control.fOverrideFeeRate = true;
+    }
+
+    coin_control.m_avoid_address_reuse = GetAvoidReuseFlag(pwallet, obj["avoid_reuse"]);
+};
 
 
 /** Checks if a CKey is in the given CWallet compressed or otherwise*/
@@ -518,9 +645,8 @@ static RPCHelpMan sendtoaddress()
     }
 
     CCoinControl coin_control;
-    const CContract &contract = GetContractByHash(asset.contract_hash);
     if(asset.isRestricted())
-        coin_control.destChange = DecodeDestination(contract.sIssuingaddress);
+        coin_control.destChange = DecodeDestination(asset.sIssuingaddress);
 
     if (!request.params[6].isNull()) {
         coin_control.m_signal_bip125_rbf = request.params[6].get_bool();
@@ -965,9 +1091,8 @@ static RPCHelpMan sendmany()
         subtractFeeFromAmount = request.params[5].get_array();
 
     CCoinControl coin_control;
-    const CContract &contract = GetContractByHash(asset.contract_hash);
     if(asset.isRestricted())
-        coin_control.destChange = DecodeDestination(contract.sIssuingaddress);
+        coin_control.destChange = DecodeDestination(asset.sIssuingaddress);
 
     if (!request.params[6].isNull()) {
         coin_control.m_signal_bip125_rbf = request.params[6].get_bool();

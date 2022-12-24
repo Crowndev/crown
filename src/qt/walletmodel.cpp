@@ -11,7 +11,6 @@
 #include <qt/addresstablemodel.h>
 #include <qt/assettablemodel.h>
 #include <qt/coincontrolmodel.h>
-#include <qt/contracttablemodel.h>
 
 #include <qt/clientmodel.h>
 #include <qt/guiconstants.h>
@@ -49,7 +48,6 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     addressTableModel(nullptr),
     transactionTableModel(nullptr),
     assetTableModel(nullptr),
-    contractTableModel(nullptr),
     recentRequestsTableModel(nullptr),
     cachedEncryptionStatus(Unencrypted),
     timer(new QTimer(this))
@@ -60,7 +58,6 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     recentRequestsTableModel = new RecentRequestsTableModel(this);
     assetTableModel = new AssetTableModel(this, m_client_model);
     coinControlModel = new CoinControlModel(this);
-    contractTableModel = new ContractTableModel(this);
 
     subscribeToCoreSignals();
 }
@@ -157,39 +154,14 @@ bool WalletModel::validateAddress(const QString &address)
     return IsValidDestinationString(address.toStdString());
 }
 
-
-bool WalletModel::CreateContract(QString &strchainID, QString &strcontract_url, QString &strwebsite_url, QString &strdescription, QString &strscript, QString &strname, QString &strshortname, std::string& strFailReason)
+bool WalletModel::CreateAsset(QString asset_name, QString asset_symbol, QString& asset_address, QString& contract_url, CScript& script, QString inputamount, QString outputamount, QString assettype, bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason, CTxData& rdata)
 {
-    std::string name = strname.toStdString();
-    std::string shortname = strshortname.toStdString();
-    std::string contract_url = strcontract_url.toStdString();
-    std::string website_url = strwebsite_url.toStdString();
-    std::string description = strdescription.toStdString();
-    std::string scriptcode = strscript.toStdString();
-    std::vector<unsigned char> scriptcodedata(ParseHex(scriptcode));
-    CScript script(scriptcodedata.begin(), scriptcodedata.end());
-    std::string strID = strchainID.toStdString();
-
-    CTransactionRef tx;
-    CContract contract;
-
-    return m_wallet->createContract(contract, tx, strID, contract_url, website_url, description, script, name, shortname, strFailReason);
-}
-
-bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString assettype,  QString assetcontract,  bool transferable, bool convertable, bool restricted, bool limited, bool divisible, QDateTime expiryDate , std::string& strFailReason, CTxData& rdata)
-{
-    std::string contractstr = assetcontract.toStdString();
-    CContract contract = m_wallet->getContract(contractstr);
-
-    if(contract.IsEmpty()){
-        strFailReason = "Invalid contract for asset creation";
-        return false;
-    }
-
-    std::string name = contract.asset_name;
-    std::string shortname = contract.asset_symbol;
+    std::string name = asset_name.toStdString();
+    std::string shortname = asset_symbol.toStdString();
 	std::string typ = assettype.toStdString();
-
+	std::string address = asset_address.toStdString();
+	std::string contract = contract_url.toStdString();
+	
     int type =0;
     {
         if(typ=="Token")
@@ -221,8 +193,13 @@ bool WalletModel::CreateAsset(QString inputamount, QString outputamount, QString
     CTransactionRef tx;
     CAsset asset;
 
-    return m_wallet->createAsset(asset, tx, name, shortname, amountin, amountout, expiry, type, contract, rdata, strFailReason, transferable, convertable, restricted, limited, divisible);
+    return m_wallet->createAsset(asset, tx, name, shortname, address, contract, script, amountin, amountout, expiry, type, rdata, strFailReason, transferable, convertable, restricted, limited, divisible);
 
+}
+
+void WalletModel::AvailableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe, const CCoinControl* coinControl, AvailableCoinsType coin_type, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
+{
+    m_wallet->availableCoins(vCoins, asset_filter, fOnlySafe, coinControl, coin_type, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);					 
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransaction &transaction, const CCoinControl& coinControl)
@@ -387,11 +364,6 @@ CoinControlModel *WalletModel::getCoinControlModel()
 RecentRequestsTableModel *WalletModel::getRecentRequestsTableModel()
 {
     return recentRequestsTableModel;
-}
-
-ContractTableModel* WalletModel::getContractTableModel()
-{ 
-    return contractTableModel;
 }
 
 WalletModel::EncryptionStatus WalletModel::getEncryptionStatus() const
@@ -663,6 +635,27 @@ bool WalletModel::bumpFee(uint256 hash, uint256& new_hash)
 bool WalletModel::isWalletEnabled()
 {
    return !gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET);
+}
+
+bool WalletModel::isLockedCoin(uint256 hash, unsigned int n) const
+{
+    COutPoint output(hash,n);
+    return m_wallet->isLockedCoin(output);
+}
+
+void WalletModel::lockCoin(COutPoint& output)
+{
+    m_wallet->lockCoin(output);
+}
+
+void WalletModel::unlockCoin(COutPoint& output)
+{
+    m_wallet->unlockCoin(output);
+}
+
+void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
+{
+    m_wallet->listLockedCoins(vOutpts);
 }
 
 QString WalletModel::getWalletName() const

@@ -140,6 +140,8 @@ public:
 
         return m_reject_reason;
     }
+    bool fEnforceSmsgFees = true;
+    bool m_funds_smsg = false;
 };
 
 class TxValidationState : public ValidationState<TxValidationResult> {};

@@ -12,6 +12,18 @@
 #include <primitives/transaction.h>
 #include <script/standard.h>
 
+class COutPoint;
+
+class CInputData
+{
+public:
+    CAmount nValue;
+    uint256 blind;
+    CScriptWitness scriptWitness;
+    CPubKey pubkey;
+    CKey privkey;
+};
+
 const int DEFAULT_MIN_DEPTH = 0;
 const int DEFAULT_MAX_DEPTH = 9999999;
 
@@ -22,6 +34,7 @@ static constexpr bool DEFAULT_AVOIDPARTIALSPENDS = false;
 class CCoinControl
 {
 public:
+    CScript scriptChange;
     //! Custom change destination, if not set an address is generated
     CTxDestination destChange;
     //! Override the default change type if set, ignored if destChange is set
@@ -50,6 +63,9 @@ public:
     int m_min_depth = DEFAULT_MIN_DEPTH;
     //! Maximum chain depth value for coin availability
     int m_max_depth = DEFAULT_MAX_DEPTH;
+
+    CAmount m_extrafee;
+    std::map<COutPoint, CInputData> m_inputData;
 
     CCoinControl()
     {

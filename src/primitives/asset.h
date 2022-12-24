@@ -30,7 +30,9 @@ public:
     uint32_t nExpiry;
     unsigned char sAssetName[11] = {};
     unsigned char sAssetShortName[5] = {};
-    uint256 contract_hash;
+    std::string contract_url; //online human readable contract
+    std::string sIssuingaddress;
+    CScript scriptcode;
 
     /** Asset flags */
     enum AssetFlags : uint64_t {
@@ -63,7 +65,7 @@ public:
 
     AssetMetadata(){ SetEmpty();}
 
-    SERIALIZE_METHODS(AssetMetadata, obj) { READWRITE(obj.nVersion, obj.nFlags, obj.nType, obj.nExpiry, obj.sAssetName, obj.sAssetShortName, obj.contract_hash); }
+    SERIALIZE_METHODS(AssetMetadata, obj) { READWRITE(obj.nVersion, obj.nFlags, obj.nType, obj.nExpiry, obj.sAssetName, obj.sAssetShortName, obj.contract_url, obj.sIssuingaddress, obj.scriptcode); }
 
     void SetEmpty()
     {
@@ -71,7 +73,9 @@ public:
         nFlags=0;
         nType=0;
         nExpiry=0;
-        contract_hash.SetNull();
+        contract_url=""; //online human readable contract
+        sIssuingaddress="";
+        scriptcode= CScript();
     }
 
     bool IsEmpty() const ;
@@ -110,6 +114,7 @@ public:
 struct CAsset : public AssetMetadata
 {
     CAssetID assetID;
+    std::vector<unsigned char> vchAssetSig; // signature
 
     CAsset(){SetNull();}
     explicit CAsset(const uint256& assetIDIn) : assetID(assetIDIn) { }
@@ -140,6 +145,7 @@ struct CAsset : public AssetMetadata
     {
         READWRITEAS(AssetMetadata, obj);
         READWRITE(obj.assetID);
+        READWRITE(obj.vchAssetSig);
     }
 
     bool IsNull() const { return assetID.IsNull() && IsEmpty(); }

@@ -94,7 +94,7 @@ public:
                 rec.supply = clientModel->node().getMoneySupply()[asset]/COIN;
                 rec.nTime = data.nTime;
                 rec.txhash = QString::fromStdString(HexStr(data.txhash));
-                rec.contract_hash = QString::fromStdString(HexStr(asset.contract_hash));
+                //rec.contract_hash = QString::fromStdString(HexStr(asset.contract_hash));
                 rec.nVersion = asset.nVersion;
                 rec.nExpiry = asset.nExpiry;
                 rec.transferable = asset.isTransferable();

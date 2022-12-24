@@ -75,6 +75,20 @@ struct Params {
     /** Don't warn about unknown BIP 9 activations below this height.
      * This prevents us from warning about the CSV and segwit activations. */
     int MinBIP9WarningHeight;
+    /** Time at which Paid SMSG becomes active */
+    uint32_t nPaidSmsgTime;
+    /** Time at which variable SMSG fee become active */
+    uint32_t smsg_fee_time;
+    /** Time at which SMSG difficulty tokens are enforced */
+    uint32_t smsg_difficulty_time;
+
+    uint32_t smsg_fee_period;
+    int64_t smsg_fee_funding_tx_per_k;
+    int64_t smsg_fee_msg_per_day_per_k;
+    int64_t smsg_fee_max_delta_percent; /* Divided by 1000000 */
+    uint32_t smsg_min_difficulty;
+    uint32_t smsg_difficulty_max_delta;
+
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.
