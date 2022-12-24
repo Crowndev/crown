@@ -267,6 +267,18 @@ extern const char* CFCHECKPT;
  * @since protocol version 70016 as described by BIP 339.
  */
 extern const char* WTXIDRELAY;
+
+extern const char *SMSGIGNORE;
+extern const char *SMSGPING;
+extern const char *SMSGPONG;
+extern const char *SMSGDISABLED;
+extern const char *SMSGSHOW;
+extern const char *SMSGMATCH;
+extern const char *SMSGHAVE;
+extern const char *SMSGWANT;
+extern const char *SMSGMSG;
+extern const char *SMSGINV;
+
 extern const char *BLOCKTXN;
 extern const char* BUDGETPROPOSAL;
 extern const char* BUDGETVOTE;
@@ -319,6 +331,9 @@ enum ServiceFlags : uint64_t {
     // NODE_WITNESS indicates that a node can be asked for blocks and transactions including
     // witness data.
     NODE_WITNESS = (1 << 3),
+    // NODE_COMPACT_FILTERS means the node will service basic block filter requests.
+    NODE_SMSG = (1 << 5),
+
     // NODE_COMPACT_FILTERS means the node will service basic block filter requests.
     // See BIP157 and BIP158 for details on how this is implemented.
     NODE_COMPACT_FILTERS = (1 << 6),

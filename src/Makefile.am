@@ -36,6 +36,7 @@ LIBCROWN_UTIL=libcrown_util.a
 LIBCROWN_CRYPTO_BASE=crypto/libcrown_crypto_base.a
 LIBCROWNQT=qt/libcrownqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
+LIBCROWN_SMSG=libcrown_smsg.a
 
 if ENABLE_ZMQ
 LIBCROWN_ZMQ=libcrown_zmq.a
@@ -76,6 +77,7 @@ EXTRA_LIBRARIES += \
   $(LIBCROWN_CLI) \
   $(LIBCROWN_WALLET) \
   $(LIBCROWN_WALLET_TOOL) \
+  $(LIBCROWN_SMSG) \
   $(LIBCROWN_ZMQ)
 
 lib_LTLIBRARIES = $(LIBCROWNCONSENSUS)
@@ -110,6 +112,7 @@ endif
 CROWN_CORE_H = \
   addrdb.h \
   assetdb.h \
+  addressbook.h \
   addrman.h \
   attributes.h \
   auxpow.h \
@@ -136,7 +139,6 @@ CROWN_CORE_H = \
   consensus/consensus.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
-  contractdb.h \
   core_io.h \
   core_memusage.h \
   crown/cache.h \
@@ -243,6 +245,10 @@ CROWN_CORE_H = \
   shutdown.h \
   signet.h \
   streams.h \
+  smsg/db.h \
+  smsg/crypter.h \
+  smsg/net.h \
+  smsg/smessage.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
   support/cleanse.h \
@@ -351,7 +357,6 @@ libcrown_server_a_SOURCES = \
   crown/nodesync.cpp \
   crown/nodewallet.cpp \
   crown/spork.cpp \
-  contractdb.cpp \
   dbwrapper.cpp \
   flatfile.cpp \
   dbdetails.cpp \
@@ -485,6 +490,7 @@ endif
 libcrown_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(CROWN_INCLUDES) $(SQLITE_CFLAGS)
 libcrown_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libcrown_wallet_a_SOURCES = \
+  addressbook.cpp \
   interfaces/wallet.cpp \
   wallet/bdb.cpp \
   wallet/coincontrol.cpp \
@@ -625,6 +631,7 @@ libcrown_common_a_SOURCES = \
   core_read.cpp \
   core_write.cpp \
   key.cpp \
+  smsg/crypter.cpp \
   key_io.cpp \
   merkleblock.cpp \
   netaddress.cpp \
@@ -689,6 +696,22 @@ if USE_LIBEVENT
 libcrown_util_a_SOURCES += util/url.cpp
 endif
 
+libcrown_smsg_a_CPPFLAGS = $(AM_CPPFLAGS) $(CROWN_INCLUDES)
+libcrown_smsg_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libcrown_smsg_a_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS)
+libcrown_smsg_a_SOURCES = \
+  lz4/lz4.h \
+  lz4/lz4.c \
+  xxhash/xxhash.h \
+  xxhash/xxhash.c \
+  interfaces/handler.cpp \
+  smsg/crypter.cpp \
+  smsg/keystore.h \
+  smsg/keystore.cpp \
+  smsg/db.cpp \
+  smsg/smessage.cpp \
+  smsg/rpcsmessage.cpp
+
 if GLIBC_BACK_COMPAT
 libcrown_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
@@ -717,6 +740,7 @@ crown_daemon_sources += crownd-res.rc
 endif
 
 crown_bin_ldadd = \
+  $(LIBCROWN_SMSG) \
   $(LIBCROWN_WALLET) \
   $(LIBCROWN_COMMON) \
   $(LIBCROWN_UTIL) \
@@ -797,6 +821,7 @@ crown_wallet_LDADD += \
   $(LIBUNIVALUE) \
   $(LIBCROWN_ZMQ) \
   $(LIBCROWN_CONSENSUS) \
+  $(LIBCROWN_SMSG) \
   $(LIBCROWN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBLEVELDB_SSE42) \
@@ -844,6 +869,7 @@ CLEANFILES += crown/*.gcda crown/*.gcno
 CLEANFILES += masternode/*.gcda masternode/*.gcno
 CLEANFILES += systemnode/*.gcda systemnode/*.gcno
 CLEANFILES += pos/*.gcda pos/*.gcno
+CLEANFILES += smsg/*.gcda pos/*.gcno
 CLEANFILES += index/*.gcda index/*.gcno
 CLEANFILES += interfaces/*.gcda interfaces/*.gcno
 CLEANFILES += node/*.gcda node/*.gcno

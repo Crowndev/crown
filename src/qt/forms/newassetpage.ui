@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>913</width>
-    <height>570</height>
+    <width>791</width>
+    <height>578</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -154,6 +154,30 @@
         <layout class="QHBoxLayout" name="horizontalLayout_2"/>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QLineEdit" name="name">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string>Asset Name</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="symbol">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="placeholderText">
+            <string>Asset Symbol</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
           <widget class="QLineEdit" name="inputAmount">
@@ -240,17 +264,18 @@
       </layout>
      </item>
      <item>
-      <spacer name="verticalSpacer_4">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
+      <widget class="QLineEdit" name="contracturl">
+       <property name="placeholderText">
+        <string>Contract url</string>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTextEdit" name="scriptcode">
+       <property name="placeholderText">
+        <string>Contract Script</string>
        </property>
-      </spacer>
+      </widget>
      </item>
      <item>
       <widget class="QPlainTextEdit" name="nftTextEdit">

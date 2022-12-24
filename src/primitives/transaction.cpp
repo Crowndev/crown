@@ -8,6 +8,7 @@
 #include <arith_uint256.h>
 #include <hash.h>
 #include <tinyformat.h>
+#include <logging.h>
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <assert.h>
@@ -53,6 +54,71 @@ bool IsValidTypeAndVersion(int nVersion, int nType)
     //! debug
     return false;
 }
+
+bool ExtractCoinStakeInt64(const std::vector<uint8_t> &vData, DataOutputTypes get_type, CAmount &out)
+{
+    if (vData.size() < 5) { // First 4 bytes will be height
+        return false;
+    }
+    uint64_t nv = 0;
+    size_t nb = 0;
+    size_t ofs = 4;
+    while (ofs < vData.size()) {
+        uint8_t current_type = vData[ofs];
+        if (current_type == DataOutputTypes::DO_SMSG_DIFFICULTY) {
+            ofs += 5;
+        } else
+        if (current_type == DataOutputTypes::DO_SMSG_FEE) {
+            ofs++;
+            if  (0 != part::GetVarInt(vData, ofs, nv, nb)) {
+                return false;
+            }
+            if (get_type == current_type) {
+                out = nv;
+                return true;
+            }
+            ofs += nb;
+        } else {
+            break; // Unknown identifier byte
+        }
+    }
+    return false;
+}
+
+bool ExtractCoinStakeUint32(const std::vector<uint8_t> &vData, DataOutputTypes get_type, uint32_t &out)
+{
+    if (vData.size() < 5) { // First 4 bytes will be height
+        return false;
+    }
+    uint64_t nv = 0;
+    size_t nb = 0;
+    size_t ofs = 4;
+    while (ofs < vData.size()) {
+        uint8_t current_type = vData[ofs];
+        if (current_type == DataOutputTypes::DO_SMSG_DIFFICULTY) {
+            if (vData.size() < ofs+5) {
+                return false;
+            }
+            if (get_type == current_type) {
+                memcpy(&out, &vData[ofs + 1], 4);
+                out = le32toh(out);
+                return true;
+            }
+            ofs += 5;
+        } else
+        if (current_type == DataOutputTypes::DO_SMSG_FEE) {
+            ofs++;
+            if  (0 != part::GetVarInt(vData, ofs, nv, nb)) {
+                return false;
+            }
+            ofs += nb;
+        } else {
+            break; // Unknown identifier byte
+        }
+    }
+    return false;
+}
+
 
 std::string COutPoint::ToString() const
 {
@@ -134,11 +200,6 @@ std::string CTxDataBase::ToString() const
             CTxData *data_output = (CTxData*)this;
             return strprintf("%s", data_output->ToString());
             }
-        case OUTPUT_CONTRACT:
-            {
-            CContract *rcto = (CContract*)this;
-            return strprintf("%s", rcto->ToString());
-            }
         default:
             break;
     }
@@ -148,11 +209,6 @@ std::string CTxDataBase::ToString() const
 uint256 CTxDataBase::GetHash() const
 {
     switch (nVersion) {
-        case OUTPUT_CONTRACT:
-            {
-            CContract *rcto = (CContract*)this;
-            return rcto->GetHash();
-            }
         default:
             break;
     }
@@ -162,11 +218,6 @@ uint256 CTxDataBase::GetHash() const
 uint256 CTxDataBase::GetHashWithoutSign() const
 {
     switch (nVersion) {
-        case OUTPUT_CONTRACT:
-            {
-            CContract *rcto = (CContract*)this;
-            return rcto->GetHashWithoutSign();
-            }
         default:
             break;
     }
@@ -184,10 +235,6 @@ void DeepCopy(CTxDataBaseRef &to, const CTxDataBaseRef &from)
         case OUTPUT_DATA:
             to = MAKE_OUTPUT<CTxData>();
             *((CTxData*)to.get()) = *((CTxData*)from.get());
-            break;
-        case OUTPUT_CONTRACT:
-            to = MAKE_OUTPUT<CContract>();
-            *((CContract*)to.get()) = *((CContract*)from.get());
             break;
         default:
             break;
@@ -271,6 +318,26 @@ CAmountMap CTransaction::GetValueOutMap() const {
     return values;
 }
 
+CAmount CTransaction::GetTotalSMSGFees() const
+{
+    CAmount smsg_fees = 0;
+    for (const auto &v : vdata) {
+        if (!v->IsVersion(OUTPUT_DATA))
+            continue;
+        CTxData *txd = (CTxData*) v.get();
+        if (txd->vData.size() < 25 || txd->vData[0] != DO_FUND_MSG)
+            continue;
+        size_t n = (txd->vData.size()-1) / 24;
+        for (size_t k = 0; k < n; ++k) {
+            uint32_t nAmount;
+            memcpy(&nAmount, &txd->vData[1+k*24+20], 4);
+            nAmount = le32toh(nAmount);
+            smsg_fees += nAmount;
+        }
+    }
+    return smsg_fees;
+}
+
 unsigned int CTransaction::GetTotalSize() const
 {
     return ::GetSerializeSize(*this, PROTOCOL_VERSION);
@@ -317,6 +384,30 @@ std::string CTransaction::ToString() const
     return str;
 }
 
+bool CTransaction::GetSmsgFeeRate(CAmount &fee_rate) const
+{
+    if (vdata.size() > 0){
+        uint8_t vers = vdata[0].get()->GetVersion();
+        if (vers != OUTPUT_DATA) 
+            return false;
+    
+        return vdata[0].get()->GetSmsgFeeRate(fee_rate);
+    }
+    return false;
+}
+
+bool CTransaction::GetSmsgDifficulty(uint32_t &compact) const
+{
+    if (vdata.size() > 0){
+		uint8_t vers = vdata[0].get()->GetVersion();
+		if (vers != OUTPUT_DATA)
+			return false;
+		
+		return vdata[0].get()->GetSmsgDifficulty(compact);
+    }
+    return false;
+}
+
 std::string CMutableTransaction::ToString() const
 {
     std::string str;
@@ -342,42 +433,11 @@ std::string CMutableTransaction::ToString() const
     return str;
 }
 
-std::string CContract::ToString()
-{
-    std::string str ="";
-    str +=    strprintf("Contract Link  : %s\n", contract_url);
-
-    str +=    strprintf("Contract Name : %s\n", asset_name);
-    str +=    strprintf("Issuing Address : %s \n", sIssuingaddress);
-    str +=    strprintf("Description : %s \n", description);
-    str +=    strprintf("Website : %s \n",website_url);
-    str +=    strprintf("Script : %s \n", scriptcode.ToString());
-    str +=    strprintf("Signature : %s \n", HexStr(vchContractSig));
-
-    return strprintf("CContract(%s)\n", str);
-}
-
-uint256 CContract::GetHashWithoutSign() const
-{
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << contract_url << asset_symbol << asset_name << sIssuingaddress << description << website_url << scriptcode;
-    return ss.GetHash();
-}
-
-uint256 CContract::GetHash() const
-{
-    return SerializeHash(*this);
-}
-
 std::string dataTypeToString(DataTypes &dt)
 {
     switch (dt) {
         case OUTPUT_DATA:
             return "DATA";
-        case OUTPUT_CONTRACT:
-            return "CONTRACT";
-        case OUTPUT_ID:
-            return "ID";
         default:
             break;
     }

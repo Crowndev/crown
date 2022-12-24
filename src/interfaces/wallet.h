@@ -21,11 +21,14 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <wallet/wallet.h>
 
 class CCoinControl;
 class CFeeRate;
 class CKey;
 class CWallet;
+class COutput;
+
 enum class FeeReason;
 enum class OutputType;
 enum class TransactionError;
@@ -114,6 +117,10 @@ public:
     //! Get wallet address list.
     virtual std::vector<WalletAddress> getAddresses() = 0;
 
+    virtual void availableCoins(std::vector<COutput>& vCoins, const CAsset& asset_filter, bool fOnlySafe,
+                const CCoinControl* coinControl, AvailableCoinsType coin_type, const CAmount& nMinimumAmount,
+                 const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) =0;
+
     //! Add dest data.
     virtual bool addDestData(const CTxDestination& dest, const std::string& key, const std::string& value) = 0;
 
@@ -137,17 +144,10 @@ public:
     
     virtual std::map<CTxDestination, CAmountMap> getAddressBalances() =0;
     
-    virtual bool createContract(CContract& contract, CTransactionRef& tx,
-        std::string &address, std::string &contract_url, std::string &website_url,
-        std::string &description, CScript &script, std::string& name,
-        std::string& shortname, std::string& strFailReason) =0;
-
     virtual bool createAsset(CAsset& asset, CTransactionRef& tx, std::string& name,
-         std::string& shortname, CAmount& amountin, CAmount& amountout,
-         int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason, 
+         std::string& shortname, std::string& address, std::string& contract_url, CScript& script, CAmount& amountin, CAmount& amountout,
+         int64_t& expiry, int& type, CTxData& rdata, std::string& strFailReason, 
          bool transferable, bool convertable, bool restricted, bool limited, bool divisible) =0;
-
-    virtual CContract getContract(std::string& name) =0;    
 
     //! Create transaction.
     virtual CTransactionRef createTransaction(const std::vector<CRecipient>& recipients,
@@ -354,9 +354,12 @@ struct WalletAddress
     isminetype is_mine;
     std::string name;
     std::string purpose;
+	std::string alias;
+	std::string email;
 
-    WalletAddress(CTxDestination dest, isminetype is_mine, std::string name, std::string purpose)
-        : dest(std::move(dest)), is_mine(is_mine), name(std::move(name)), purpose(std::move(purpose))
+	std::string pubkey;
+    WalletAddress(CTxDestination dest, isminetype is_mine, std::string name, std::string purpose, std::string alias, std::string pubkey)
+        : dest(std::move(dest)), is_mine(is_mine), name(std::move(name)), purpose(std::move(purpose)), alias(std::move(alias)), pubkey(std::move(pubkey))
     {
     }
 };

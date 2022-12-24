@@ -88,6 +88,7 @@ CPubKey AddrToPubKey(const FillableSigningProvider& keystore, const std::string&
 CTxDestination AddAndGetMultisigDestination(const int required, const std::vector<CPubKey>& pubkeys, OutputType type, FillableSigningProvider& keystore, CScript& script_out);
 
 UniValue DescribeAddress(const CTxDestination& dest);
+bool GetBool(const UniValue &uv);
 //! Parse a confirm target option and raise an RPC error if it is invalid.
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target);
 

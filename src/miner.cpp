@@ -33,6 +33,7 @@
 #include <pos/stakeminer.h>
 #include <pos/stakevalidation.h>
 
+#include <smsg/smessage.h>
 
 #include <algorithm>
 #include <utility>
@@ -176,6 +177,91 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     if (fProofOfStake && nHeight < Params().PoSStartHeight())
         return nullptr;
+
+    OUTPUT_PTR<CTxData> out0 = MAKE_OUTPUT<CTxData>();
+    out0->vData.resize(4);
+    uint32_t tmp = htole32(nHeight);
+    memcpy(&out0->vData[0], &tmp, 4);
+    coinbaseTx.vdata.push_back(out0);
+    int64_t m_smsg_fee_rate_target = 0;
+    
+    CTransactionRef txPrev = nullptr;
+    // Place SMSG fee rate
+    if (!fProofOfStake && nHeight > 1) {
+        CAmount smsg_fee_rate = Params().GetConsensus().smsg_fee_msg_per_day_per_k;
+        uint32_t last_compact = Params().GetConsensus().smsg_min_difficulty;
+        uint32_t next_compact = 0;
+
+        if (!coinStakeCache.GetCoinStake(pindexPrev->GetBlockHash(), txPrev)) {
+            LogPrintf("%s: Failed to get previous coinstake: %s.", __func__, pindexPrev->GetBlockHash().ToString());
+            return nullptr;
+        }
+
+		txPrev->GetSmsgFeeRate(smsg_fee_rate);
+        
+        if (m_smsg_fee_rate_target > 0) {
+            int64_t diff = m_smsg_fee_rate_target - smsg_fee_rate;
+            int64_t max_delta = Params().GetMaxSmsgFeeRateDelta(smsg_fee_rate);
+            if (diff > max_delta) {
+                diff = max_delta;
+            }
+            if (diff < -max_delta) {
+                diff = -max_delta;
+            }
+            smsg_fee_rate += diff;
+        }
+        std::vector<uint8_t> vSmsgFeeRate(1), vSmsgDifficulty(5), &vData = *coinbaseTx.vdata[0]->GetPData();
+        vSmsgFeeRate[0] = DO_SMSG_FEE;
+        if (0 != part::PutVarInt(vSmsgFeeRate, smsg_fee_rate)) {
+            LogPrintf("%s: PutVarInt failed: %d.", __func__, smsg_fee_rate);
+            return nullptr;
+        }
+        vData.insert(vData.end(), vSmsgFeeRate.begin(), vSmsgFeeRate.end());
+        CAmount test_fee = 0;
+        assert(ExtractCoinStakeInt64(vData, DO_SMSG_FEE, test_fee));
+        assert(test_fee == smsg_fee_rate);
+
+        txPrev->GetSmsgDifficulty(last_compact);
+        if (true) {
+            next_compact = last_compact;
+            int auto_adjust = smsgModule.AdjustDifficulty(coinbaseTx.nTime);
+            if (auto_adjust > 0 && last_compact != Params().GetConsensus().smsg_min_difficulty) {
+                next_compact += auto_adjust;
+            } else
+            if (auto_adjust < 0) {
+                next_compact += auto_adjust;
+            }
+        }
+
+        uint32_t test_compact;
+        if (last_compact != next_compact) {
+
+            uint32_t delta;
+            if (last_compact > next_compact) {
+                delta = last_compact - next_compact;
+                if (delta > Params().GetConsensus().smsg_difficulty_max_delta) {
+                    next_compact = last_compact - Params().GetConsensus().smsg_difficulty_max_delta;
+                }
+            } else {
+                delta = next_compact - last_compact;
+                if (delta > Params().GetConsensus().smsg_difficulty_max_delta) {
+                    next_compact = last_compact + Params().GetConsensus().smsg_difficulty_max_delta;
+                }
+            }
+
+            if (next_compact > Params().GetConsensus().smsg_min_difficulty) {
+                next_compact = Params().GetConsensus().smsg_min_difficulty;
+            }
+        }
+
+        vSmsgDifficulty[0] = DO_SMSG_DIFFICULTY;
+        uint32_t tmp = htole32(next_compact);
+        memcpy(&vSmsgDifficulty[1], &tmp, 4);
+        vData.insert(vData.end(), vSmsgDifficulty.begin(), vSmsgDifficulty.end());
+        assert(ExtractCoinStakeUint32(vData, DO_SMSG_DIFFICULTY, test_compact));
+        assert(test_compact == next_compact);
+    }
+
 
     if (fProofOfStake) {
         pblock->nTime = GetAdjustedTime();

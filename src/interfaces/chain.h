@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <util/ui_change_type.h>
 
 class ArgsManager;
 class CBlock;
@@ -98,10 +99,7 @@ public:
     //! 1 for following block, and so on. Returns nullopt for a block not
     //! included in the current chain.
     virtual std::optional<int> getBlockHeight(const uint256& hash) = 0;
-
-    virtual CContract getContract(std::string name)=0;
     virtual bool isequals(const std::string& str1, const std::string& str2) =0;
-    virtual bool existsContract(std::string name)=0;
     //! Get block hash. Height must be valid or this function will abort.
     virtual uint256 getBlockHash(int height) = 0;
     
@@ -134,6 +132,10 @@ public:
     //! or contents.
     virtual bool findBlock(const uint256& hash, const FoundBlock& block={}) = 0;
 
+    virtual int adjustDifficulty(int64_t time) =0;
+    virtual int walletKeyChanged(CKeyID &keyId, const std::string &sLabel, ChangeType mode) =0;
+    virtual int walletUnlocked(CWallet *pwallet) =0;
+    virtual int addLocalAddress(const std::string &sAddress) =0;
     //! Find first block in the chain with timestamp >= the given time
     //! and height >= than the given height, return false if there is no block
     //! with a high enough timestamp and height. std::optionally return block
@@ -295,6 +297,7 @@ public:
     //! to be prepared to handle this by ignoring notifications about unknown
     //! removed transactions and already added new transactions.
     virtual void requestMempoolTransactions(Notifications& notifications) = 0;
+    virtual int64_t getSmsgFeeRate(const CBlockIndex *pindex, bool reduce_height=false) = 0;
 };
 
 //! Interface to let node manage chain clients (wallets, or maybe tools for

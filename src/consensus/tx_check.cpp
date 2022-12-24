@@ -4,7 +4,6 @@
 
 #include <consensus/tx_check.h>
 #include <logging.h>
-#include <contractdb.h>
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
@@ -27,35 +26,6 @@ static bool CheckData(TxValidationState &state, const CTxData *p)
     if (p->vData.size() > MAX_DATA_OUTPUT_SIZE) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("bad-output-data-size-large %d vs %d\n", p->vData.size(), MAX_DATA_OUTPUT_SIZE));
     }
-
-    return true;
-}
-
-static bool CheckContract(TxValidationState &state, const CContract *p)
-{
-    //p.contract_url ;
-    //p.website_url ;
-    //p.description ;
-    //p.scriptcode ;
-
-    CTxDestination dest = DecodeDestination(p->sIssuingaddress);
-    if (!IsValidDestination(dest))
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Invalid Crown address");
-
-    if(ExistsContract(p->asset_name))
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name already reserved");
-
-    if(p->asset_name == "" || p->asset_symbol == "")
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name or symbol cannot be empty");
-
-    if(p->asset_name == p->asset_symbol)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract name or symbol cannot match");
-
-    if(p->asset_name.length() > 10)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract Name too long");
-
-    if(p->asset_symbol.length() > 4)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "Contract Symbol too long");
 
     return true;
 }
@@ -99,12 +69,6 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         for (unsigned int i = 0; i < tx.vdata.size(); i++){
             uint8_t vers = tx.vdata[i].get()->GetVersion();
             switch (vers) {
-                case OUTPUT_CONTRACT:
-                    if (!CheckContract(state, (CContract*) tx.vdata[i].get())) {
-                        return false;
-                    }
-                    nContractOutputs++;
-                    break;
                 case OUTPUT_DATA:
                     if (!CheckData(state, (CTxData*) tx.vdata[i].get())) {
                         return false;

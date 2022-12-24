@@ -9,7 +9,8 @@
 enum ChangeType {
     CT_NEW,
     CT_UPDATED,
-    CT_DELETED
+    CT_DELETED,
+    CT_REPLACE,
 };
 
 #endif // CROWN_UTIL_UI_CHANGE_TYPE_H

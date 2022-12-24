@@ -34,7 +34,7 @@
 #include <qt/walletview.h>
 #endif // ENABLE_WALLET
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include <qt/macdockiconhandler.h>
 #endif
 
@@ -73,7 +73,7 @@
 
 
 const std::string CrownGUI::DEFAULT_UIPLATFORM =
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
         "macosx"
 #elif defined(Q_OS_WIN)
         "windows"
@@ -795,7 +795,7 @@ void CrownGUI::createTrayIcon()
 
 void CrownGUI::createTrayIconMenu()
 {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
     // return if trayIcon is unset (only on non-macOSes)
     if (!trayIcon)
         return;
@@ -810,7 +810,7 @@ void CrownGUI::createTrayIconMenu()
 #endif
 
     // Configuration of the tray icon (or Dock icon) menu
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
     // Note: On macOS, the Dock icon's menu already has Show / Hide action.
     trayIconMenu->addAction(toggleHideAction);
     trayIconMenu->addSeparator();
@@ -825,13 +825,13 @@ void CrownGUI::createTrayIconMenu()
     }
     trayIconMenu->addAction(optionsAction);
     trayIconMenu->addAction(openRPCConsoleAction);
-#ifndef Q_OS_MAC // This is built-in on macOS
+#ifndef Q_OS_MACOS // This is built-in on macOS
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(quitAction);
 #endif
 }
 
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 void CrownGUI::trayIconActivated(QSystemTrayIcon::ActivationReason reason)
 {
     if(reason == QSystemTrayIcon::Trigger)
@@ -1013,7 +1013,7 @@ void CrownGUI::openOptionsDialogWithTab(OptionsDialog::Tab tab)
 void CrownGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header, SynchronizationState sync_state)
 {
 // Disabling macOS App Nap on initial sync, disk and reindex operations.
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     if (sync_state == SynchronizationState::POST_INIT) {
         m_app_nap_inhibitor->enableAppNap();
     } else {
@@ -1270,7 +1270,7 @@ void CrownGUI::message(const QString& title, QString message, unsigned int style
 void CrownGUI::changeEvent(QEvent *e)
 {
     QMainWindow::changeEvent(e);
-#ifndef Q_OS_MAC // Ignored on Mac
+#ifndef Q_OS_MACOS // Ignored on Mac
     if(e->type() == QEvent::WindowStateChange)
     {
         if(clientModel && clientModel->getOptionsModel() && clientModel->getOptionsModel()->getMinimizeToTray())
@@ -1293,7 +1293,7 @@ void CrownGUI::changeEvent(QEvent *e)
 
 void CrownGUI::closeEvent(QCloseEvent *event)
 {
-#ifndef Q_OS_MAC // Ignored on Mac
+#ifndef Q_OS_MACOS // Ignored on Mac
     if(clientModel && clientModel->getOptionsModel())
     {
         if(!clientModel->getOptionsModel()->getMinimizeOnClose())

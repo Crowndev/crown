@@ -425,12 +425,33 @@ void CrownApplication::handleRunawayException(const QString &message)
     ::exit(EXIT_FAILURE);
 }
 
+
+void CrownApplication::handleNonFatalException(const QString& message)
+{
+    assert(QThread::currentThread() == thread());
+    QMessageBox::warning(
+        nullptr, tr("Internal error"),
+        tr("An internal error occurred. %1 will attempt to continue safely. This is "
+           "an unexpected bug which can be reported as described below.").arg(PACKAGE_NAME) +
+        QLatin1String("<br><br>") + GUIUtil::MakeHtmlLink(message, PACKAGE_BUGREPORT));
+}
+
 WId CrownApplication::getMainWinId() const
 {
     if (!window)
         return 0;
 
     return window->winId();
+}
+
+bool CrownApplication::event(QEvent* e)
+{
+    if (e->type() == QEvent::Quit) {
+        requestShutdown();
+        return true;
+    }
+
+    return QApplication::event(e);
 }
 
 static void SetupUIArgs(ArgsManager& argsman)

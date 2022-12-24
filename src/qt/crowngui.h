@@ -19,7 +19,7 @@
 #include <QPoint>
 #include <QSystemTrayIcon>
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include <qt/macos_appnap.h>
 #endif
 
@@ -178,7 +178,7 @@ private:
     HelpMessageDialog* helpMessageDialog = nullptr;
     ModalOverlay* modalOverlay = nullptr;
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     CAppNapInhibitor* m_app_nap_inhibitor = nullptr;
 #endif
 

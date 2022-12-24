@@ -341,7 +341,7 @@ std::string CAsset::ToString(bool mini) const
     str +=    strprintf("Name : %s\n", getAssetName());
     str +=    strprintf("Symbol : %s \n", getShortName());
     str +=    strprintf("CAssetID : %s \n",GetHex());
-    str +=    strprintf("Contract Hash : %s \n",contract_hash.ToString());
+    //str +=    strprintf("Contract Hash : %s \n",contract_hash.ToString());
     str += strprintf("Details (ver=%d, transferable=%s, convertable=%s, limited=%s, restricted=%s, stakable=%s, infatable=%s, divisible=%s, type=%s, expiry=%d)\n", nVersion, isTransferable() ? "yes" : "no", isConvertable() ? "yes" : "no", isLimited() ? "yes" : "no", isRestricted() ? "yes" : "no", isStakeable() ? "yes" : "no", isInflatable() ? "yes" : "no", isDivisible() ? "yes" : "no", GetType(), GetExpiry());
 
     return str;

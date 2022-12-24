@@ -36,7 +36,6 @@ QT_FORMS_UI = \
   qt/forms/createnodedialog.ui \
   qt/forms/startmissingdialog.ui \
   qt/forms/assetmanagerpage.ui \
-  qt/forms/newcontractpage.ui \
   qt/forms/newassetpage.ui \
   qt/forms/nodemanager.ui  
 # \
@@ -51,7 +50,6 @@ QT_MOC_CPP = \
   qt/moc_assettablemodel.cpp \
   qt/moc_askpassphrasedialog.cpp \
   qt/moc_createwalletdialog.cpp \
-  qt/moc_contracttablemodel.cpp \
   qt/moc_bantablemodel.cpp \
   qt/moc_crownaddressvalidator.cpp \
   qt/moc_crownamountfield.cpp \
@@ -62,7 +60,6 @@ QT_MOC_CPP = \
   qt/moc_coincontrolmodel.cpp \
   qt/moc_coincontroldialog.cpp \
   qt/moc_coincontroltreewidget.cpp \
-  qt/moc_contractfilterproxy.cpp \
   qt/moc_coincontrolfilterproxy.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
@@ -109,7 +106,6 @@ QT_MOC_CPP = \
   qt/moc_walletmodel.cpp \
   qt/moc_walletview.cpp \
   qt/moc_assetmanagerpage.cpp \
-  qt/moc_newcontractpage.cpp \
   qt/moc_newassetpage.cpp \
   qt/moc_nodemanager.cpp  
 # \
@@ -152,7 +148,6 @@ CROWN_QT_H = \
   qt/createwalletdialog.h \
   qt/csvmodelwriter.h \
   qt/editaddressdialog.h \
-  qt/contractfilterproxy.h \
   qt/coincontrolfilterproxy.h \
   qt/guiconstants.h \
   qt/guiutil.h \
@@ -206,7 +201,6 @@ CROWN_QT_H = \
   qt/walletview.h \
   qt/winshutdownmonitor.h \
   qt/assetmanagerpage.h \
-  qt/newcontractpage.h \
   qt/newassetpage.h \
   qt/nodemanager.h  
 # \
@@ -273,7 +267,6 @@ CROWN_QT_BASE_CPP = \
   qt/crownunits.cpp \
   qt/clientmodel.cpp \
   qt/csvmodelwriter.cpp \
-  qt/contracttablemodel.cpp \
   qt/guiutil.cpp \
   qt/intro.cpp \
   qt/modaloverlay.cpp \
@@ -300,7 +293,6 @@ CROWN_QT_WALLET_CPP = \
   qt/assettablemodel.cpp \
   qt/coincontrolmodel.cpp \
   qt/coincontrolfilterproxy.cpp \
-  qt/contractfilterproxy.cpp \
   qt/askpassphrasedialog.cpp \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
@@ -336,7 +328,6 @@ CROWN_QT_WALLET_CPP = \
   qt/privatekeywidget.cpp \
   qt/walletview.cpp \
   qt/assetmanagerpage.cpp \
-  qt/newcontractpage.cpp \
   qt/newassetpage.cpp \
   qt/nodemanager.cpp      
 # \
@@ -395,7 +386,7 @@ endif
 if ENABLE_ZMQ
 crown_qt_ldadd += $(LIBCROWN_ZMQ) $(ZMQ_LIBS)
 endif
-crown_qt_ldadd += $(LIBCROWN_CLI) $(LIBCROWN_COMMON) $(LIBCROWN_UTIL) $(LIBCROWN_CONSENSUS) $(LIBCROWN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
+crown_qt_ldadd += $(LIBCROWN_CLI) $(LIBCROWN_COMMON) $(LIBCROWN_UTIL) $(LIBCROWN_CONSENSUS) $(LIBCROWN_CRYPTO) $(LIBCROWN_SMSG) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBLEVELDB_SSE42) $(LIBMEMENV) \
   $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(SQLITE_LIBS)
 crown_qt_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)

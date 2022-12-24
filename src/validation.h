@@ -309,6 +309,8 @@ void InitScriptExecutionCache();
 /** Functions for disk access for blocks */
 bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
+bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex, int nIndex, CTransactionRef &txOut);
+
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start);
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex, const CMessageHeader::MessageStartChars& message_start);
 bool ReadBlockHeaderFromDisk(CBlockHeader& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);
@@ -1009,6 +1011,21 @@ bool DumpMempool(const CTxMemPool& pool);
 /** Load the mempool from disk. */
 bool LoadMempool(CTxMemPool& pool);
 
+/** Cache recently seen coinstake transactions */
+class CoinStakeCache
+{
+public:
+    CoinStakeCache() {};
+    explicit CoinStakeCache(size_t max_size) : nMaxSize(max_size) {};
+    size_t nMaxSize = 16;
+    std::list<std::pair<uint256, CTransactionRef> > lData;
+
+    bool GetCoinStake(const uint256 &blockHash, CTransactionRef &tx) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool InsertCoinStake(const uint256 &blockHash, const CTransactionRef &tx) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+};
+
+extern CoinStakeCache coinStakeCache;
+
 //! Check whether the block associated with this index entry is pruned or not.
 inline bool IsBlockPruned(const CBlockIndex* pblockindex)
 {
@@ -1018,5 +1035,10 @@ inline bool IsBlockPruned(const CBlockIndex* pblockindex)
 bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin);
 int GetUTXOHeight(const COutPoint& outpoint);
 int GetUTXOConfirmations(const COutPoint& outpoint);
+
+bool CheckAssetSignature(const CAsset& asset);
+
+int64_t GetSmsgFeeRate(const CBlockIndex *pindex, bool reduce_height=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+uint32_t GetSmsgDifficulty(uint64_t time, bool verify=false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 #endif // CROWN_VALIDATION_H

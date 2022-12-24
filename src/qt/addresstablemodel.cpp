@@ -8,7 +8,6 @@
 #include <qt/walletmodel.h>
 
 #include <key_io.h>
-#include <contractdb.h>
 #include <wallet/wallet.h>
 
 #include <algorithm>
@@ -93,13 +92,6 @@ public:
                         QString::fromStdString(address.purpose), address.is_mine);
                 QString r_contract = "";        
 
-				for(auto const& x : pcontractCache->GetItemsMap()){
-					CContract contract = x.second->second.contract;
-					//CTxDestination cdest = DecodeDestination(contract.sIssuingaddress);
-					if(EncodeDestination(address.dest) == contract.sIssuingaddress)
-						r_contract = QString::fromStdString(contract.asset_name);
-
-				}
 
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                   QString::fromStdString(address.name),

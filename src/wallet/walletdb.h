@@ -271,6 +271,9 @@ public:
     bool TxnCommit();
     //! Abort current transaction
     bool TxnAbort();
+
+    bool WriteLockedUnspentOutput(const COutPoint &o);
+    bool EraseLockedUnspentOutput(const COutPoint &o);
 private:
     std::unique_ptr<DatabaseBatch> m_batch;
     WalletDatabase& m_database;

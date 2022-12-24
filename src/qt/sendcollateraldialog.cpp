@@ -8,20 +8,21 @@
 #include <qt/sendcoinsdialog.h>
 #include <qt/crownunits.h>
 #include <qt/optionsmodel.h>
+#include <QDebug>
 
 SendCollateralDialog::SendCollateralDialog(const PlatformStyle *platformStyle, Node node, QWidget *parent) :
     SendCoinsDialog(platformStyle, nullptr),
-    fAutoCreate(false),
     node(node)
 {
 }
 
-void SendCollateralDialog::send(QList<SendAssetsRecipient> &recipients)
+void SendCollateralDialog::vsend(QList<SendAssetsRecipient> &recipients)
 {
+	qDebug() << __func__  <<  "1 : ";
     QStringList formatted = constructConfirmationMessage(recipients);
-    fAutoCreate = true;
+    qDebug() << __func__  <<  "2 : ";
     checkAndSend(recipients, formatted);
-    fAutoCreate = false;
+    qDebug() << __func__  <<  "3 : ";
 }
 
 bool SendCollateralDialog::instantXChecked()

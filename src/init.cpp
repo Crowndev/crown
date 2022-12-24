@@ -19,7 +19,6 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <compat/sanity.h>
-#include <contractdb.h>
 
 #include <consensus/validation.h>
 #include <fs.h>
@@ -66,6 +65,7 @@
 #include <validation.h>
 
 #include <validationinterface.h>
+#include <smsg/smessage.h>
 #include <walletinitinterface.h>
 
 #include <algorithm>
@@ -207,6 +207,7 @@ void Shutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
+    smsgModule.Shutdown();
     for (const auto& client : node.chain_clients) {
         client->flush();
     }
@@ -233,7 +234,7 @@ void Shutdown(NodeContext& node)
     StopTorControl();
 
     DumpAssets();
-    DumpContracts();
+
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue, scheduler and load block thread.
     if (node.scheduler) node.scheduler->stop();
@@ -304,9 +305,6 @@ void Shutdown(NodeContext& node)
         passetsdb.reset();
         delete passetsCache;
         passetsCache = nullptr;
-        pcontractdb.reset();
-        delete pcontractCache;
-        pcontractCache = nullptr;
     }
     for (const auto& client : node.chain_clients) {
         client->stop();
@@ -533,6 +531,8 @@ void SetupServerArgs(NodeContext& node)
         "CIDR-notated network (e.g. 1.2.3.0/24). Uses the same permissions as "
         "-whitebind. Can be specified multiple times." , ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
 
+    smsg::AddOptions(argsman);
+
     g_wallet_init_interface.AddWalletOptions(argsman);
 
 #if ENABLE_ZMQ
@@ -546,6 +546,7 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-zmqpubrawblockhwm=<n>", strprintf("Set publish raw block outbound message high water mark (default: %d)", CZMQAbstractNotifier::DEFAULT_ZMQ_SNDHWM), ArgsManager::ALLOW_ANY, OptionsCategory::ZMQ);
     argsman.AddArg("-zmqpubrawtxhwm=<n>", strprintf("Set publish raw transaction outbound message high water mark (default: %d)", CZMQAbstractNotifier::DEFAULT_ZMQ_SNDHWM), ArgsManager::ALLOW_ANY, OptionsCategory::ZMQ);
     argsman.AddArg("-zmqpubsequencehwm=<n>", strprintf("Set publish hash sequence message high water mark (default: %d)", CZMQAbstractNotifier::DEFAULT_ZMQ_SNDHWM), ArgsManager::ALLOW_ANY, OptionsCategory::ZMQ);
+    argsman.AddArg("-zmqpubsmsg=<address>", "Enable publish secure message in <address>", ArgsManager::ALLOW_ANY, OptionsCategory::ZMQ);
 #else
     hidden_args.emplace_back("-zmqpubhashblock=<address>");
     hidden_args.emplace_back("-zmqpubhashtx=<address>");
@@ -557,6 +558,7 @@ void SetupServerArgs(NodeContext& node)
     hidden_args.emplace_back("-zmqpubrawblockhwm=<n>");
     hidden_args.emplace_back("-zmqpubrawtxhwm=<n>");
     hidden_args.emplace_back("-zmqpubsequencehwm=<n>");
+    hidden_args.emplace_back("-zmqpubsmsg=<address>");
 #endif
 
     argsman.AddArg("-jumpstart", strprintf("Enable jumpstart: %u)", false), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
@@ -1704,18 +1706,6 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
                 LogPrintf("Loaded Assets from database without error\nCache of assets size: %d\n", passetsCache->Size());
 
-                pcontractdb.reset();
-                pcontractdb.reset(new CContractDB(nBlockTreeDBCache, false, fReset));
-                delete pcontractCache;
-                pcontractCache = new CLRUCache<std::string, CContractData>(2500);
-                if (!pcontractdb->LoadContracts()) {
-                    strLoadError = _("Failed to load Contract Database");
-                    break;
-                }
-
-                LogPrintf("Loaded Contracts from database without error\nCache of contracts count: %d\n", pcontractCache->Size());
-
-
                 if (fReset) {
                     pblocktree->WriteReindexing(true);
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
@@ -2048,6 +2038,17 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
         block_notify_genesis_wait_connection.disconnect();
     }
 
+    smsgModule.m_node = &node;
+    if (gArgs.GetBoolArg("-smsg", true)) { // SMSG breaks functional tests with services flag, see version msg
+#ifdef ENABLE_WALLET
+        auto vpwallets = GetWallets();
+        smsgModule.Start(vpwallets.size() > 0 ? vpwallets[0] : nullptr, vpwallets, gArgs.GetBoolArg("-smsgscanchain", false));
+#else
+        std::vector<std::shared_ptr<CWallet>> empty;
+        smsgModule.Start(nullptr, empty, gArgs.GetBoolArg("-smsgscanchain", false));
+#endif
+    }
+
     if (ShutdownRequested()) {
         return false;
     }
@@ -2085,7 +2086,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }
 
     CConnman::Options connOptions;
-    connOptions.nLocalServices = nLocalServices;
+    connOptions.nLocalServices = smsg::fSecMsgEnabled ? ServiceFlags(nLocalServices | NODE_SMSG) : nLocalServices;
     connOptions.nMaxConnections = nMaxConnections;
     connOptions.m_max_outbound_full_relay = std::min(MAX_OUTBOUND_FULL_RELAY_CONNECTIONS, connOptions.nMaxConnections);
     connOptions.m_max_outbound_block_relay = std::min(MAX_BLOCK_RELAY_ONLY_CONNECTIONS, connOptions.nMaxConnections-connOptions.m_max_outbound_full_relay);
@@ -2179,7 +2180,6 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     node.scheduler->scheduleEvery([banman]{
         banman->DumpBanlist();
         DumpAssets();
-        DumpContracts();
     }, DUMP_BANS_INTERVAL);
 
     node.scheduler->scheduleEvery(std::bind(&ThreadNodeSync, std::ref(*node.connman)), std::chrono::seconds{10});

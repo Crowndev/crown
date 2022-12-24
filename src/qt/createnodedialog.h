@@ -5,7 +5,7 @@
 
 class WalletModel;
 class PlatformStyle;
-
+class SendCollateralDialog;
 namespace Ui {
 class CreateNodeDialog;
 }
@@ -40,6 +40,7 @@ private:
     WalletModel *walletmodel = nullptr;
     const PlatformStyle *platformStyle;
     int mode;   
+    SendCollateralDialog *sendDialog;
     
     Ui::CreateNodeDialog *ui;
 };

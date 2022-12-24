@@ -4,7 +4,6 @@
 
 #include <interfaces/chain.h>
 #include <chain.h>
-#include <contractdb.h>
 #include <assetdb.h>
 #include <chainparams.h>
 #include <interfaces/handler.h>
@@ -24,6 +23,8 @@
 #include <primitives/transaction.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>
+#include <smsg/smessage.h>
+
 #include <shutdown.h>
 #include <sync.h>
 #include <timedata.h>
@@ -217,16 +218,6 @@ public:
         return ::GetAllAssets();
     }
 
-    CContract getContract(std::string name) override
-    {
-        return ::GetContract(name);
-    }
-
-    bool existsContract(std::string name) override
-    {
-        return (pcontractCache->Exists(name) || ExistsContract(name));
-    }
-
     int getTxVersion() override
     {
         int height = ::ChainActive().Height();
@@ -236,6 +227,26 @@ public:
             return TX_ELE_VERSION;
         }
         return TX_NFT_VERSION;
+    }
+
+    int adjustDifficulty(int64_t time) override
+    {
+        return smsgModule.AdjustDifficulty(time);
+    }
+
+    int walletKeyChanged(CKeyID &keyId, const std::string &sLabel, ChangeType mode) override
+    {
+        return smsgModule.WalletKeyChanged(keyId, sLabel, mode);
+    }
+
+    int walletUnlocked(CWallet *pwallet) override
+    {
+        return smsgModule.WalletUnlocked(pwallet);
+    }
+
+    int addLocalAddress(const std::string &sAddress)override
+    {
+        return smsgModule.AddLocalAddress(sAddress);
     }
 
     bool isequals(const std::string& str1, const std::string& str2) override
@@ -453,6 +464,13 @@ public:
             notifications.transactionAddedToMempool(entry.GetSharedTx(), 0 /* mempool_sequence */);
         }
     }
+
+    int64_t getSmsgFeeRate(const CBlockIndex *pindex, bool reduce_height) override
+    {
+        LOCK(::cs_main);
+        return ::GetSmsgFeeRate(pindex, reduce_height);
+    }
+
     NodeContext& m_node;
 };
 } // namespace

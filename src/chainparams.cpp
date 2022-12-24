@@ -19,6 +19,11 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 
+int64_t CChainParams::GetMaxSmsgFeeRateDelta(int64_t smsg_fee_prev) const
+{
+    return (smsg_fee_prev * consensus.smsg_fee_max_delta_percent) / 1000000;
+};
+
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward, Consensus::Params& consensus)
 {
     CMutableTransaction txNew;
@@ -36,6 +41,9 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     basemeta.nFlags = AssetMetadata::AssetFlags::ASSET_TRANSFERABLE | AssetMetadata::AssetFlags::ASSET_CONVERTABLE | AssetMetadata::AssetFlags::ASSET_STAKEABLE | AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
     basemeta.nExpiry =0;
     basemeta.nType =1;
+    basemeta.contract_url = "https://www.crownplatform.com/";
+    basemeta.sIssuingaddress = "";
+    basemeta.scriptcode = CScript();
     CAsset baseasset = CAsset(basemeta);
 
     consensus.subsidy_asset = baseasset;
@@ -47,6 +55,9 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     devmeta.nFlags = AssetMetadata::AssetFlags::ASSET_TRANSFERABLE | AssetMetadata::AssetFlags::ASSET_CONVERTABLE | AssetMetadata::AssetFlags::ASSET_STAKEABLE | AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
     devmeta.nExpiry =0;
     devmeta.nType =1;
+    devmeta.contract_url = "https://www.crownplatform.com/";
+    devmeta.sIssuingaddress = "";
+    devmeta.scriptcode = CScript();
     CAsset devasset = CAsset(devmeta);
 
     consensus.dev_asset = devasset;
@@ -134,6 +145,18 @@ public:
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 1 * 60; // Crown: 1 minute
+
+        consensus.nPaidSmsgTime = 0x5C791EC0;           // 2019-03-01 12:00:00
+        consensus.smsg_fee_time = 0x5D2DBC40;           // 2019-07-16 12:00:00
+        consensus.smsg_difficulty_time = 0x5D2DBC40;    // 2019-07-16 12:00:00
+
+        consensus.smsg_fee_period = 5040;
+        consensus.smsg_fee_funding_tx_per_k = 200000;
+        consensus.smsg_fee_msg_per_day_per_k = 50000;
+        consensus.smsg_fee_max_delta_percent = 43;
+        consensus.smsg_min_difficulty = 0x1effffff;
+        consensus.smsg_difficulty_max_delta = 0xffff;
+
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
@@ -272,6 +295,19 @@ public:
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 60; // two weeks
         consensus.nPowTargetSpacing = 60;
+
+        consensus.nPaidSmsgTime = 0x5C791EC0;           // 2019-03-01 12:00:00
+        consensus.smsg_fee_time = 0x5D2DBC40;           // 2019-07-16 12:00:00
+        consensus.smsg_difficulty_time = 0x5D2DBC40;    // 2019-07-16 12:00:00
+
+        consensus.smsg_fee_period = 5040;
+        consensus.smsg_fee_funding_tx_per_k = 200000;
+        consensus.smsg_fee_msg_per_day_per_k = 50000;
+        consensus.smsg_fee_max_delta_percent = 43;
+        consensus.smsg_min_difficulty = 0x1effffff;
+        consensus.smsg_difficulty_max_delta = 0xffff;
+
+
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -295,7 +331,7 @@ public:
         pchMessageStart[2] = 0x09;
         pchMessageStart[3] = 0x07;
         nDefaultPort = 18333;
-        nBlockPoSStart = 5000;
+        nBlockPoSStart = 2000;
         nPruneAfterHeight = 100000;
         nAuxpowChainId = 20;
         nChainStallDuration = 60*60;
@@ -313,10 +349,10 @@ public:
         CScript genscript(addrdata.begin(), addrdata.end());
         consensus.mandatory_coinbase_destination = genscript; 
 
-        genesis = CreateGenesisBlock(1670864619, 563412, 0x1e0ffff0, 1, 10 * COIN, consensus);
+        genesis = CreateGenesisBlock(1671564468, 1966855, 0x1e0ffff0, 1, 10 * COIN, consensus);
         consensus.hashGenesisBlock = genesis.GetHash();
         //MineNewGenesisBlock(consensus,genesis);
-        assert(consensus.hashGenesisBlock == uint256S("0x00000a372e60e093ec38a01f698474fb5d7cf8b71fb0d44b4c98165625235a85"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000db450b189248780b4a920b47e2e07b77e9668ee56cbfbb9adc5ff1fab5a"));
         assert(genesis.hashMerkleRoot == uint256S("0x80ad356118a9ab8db192db66ef77146cc36d958f959251feace550e4ca3d1446"));
 
         vFixedSeeds.clear();

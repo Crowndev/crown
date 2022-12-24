@@ -18,7 +18,7 @@ static const int INIT_PROTO_VERSION = 209;
 
 //! disconnect from peers older than this proto version
 static const int MIN_PEER_PROTO_VERSION = PROTOCOL_VERSION;
-
+static const int MIN_SMSG_PROTO_VERSION = 70057;
 //! minimum proto version of masternode to accept in DKGs
 static const int MIN_MASTERNODE_PROTO_VERSION = 70057;
 //! minimum peer version accepted by legacySigner

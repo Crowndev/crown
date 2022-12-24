@@ -23,4 +23,5 @@ void CCoinControl::SetNull()
     m_fee_mode = FeeEstimateMode::UNSET;
     m_min_depth = DEFAULT_MIN_DEPTH;
     m_max_depth = DEFAULT_MAX_DEPTH;
+    m_extrafee = 0;
 }

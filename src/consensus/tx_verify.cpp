@@ -11,7 +11,6 @@
 #include <script/interpreter.h>
 #include <consensus/validation.h>
 #include <assetdb.h>
-#include <contractdb.h>
 #include <key_io.h>
 
 // TODO remove the following dependencies
@@ -249,19 +248,14 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                      return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-output-asset-is-limited", strprintf("cannot convert other assets to (%s)", asset.getAssetName()));
 
                 // check asset restricted
-                // get contract hash, retrieve contract, get issuer , compare input address to issueraddress
-                const CContract &contract = GetContractByHash(asset.contract_hash);
-
-                if(contract.IsEmpty())
-                    return state.Invalid(TxValidationResult::TX_CONSENSUS, "contract-not-found", strprintf("contract retrieval failed %s", asset.contract_hash.ToString()));
 
                 CTxDestination address1, issuer;
                 ExtractDestination(input_addresses.front(), address1);
-                ExtractDestination(GetScriptForDestination(DecodeDestination(contract.sIssuingaddress)), issuer);
+                ExtractDestination(GetScriptForDestination(DecodeDestination(asset.sIssuingaddress)), issuer);
 
                 if(asset.isRestricted()){
                     if(input_addresses.size() != 1)
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer-multiple", strprintf("Inputs for this restricted asset must come from (%s) only", contract.sIssuingaddress));
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-input-issuer-multiple", strprintf("Inputs for this restricted asset must come from (%s) only", asset.sIssuingaddress));
 
                     if(std::get<PKHash>(issuer) != std::get<PKHash>(address1)) // Go deeper
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-issuer-mismatch", strprintf("(%s) vs (%s) only", EncodeDestination(issuer), EncodeDestination(address1)));
@@ -271,7 +265,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 // check asset inflation
                 if(asset.isInflatable()){
                     if(EncodeDestination(issuer) != EncodeDestination(address1))
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inflation-issuer-mismatch", strprintf("(%s) vs (%s) only", contract.sIssuingaddress, EncodeDestination(address1)));
+                        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inflation-issuer-mismatch", strprintf("(%s) vs (%s) only", asset.sIssuingaddress, EncodeDestination(address1)));
                 }
             }
 
@@ -349,8 +343,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
                 //equity
                 if (asset.nType == 3){
-                    if(asset.contract_hash == uint256())
-                        return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has no contract \n", AssetTypeToString(asset.nType)));
+                    //if(asset.contract_hash == uint256())
+                    //    return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but has no contract \n", AssetTypeToString(asset.nType)));
 
                     if(!asset.isTransferable())
                         return state.Invalid(TxValidationResult::TX_CONSENSUS, strprintf("invalid properties, asset type is %s, but not marked transferable \n", AssetTypeToString(asset.nType)));

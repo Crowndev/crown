@@ -19,6 +19,7 @@ class CTransaction;
 struct CMutableTransaction;
 class uint256;
 class UniValue;
+class CChainID;
 class CContract;
 class CAssetData;
 
@@ -52,7 +53,6 @@ std::string SighashToStr(unsigned char sighash_type);
 void ScriptPubKeyToUniv(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 void ScriptToUniv(const CScript& script, UniValue& out, bool include_address);
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex = true, int serialize_flags = 0);
-void ContractToUniv(const CContract &s , UniValue &entry);
 void AssetToUniv(const CAsset& asset, UniValue &entry);
 void AssetToUniv(const CAssetData& asset, UniValue &entry);
 

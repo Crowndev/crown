@@ -6,6 +6,7 @@
 #ifndef CROWN_WALLET_WALLET_H
 #define CROWN_WALLET_WALLET_H
 
+#include <addressbook.h>
 #include <amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
@@ -61,16 +62,19 @@ std::shared_ptr<CWallet> GetWallet(const std::string& name);
 std::shared_ptr<CWallet> LoadWallet(interfaces::Chain& chain, const std::string& name, std::optional<bool> load_on_start, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error, std::vector<bilingual_str>& warnings);
 std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::string& name, std::optional<bool> load_on_start, DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error, std::vector<bilingual_str>& warnings);
 std::unique_ptr<interfaces::Handler> HandleLoadWallet(LoadWalletFn load_wallet);
+
+extern boost::signals2::signal<void (const std::shared_ptr<CWallet>& wallet)> NotifyWalletAdded;
+
 std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error);
 
 //! -paytxfee default
 constexpr CAmount DEFAULT_PAY_TX_FEE = 0;
 //! -fallbackfee default
-static const CAmount DEFAULT_FALLBACK_FEE = 1000;
+static const CAmount DEFAULT_FALLBACK_FEE = 3000;
 //! -discardfee default
 static const CAmount DEFAULT_DISCARD_FEE = 10000;
 //! -mintxfee default
-static const CAmount DEFAULT_TRANSACTION_MINFEE = 1000;
+static const CAmount DEFAULT_TRANSACTION_MINFEE = 3000;
 /**
  * maximum fee increase allowed to do partial spend avoidance, even for nodes with this feature disabled by default
  *
@@ -112,6 +116,7 @@ class CWalletTx;
 struct FeeCalculation;
 enum class FeeEstimateMode;
 class ReserveDestination;
+class SecureMessaging;
 
 //! Default for -addresstype
 constexpr OutputType DEFAULT_ADDRESS_TYPE{OutputType::LEGACY};
@@ -196,28 +201,6 @@ public:
     void ReturnDestination();
     //! Keep the address. Do not return it's key to the keypool when this object goes out of scope
     void KeepDestination();
-};
-
-/** Address book data */
-class CAddressBookData
-{
-private:
-    bool m_change{true};
-    std::string m_label;
-public:
-    std::string purpose;
-
-    CAddressBookData() : purpose("unknown") {}
-
-    typedef std::map<std::string, std::string> StringMap;
-    StringMap destdata;
-
-    bool IsChange() const { return m_change; }
-    const std::string& GetLabel() const { return m_label; }
-    void SetLabel(const std::string& label) {
-        m_change = false;
-        m_label = label;
-    }
 };
 
 struct CRecipient
@@ -778,6 +761,9 @@ private:
      */
     uint256 m_last_block_processed GUARDED_BY(cs_wallet);
 
+    std::thread *secureMsgThread = nullptr;
+    SecureMessaging *m_secmsg = nullptr;
+
     /* Height of last block processed is used by wallet to know depth of transactions
      * without relying on Chain interface beyond asynchronous updates. For safety, we
      * initialize it to -1. Height is a pointer on node's tip and doesn't imply
@@ -827,6 +813,9 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID = 0;
+
+    int64_t m_smsg_fee_rate_target = 0;
+    uint32_t m_smsg_difficulty_target = 0; // 0 = auto
 
     /** Construct wallet with specified name and database implementation. */
     CWallet(interfaces::Chain* chain, const std::string& name, std::unique_ptr<WalletDatabase> database)
@@ -888,6 +877,9 @@ public:
      */
     std::map<CTxDestination, std::vector<COutput>> ListCoins() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
+    bool SignContract(std::shared_ptr<CBlock> pblock) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool SignAsset(CAsset &asset) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
     /**
      * Find non-change parent output.
      */
@@ -911,7 +903,7 @@ public:
     std::vector<OutputGroup> GroupOutputs(const std::vector<COutput>& outputs, bool single_coin, const size_t max_ancestors) const;
 
     bool IsLockedCoin(uint256 hash, unsigned int n) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void LockCoin(const COutPoint& output) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void LockCoin(const COutPoint& output, bool fPermanent=false) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void UnlockCoin(const COutPoint& output) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void UnlockAllCoins() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void ListLockedCoins(std::vector<COutPoint>& vOutpts) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1066,8 +1058,7 @@ public:
      * @param[in] mapValue key-values to be set on the transaction.
      * @param[in] orderForm BIP 70 / BIP 21 order form details to be set on the transaction.
      */
-    bool CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason);
-    bool CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason, bool transferable = false, bool convertable = false, bool restricted = false, bool limited = false, bool divisible = false);
+    bool CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, std::string& address, std::string& contract_url, CScript& script, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CTxData& rdata, std::string& strFailReason, bool transferable = false, bool convertable = false, bool restricted = false, bool limited = false, bool divisible = false);
     bool ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& address, std::string& strFailReason);
     void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
 
@@ -1363,6 +1354,9 @@ public:
 
     //! Add a descriptor to the wallet, return a ScriptPubKeyMan & associated output type
     ScriptPubKeyMan* AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, bool internal);
+
+    void SecureMessagingStart(bool start);
+    bool m_smsg_enabled = true;
 
     bool GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash);
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubkeyRet, CKey& keyRet);

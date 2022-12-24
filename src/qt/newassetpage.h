@@ -3,8 +3,6 @@
 
 #include <QDialog>
 class WalletModel;
-class ContractFilterProxy;
-class ContractTableModel;
 class PlatformStyle;
 
 namespace Ui {
@@ -22,7 +20,12 @@ public:
 	QString getinputamount();
 	QString getoutputamount();
 	QString getassettype();
-	QString getassetcontract();
+    QString getname();
+    QString getsymbol();
+    QString getcontracturl();
+    QString getscript();
+    QString getaddress();
+
 	bool gettransferable();
 	bool getconvertable();
 	bool getrestricted();
@@ -30,7 +33,7 @@ public:
 	bool getdivisible();
 	QString getexpiry();
     QString getnftdata();	
-    void setWalletModel(WalletModel* walletModel, ContractFilterProxy *mycontractFilter);
+    void setWalletModel(WalletModel* walletModel);
 
 private:
     WalletModel* walletModel;

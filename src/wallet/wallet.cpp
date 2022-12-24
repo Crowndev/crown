@@ -6,7 +6,6 @@
 #include <wallet/wallet.h>
 #include <chain.h>
 #include <assetdb.h>
-
 #include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <fs.h>
@@ -33,6 +32,8 @@
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/fees.h>
+
+#include <smsg/smessage.h>
 
 #include <univalue.h>
 
@@ -127,6 +128,7 @@ bool AddWallet(const std::shared_ptr<CWallet>& wallet)
     vpwallets.push_back(wallet);
     wallet->ConnectScriptPubKeyManNotifiers();
     wallet->NotifyCanGetAddressesChanged();
+    NotifyWalletAdded(wallet);
     return true;
 }
 
@@ -345,6 +347,9 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
     }
     AddWallet(wallet);
     wallet->postInitProcess();
+
+    wallet->m_smsg_fee_rate_target = 0;
+    wallet->m_smsg_difficulty_target = 0;
 
     // Write the wallet settings
     UpdateWalletSetting(chain, name, load_on_start, warnings);
@@ -3297,151 +3302,6 @@ void removeSpaces(char *str)
     str[count] = '\0';
 }
 
-bool CWallet::CreateContract(CContract& contract, CTransactionRef& tx, std::string& address, std::string& contract_url, std::string& website_url, std::string& description, CScript& script, std::string& name, std::string& shortname, std::string& strFailReason)
-{
-    if (IsLocked()){
-        strFailReason = "Wallet Locked";
-        return false;
-    }
-
-    LegacyScriptPubKeyMan* spk_man = GetLegacyScriptPubKeyMan();
-    LOCK(cs_wallet);
-
-    CTxDestination dest = DecodeDestination(address);
-    if (!IsValidDestination(dest)) {
-        strFailReason = "Invalid Crown address";
-        return false;
-    }
-
-    if(chain().existsContract(name)){
-        strFailReason = "Contract name already reserved";
-        return false;
-    }
-
-    if(chain().existsContract(shortname)){
-        strFailReason = "Contract symbol already reserved";
-        return false;
-    }
-
-    if(name == "" || shortname == "") {
-        strFailReason = "Contract name or symbol cannot be empty";
-        return false;
-    }
-
-    if(name == shortname) {
-        strFailReason = "Contract name or symbol cannot match";
-        return false;
-    }
-
-    if(name.length() > 10) {
-        strFailReason = "Name too long";
-        return false;
-    }
-
-    if(shortname.length() > 4) {
-        strFailReason = "Symbol too long";
-        return false;
-    }
-
-    CContract newcontract;
-    newcontract.contract_url = contract_url;
-    newcontract.website_url = website_url;
-    newcontract.description = description;
-    newcontract.scriptcode = script;
-    newcontract.asset_symbol = shortname;
-    newcontract.asset_name = name;
-    newcontract.sIssuingaddress = address;
-
-    auto keyid = GetKeyForDestination(*spk_man, dest);
-    if (keyid.IsNull()) {
-        strFailReason = "Address does not refer to a key";
-        return false;
-    }
-
-    CKey key;
-    if (!spk_man->GetKey(keyid, key)) {
-        strFailReason = "Private key for address " + address + " is not known";
-        return false;
-    }
-
-    if(!key.Sign(newcontract.GetHashWithoutSign(), newcontract.vchContractSig)){
-        strFailReason = "unable to sign contract with key";
-        return false;
-    }
-
-    CAmount nAmount = 100.0001 * COIN;
-    CAsset asset = Params().GetConsensus().subsidy_asset;
-
-    CCoinControl coin_control;
-
-    std::vector<COutput> vecOutputs;
-    {
-        CCoinControl cctl;
-        cctl.m_avoid_address_reuse = false;
-        cctl.m_min_depth = 1;
-        cctl.m_max_depth = 9999999;
-        AvailableCoins(vecOutputs, Params().GetConsensus().subsidy_asset, false, &cctl, ALL_COINS, 0, MAX_MONEY, MAX_MONEY, 0);
-    }
-
-    for (const COutput& out : vecOutputs) {
-        CTxDestination address;
-        const CScript& scriptPubKey = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey) ;
-        bool fValidAddress = ExtractDestination(scriptPubKey, address);
-
-        if(std::get<PKHash>(dest) != std::get<PKHash>(address))
-            continue;
-
-        if (!fValidAddress)
-            continue;
-
-        // Elements
-        CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
-        CAsset assetid;
-        if(out.tx->tx->nVersion >= TX_ELE_VERSION)
-            assetid = out.tx->tx->vpout[out.i].nAsset;
-
-        if ((amount < 0 || assetid.IsNull())) {
-            WalletLogPrintf("Bad amount or asset: %s:%d\n", out.tx->tx->GetHash().GetHex(), out.i);
-            continue;
-        }
-
-        if (asset != assetid) {
-            continue;
-        }
-
-        coin_control.Select(COutPoint(out.tx->GetHash(), out.i));
-    }
-
-    if(coin_control.setSelected.size() < 1){
-        strFailReason ="No suitable output found";
-        return false;
-    }
-
-    mapValue_t mapValue;
-
-    coin_control.m_add_inputs = false;
-    coin_control.destChange = dest;
-    std::vector<CRecipient> recipients;
-
-    CRecipient recipient = {Params().GetConsensus().mandatory_coinbase_destination, nAmount, 0, asset, CAsset(), false, false};
-    recipients.push_back(recipient);
-
-    // Send
-    CAmountMap nFeeRequired;
-    int nChangePosRet = -1;
-    bilingual_str error;
-    FeeCalculation fee_calc_out;
-    bool fCreated = CreateTransaction(recipients, tx, nFeeRequired, nChangePosRet, error, coin_control, fee_calc_out, !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS), newcontract);
-    if (!fCreated) {
-        strFailReason = "Failed to create Contract " + error.original;
-        return false;
-    }
-
-    CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
-    contract = newcontract;
-    return true;
-}
-
 bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string& address, std::string& strFailReason){
 
     if (IsLocked()){
@@ -3553,7 +3413,7 @@ bool CWallet::ConvertAsset(CAmountMap &assetin, CTransactionRef& tx, std::string
     return true;
 }
 
-bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CContract& contract, CTxData& rdata, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
+bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& assetname, std::string& shortname, std::string& address, std::string& contract_url, CScript& script, CAmount& inputamt, CAmount& outputamt, int64_t& expiry, int& type, CTxData& rdata, std::string& strFailReason, bool transferable, bool convertable, bool restricted, bool limited, bool divisible)
 {
     if (IsLocked()){
         strFailReason = "Wallet Locked";
@@ -3591,10 +3451,10 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         }
     }
 
-    if(!chain().existsContract(contract.asset_name)){
-        strFailReason = "Contract does not exist";
-        return false;
-    }
+    //if(!chain().existsContract(contract.name)){
+    //    strFailReason = "Contract does not exist";
+    //    return false;
+    //}
 
     //Fill in the meta data
 
@@ -3611,8 +3471,12 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
         meta.nFlags |= AssetMetadata::AssetFlags::ASSET_DIVISIBLE;
 
     meta.nVersion = 1;
-    meta.setName(contract.asset_name);
-    meta.setShortName(contract.asset_symbol);
+    meta.setName(assetname);
+    meta.setShortName(shortname);
+
+    meta.contract_url = contract_url;
+    meta.scriptcode = script;
+    meta.sIssuingaddress = address;
 
     if(expiry != 0 && expiry < GetTime() + 84000){
        strFailReason = "Bad expiry";
@@ -3621,7 +3485,6 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
 
     meta.nExpiry = expiry;
     meta.nType = type;
-    meta.contract_hash = contract.GetHash();
 
     //Create the Asset
 
@@ -3702,31 +3565,31 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
 
     //equity
     if (assetNew.nType == 3){
-        if(assetNew.contract_hash == uint256()){
-           strFailReason = "Asset type is Equity, but has no contract";
-           return false;
-        }
-        
+        //if(assetNew.contract_hash == uint256()){
+        //   strFailReason = "Asset type is Equity, but has no contract";
+        //   return false;
+        //}
+
         if(!assetNew.isTransferable()){
            strFailReason = "Asset type is Equity but not marked transferable";
            return false;
         }
-        
+
         if(!assetNew.isDivisible()){
            strFailReason = "Asset type is Equity, but marked indivisible.";
            return false;
         }
-        
+
         if(assetNew.isStakeable()){
            strFailReason = "Asset type is Equity, Stakeable Equity is disabled.";
            return false;
         }
-        
+
         if(!assetNew.isRestricted()){
            strFailReason = "Asset type is Equity, but not marked restricted.";
            return false;
         }
-        
+
         if(!assetNew.isLimited()){
            strFailReason = "Asset type is Equity, but not marked limited.";
            return false;
@@ -3744,7 +3607,11 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     bilingual_str error;
     FeeCalculation fee_calc_out;
     CCoinControl coin_control;
-    CTxDestination dest = DecodeDestination(contract.sIssuingaddress);
+    CTxDestination dest = DecodeDestination(address);
+    if (!IsValidDestination(dest)){
+       strFailReason = "Invalid address";
+       return false;
+    }
 
     std::vector<COutput> vecOutputs;
     {
@@ -3756,17 +3623,7 @@ bool CWallet::CreateAsset(CAsset& asset, CTransactionRef& tx, std::string& asset
     }
 
     for (const COutput& out : vecOutputs) {
-        CTxDestination address;
         const CScript& scriptPubKey = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].scriptPubKey : out.tx->tx->vout[out.i].scriptPubKey) ;
-        bool fValidAddress = ExtractDestination(scriptPubKey, address);
-
-        if(std::get<PKHash>(dest) != std::get<PKHash>(address))
-            continue;
-
-        if (!fValidAddress)
-            continue;
-
-        // Elements
         CAmount amount = (out.tx->tx->nVersion >= TX_ELE_VERSION ? out.tx->tx->vpout[out.i].nValue : out.tx->tx->vout[out.i].nValue) ;
         CAsset assetid;
         if(out.tx->tx->nVersion >= TX_ELE_VERSION)
@@ -3907,20 +3764,6 @@ bool CWallet::CreateTransactionInternal(
             out0->vData = s->vData;
             if (out0->vData.size() > 0)
                 txNew.vdata.push_back(out0);
-            break;
-        }
-        case OUTPUT_CONTRACT:{
-            OUTPUT_PTR<CContract> out0 = MAKE_OUTPUT<CContract>();
-            CContract *s = (CContract*) &datar;
-            out0->contract_url = s->contract_url;
-            out0->website_url = s->website_url;
-            out0->description = s->description;
-            out0->scriptcode = s->scriptcode;
-            out0->asset_symbol = s->asset_symbol;
-            out0->asset_name = s->asset_name;
-            out0->sIssuingaddress = s->sIssuingaddress;
-            out0->vchContractSig = s->vchContractSig;
-            txNew.vdata.push_back(out0);
             break;
         }
     }
@@ -4881,16 +4724,23 @@ void ReserveDestination::ReturnDestination()
     address = CNoDestination();
 }
 
-void CWallet::LockCoin(const COutPoint& output)
+void CWallet::LockCoin(const COutPoint& output, bool fPermanent)
 {
     AssertLockHeld(cs_wallet);
     setLockedCoins.insert(output);
+    if (fPermanent) {
+        WalletBatch batch(*database);
+        batch.WriteLockedUnspentOutput(output);
+    }
 }
 
 void CWallet::UnlockCoin(const COutPoint& output)
 {
     AssertLockHeld(cs_wallet);
-    setLockedCoins.erase(output);
+    if (setLockedCoins.erase(output)) {
+        WalletBatch batch(*database);
+        batch.EraseLockedUnspentOutput(output);
+    }
 }
 
 void CWallet::UnlockAllCoins()
@@ -5890,3 +5740,4 @@ ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const Flat
     return ret;
 }
 
+boost::signals2::signal<void (const std::shared_ptr<CWallet>& wallet)> NotifyWalletAdded;

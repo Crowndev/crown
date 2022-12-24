@@ -124,7 +124,7 @@ NodeManager::NodeManager(const PlatformStyle *_platformStyle, QWidget *parent) :
     nTimeFilterUpdated = GetTime();
 
     //sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::MASTERNODE, parent);
-    sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
+    //sendDialog = new SendCollateralDialog(platformStyle, SendCollateralDialog::SYSTEMNODE, parent);
     
     updateMyNodeList();
 }
