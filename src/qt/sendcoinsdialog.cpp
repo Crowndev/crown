@@ -37,6 +37,7 @@
 #include <QScrollBar>
 #include <QSettings>
 #include <QTextDocument>
+#include <QDebug>
 
 static const std::array<int, 9> confTargets = { {2, 4, 6, 12, 24, 48, 144, 504, 1008} };
 int getConfTargetForIndex(int index) {
@@ -239,7 +240,7 @@ SendCoinsDialog::~SendCoinsDialog()
 
 void SendCoinsDialog::checkAndSend(const QList<SendAssetsRecipient> &recipients, QStringList formatted)
 {
-    fNewRecipientAllowed = false;
+   /* fNewRecipientAllowed = false;
     WalletModel::EncryptionStatus encStatus = model->getEncryptionStatus();
     if(encStatus == model->Locked) {
         WalletModel::UnlockContext ctx(model->requestUnlock());
@@ -250,7 +251,10 @@ void SendCoinsDialog::checkAndSend(const QList<SendAssetsRecipient> &recipients,
         send(recipients, formatted);
         return;
     }
-    send(recipients, formatted);
+    send(recipients, formatted);*/
+    m_recipients = recipients;
+    on_sendButton_clicked();
+    m_recipients.clear();
 }
 
 QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendAssetsRecipient>& recipients)
@@ -284,7 +288,7 @@ QStringList SendCoinsDialog::constructConfirmationMessage(QList<SendAssetsRecipi
 
 bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informative_text, QString& detailed_text)
 {
-    QList<SendAssetsRecipient> recipients;
+    QList<SendAssetsRecipient> recipients; 
     bool valid = true;
 
     for(int i = 0; i < ui->entries->count(); ++i)
@@ -303,6 +307,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
             }
         }
     }
+    recipients += m_recipients;
 
     if(!valid || recipients.isEmpty())
     {
@@ -361,6 +366,11 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
             }
         }
         formatted.append(recipientElement);
+
+        //Restricted assets should always have change set to go to the contract address
+        if(rcp.asset.isRestricted())
+            m_coin_control->destChange = DecodeDestination(rcp.asset.sIssuingaddress);
+   
     }
 
     if (model->wallet().privateKeysDisabled()) {
@@ -430,6 +440,8 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QStringList formatted)
 {
     QString strFee = "";
+	qDebug() << __func__  <<  "1 : ";
+
     // prepare transaction for getting txFee earlier
     WalletModelTransaction currentTransaction(recipients);
     WalletModel::SendCoinsReturn prepareStatus;
@@ -440,12 +452,14 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
         if(rcp.asset.isRestricted())
             coinControl.destChange = DecodeDestination(rcp.asset.sIssuingaddress);
     }
+	qDebug() << __func__  <<  "2 : ";
 
     if (model->getOptionsModel()->getCoinControlFeatures()) // coin control enabled
         prepareStatus = model->prepareTransaction(currentTransaction, coinControl);
 
     // process prepareStatus and on error generate message shown to user
     processSendCoinsReturn(prepareStatus,formatMultiAssetAmount(currentTransaction.getTransactionFee(), model->getOptionsModel()->getDisplayUnit(), CrownUnits::SeparatorStyle::ALWAYS, "\n"));
+	qDebug() << __func__  <<  "3 : ";
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
@@ -455,6 +469,7 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
     CAmountMap txFee = currentTransaction.getTransactionFee();
     QString questionString = tr("Are you sure you want to send?");
     questionString.append("<br /><br />%1");
+	qDebug() << __func__  <<  "4 : ";
 
     if(txFee > CAmountMap())
     {
@@ -479,6 +494,7 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
         //if(u != model->getOptionsModel()->getDisplayUnit())
         //    alternativeUnits.append(CrownUnits::formatHtmlWithUnit(u, totalAmount));
     }
+	qDebug() << __func__  <<  "5 : ";
 
     // Show total amount + all alternative units
     questionString.append(tr("Total Amount = <b>%1</b><br />= %2")
@@ -500,6 +516,7 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
     }
     questionString.append("<hr />");
     questionString.append(tr("<b>(%1 of %2 entries displayed)</b>").arg(displayedEntries).arg(messageEntries));
+	qDebug() << __func__  <<  "6 : ";
 
     // Display message box
     QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm send coins"),
@@ -512,11 +529,13 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
         fNewRecipientAllowed = true;
         return;
     }
+	qDebug() << __func__  <<  "7 : ";
 
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus = model->sendCoins(currentTransaction);
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
+	qDebug() << __func__  <<  "8 : ";
 
     if (sendStatus.status == WalletModel::OK)
     {
@@ -524,6 +543,8 @@ void SendCoinsDialog::send(const QList<SendAssetsRecipient> &recipients, QString
         coinControl.UnSelectAll();
         coinControlUpdateLabels();
     }
+	qDebug() << __func__  <<  "9 : ";
+    
     fNewRecipientAllowed = true;
 }
 
