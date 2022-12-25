@@ -21,7 +21,8 @@ void SendCollateralDialog::vsend(QList<SendAssetsRecipient> &recipients)
 	qDebug() << __func__  <<  "1 : ";
     QStringList formatted = constructConfirmationMessage(recipients);
     qDebug() << __func__  <<  "2 : ";
-    checkAndSend(recipients, formatted);
+    //checkAndSend(recipients, formatted);
+    send(recipients, formatted);
     qDebug() << __func__  <<  "3 : ";
 }
 
